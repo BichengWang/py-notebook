@@ -1,0 +1,51 @@
+# This file is where you specify your high-level dependencies.
+# For example you might add a line that looks like this:
+#
+# pytz>2016.3
+memory-profiler
+numpy
+requests
+python-dateutil
+scipy
+seaborn
+backoff
+click
+mock
+pydump
+
+# tensorflow related
+tensorflow-gpu
+tensorflow-text
+tf-models-official
+tf-nightly
+
+# tensorflow-text-nightly
+# tf-models-nightly
+# tensorflow optional
+tensorflow-datasets
+tensorflow-recommenders
+
+# pytorch related (run makefile first)
+torch
+torchvision
+torchaudio
+torchrec-nightly
+
+h5py
+keras
+seaborn
+sklearn
+
+# dependency
+# grpcio==1.32.0
+
+# notebook
+jupyter
+
+# test
+pytest
+pytest-custom-exit-code
+pytest-cov
+
+# flake8
+flake8
