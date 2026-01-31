@@ -54,4 +54,4 @@ def merge_folder(dir: str, dry_run: bool = True) -> None:
                 
                 
 if __name__ == "__main__":
-    merge_folder("/mnt/g/test", dry_run=True)
+    merge_folder("/mnt/z/download", dry_run=True)
