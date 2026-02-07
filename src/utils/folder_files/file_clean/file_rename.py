@@ -66,7 +66,7 @@ def process_folders_in_directory(root_path, dry_run=True, sleep_time=0.001, excl
 
 if __name__ == "__main__":
     base_path = "/mnt/g"
-    process_folders_in_directory(base_path, dry_run=False, sleep_time=0.01)
+    process_folders_in_directory(base_path, dry_run=True, sleep_time=0.01)
     # move_files_out_folder(entry_path, dry_run=False)
     # time.sleep(1)
     # rename_files_in_folder(entry_path, dry_run=False)

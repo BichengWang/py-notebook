@@ -4,18 +4,7 @@ import logging
 
 
 def merge_folder(dir: str, dry_run: bool = True) -> None:
-    """
-    Merges folders based on name matching rules:
-    1. Matches folders starting with digits (B) with folders not starting with digits (A)
-    2. Match is made when A's name matches B's non-digit portion exactly
-    3. Warns if A could match multiple kinds of B folders (different non-digit portions)
-    4. Moves contents of non-digit folder (A) into matching digit folder (B)
-    5. Repeats until no more matches are found.
 
-    Args:
-        dir (str): Directory path containing folders to merge
-        dry_run (bool): If True, only print actions without executing them
-    """
     folders = [f for f in os.listdir(dir) if os.path.isdir(os.path.join(dir, f))]
     
     group_a = [f for f in folders if not f[0].isdigit()]
@@ -54,4 +43,4 @@ def merge_folder(dir: str, dry_run: bool = True) -> None:
                 
                 
 if __name__ == "__main__":
-    merge_folder("/mnt/z/download", dry_run=True)
+    merge_folder("/mnt/g", dry_run=True)
