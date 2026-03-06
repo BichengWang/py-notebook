@@ -192,4 +192,4 @@ def merge_folder(dir: str, dry_run: bool = True) -> None:
                 
                 
 if __name__ == "__main__":
-    merge_folder("G:\\", dry_run=False)
+    merge_folder("D:\\", dry_run=False)
