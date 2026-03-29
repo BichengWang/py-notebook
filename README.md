@@ -236,12 +236,13 @@ g config --global alias.lg "log --oneline --graph --all --decorate"
 g config --global alias.rb "pull --rebase origin"
 g config --global alias.sq "rebase -i HEAD~10"
 g config --global push.default current
+g config --global alias.p "push --force"
 g config --global core.editor "cursor --wait"
 g config --global alias.submodule "submodule update --init --recursive"
 g config --global alias.dl '!git branch -D $1 && git push --delete origin $1'
 g config --global alias.pruning '!git remote prune origin && git gc --prune=now'
 g config --global alias.amendpush '!git add . && git commit --amend --no-edit && git push --force origin'
-g config --global alias.pr '!f() { git add .; git commit -am "$1"; git rb main && git push origin && gh pr create --title "$1" --body "" --label "auto-merge" -a @me; }; f'
+g config --global alias.pr '!f() { git add . && (git diff --cached --quiet || git commit -m "$1") && git rb main && git push origin && gh pr create --title "$1" --body "" --label "auto-merge" --assignee @me; }; f'
 g config --global advice.skippedCherryPicks false
 g config --global alias.run '!./.git/hooks/pre-run'
 g config --global alias.files '!git --no-pager diff --name-only HEAD~1 HEAD'
