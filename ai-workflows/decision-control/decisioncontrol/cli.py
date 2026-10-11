@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 from .evidence import export_record, replay
+from .evaluation import evaluate_cases, load_cases, replay_evaluation, write_evaluation
 from .models import DecisionError, Recommendation, RoutingPolicy, StateError
 from .store import TicketStore
 
@@ -38,6 +39,12 @@ def _parser():
     export.add_argument("--out")
     commands.add_parser("replay").add_argument("--record", required=True)
     commands.add_parser("demo").add_argument("--out", required=True)
+    evaluation = commands.add_parser("evaluate", help="score supplied labeled recommendations; execute nothing")
+    evaluation.add_argument("--cases", required=True, help="labeled JSON Lines cases")
+    evaluation.add_argument("--policy", required=True)
+    evaluation.add_argument("--require", help="metric/support gates; omitted means UNGATED")
+    evaluation.add_argument("--out", required=True, help="new or empty output directory")
+    commands.add_parser("replay-evaluation").add_argument("--record", required=True)
     return parser
 
 
@@ -47,6 +54,12 @@ def _run(args):
     if args.command == "demo":
         from .demo import run_demo
         return run_demo(args.out)
+    if args.command == "evaluate":
+        requirements = _json_file(args.require) if args.require else None
+        report = evaluate_cases(load_cases(args.cases), RoutingPolicy.from_dict(_json_file(args.policy)), requirements)
+        return write_evaluation(report, args.out)
+    if args.command == "replay-evaluation":
+        return replay_evaluation(_json_file(args.record))
     if not args.db:
         raise DecisionError("--db is required for storage commands")
     with TicketStore(args.db) as store:
@@ -76,7 +89,7 @@ def _run(args):
 
 
 def main(argv=None):
-    """Run commands; return 0, input/IO error 2, or lifecycle error 1."""
+    """Return 0, invalid input/IO 2, or blocked lifecycle/evaluation gate 1."""
     parser = _parser()
     try:
         args = parser.parse_args(argv)
@@ -88,4 +101,4 @@ def main(argv=None):
         print(f"decision-control: {error}", file=sys.stderr)
         return 2
     print(json.dumps(result, indent=2, allow_nan=False))
-    return 0
+    return 1 if args.command == "evaluate" and result["report"]["disposition"] == "FAIL" else 0

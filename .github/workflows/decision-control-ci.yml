@@ -46,3 +46,13 @@ jobs:
         run: |
           decision-control demo --out "$RUNNER_TEMP/decision-control-demo"
           decision-control replay --record "$RUNNER_TEMP/decision-control-demo/record-review.json"
+      - name: Exercise evaluation and adverse safety gate
+        run: |
+          decision-control evaluate --cases examples/evaluation-cases.jsonl \
+            --policy examples/policy.json --out "$RUNNER_TEMP/decision-control-evaluation"
+          exit_code=0
+          decision-control evaluate --cases examples/evaluation-cases.jsonl \
+            --policy examples/policy.json --require examples/evaluation-requirements.json \
+            --out "$RUNNER_TEMP/decision-control-gated" || exit_code=$?
+          test "$exit_code" -eq 1
+          decision-control replay-evaluation --record "$RUNNER_TEMP/decision-control-gated/evaluation.json"

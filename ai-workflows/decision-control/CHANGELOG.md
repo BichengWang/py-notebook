@@ -15,3 +15,11 @@
   and evidence replay smoke run.
 - Local verification of restart-safe approval, concurrent/idempotent execution,
   transaction rollback, stale decisions and evidence corruption rejection.
+- Independently labeled policy evaluation with exposure-specific safety/routing,
+  review, abstention and observed approval metrics and 95% Wilson intervals.
+- Explicit metric/statistic/sample-support gates; missing exposure cannot pass,
+  and ungated reports do not imply approval.
+- Frozen evaluation envelopes, semantic replay, JSON/Markdown reports and CLI
+  gate exit codes that preserve failing evidence.
+- Adverse hand-authored evaluation cases and requirements; installed evaluation
+  and rejection/replay scenarios in CI, without model-quality claims.
