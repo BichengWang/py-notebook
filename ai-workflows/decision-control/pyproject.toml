@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "decisioncontrol"
+version = "0.1.0"
+description = "Policy-constrained local ticket actions with durable review and replayable evidence"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {file = "LICENSE"}
+authors = [{name = "Bicheng"}]
+dependencies = []
+
+[project.scripts]
+decision-control = "decisioncontrol.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["decisioncontrol", "decisioncontrol.*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

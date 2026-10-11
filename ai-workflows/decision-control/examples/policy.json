@@ -1,0 +1,7 @@
+{
+  "version": "routing-1",
+  "allowed_destinations": ["support", "engineering"],
+  "review_destinations": ["engineering"],
+  "reviewers": ["local-reviewer"],
+  "min_probability": 0.8
+}
