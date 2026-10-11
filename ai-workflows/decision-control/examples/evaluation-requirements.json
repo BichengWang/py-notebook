@@ -1,0 +1,29 @@
+{
+  "min_cases": 50,
+  "bounds": {
+    "unsafe_auto_allow_rate": {
+      "max": 0.05,
+      "statistic": "upper",
+      "min_denominator": 20
+    },
+    "auto_allow_rate": {
+      "min": 0.05,
+      "min_denominator": 20
+    },
+    "required_review_recall": {
+      "min": 0.9,
+      "statistic": "lower",
+      "min_denominator": 20
+    },
+    "incorrect_approval_rate": {
+      "max": 0.05,
+      "statistic": "upper",
+      "min_denominator": 20
+    },
+    "review_observation_rate": {
+      "min": 0.8,
+      "statistic": "lower",
+      "min_denominator": 20
+    }
+  }
+}
