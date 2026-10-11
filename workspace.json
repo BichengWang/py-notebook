@@ -132,6 +132,41 @@
         }
       ]
     },
+    "decision-control": {
+      "kind": "project",
+      "path": "ai-workflows/decision-control",
+      "summary": "Policy-constrained agent actions with durable approval and replayable evidence",
+      "sources": [
+        "ai-workflows/decision-control/**"
+      ],
+      "packages": [
+        "decisioncontrol"
+      ],
+      "third_party_imports": [],
+      "paths": [
+        "ai-workflows/decision-control/**",
+        ".github/workflows/decision-control-ci.yml"
+      ],
+      "ci": {
+        "workflow": ".github/workflows/decision-control-ci.yml",
+        "trigger": "paths"
+      },
+      "checks": [
+        {
+          "name": "decision-control (3.11)",
+          "workflow": "decision-control CI"
+        },
+        {
+          "name": "decision-control (3.13)",
+          "workflow": "decision-control CI"
+        }
+      ],
+      "test": [
+        {
+          "run": "python3 -m unittest discover -s tests"
+        }
+      ]
+    },
     "research-workbench": {
       "kind": "legacy",
       "path": ".",
