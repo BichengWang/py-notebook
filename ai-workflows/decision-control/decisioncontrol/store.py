@@ -130,7 +130,7 @@ class TicketStore:
             evaluation = evaluate(recommendation, ticket, policy)
             created_at = _now()
             record = {
-                "schema_version": 1,
+                "schema_version": 2,
                 "id": str(uuid4()),
                 "created_at": created_at,
                 "recommendation": recommendation.to_dict(),
@@ -199,21 +199,26 @@ class TicketStore:
             (record["status"], self._serialize(record), record["id"]),
         )
 
-    def _review(self, decision_id: str, reviewer: str, note: str, decision: str) -> dict:
+    @staticmethod
+    def _authorize_reviewer(record: dict, reviewer: str, note: str) -> None:
         if not isinstance(reviewer, str) or not reviewer or reviewer != reviewer.strip():
             raise DecisionError("Reviewer must be a nonempty, stripped identifier")
         if not isinstance(note, str):
             raise DecisionError("Review note must be a string")
+        # The frozen policy has already been validated by _get.
+        if reviewer not in record["policy"]["reviewers"]:
+            raise StateError(f"Reviewer is not authorized by this decision's policy: {reviewer}")
+
+    def _review(self, decision_id: str, reviewer: str, note: str, decision: str) -> dict:
         with self._transaction():
             record = self._get(decision_id)
-            policy = RoutingPolicy.from_dict(record["policy"])
-            if reviewer not in policy.reviewers:
-                raise StateError(f"Reviewer is not authorized by this decision's policy: {reviewer}")
+            self._authorize_reviewer(record, reviewer, note)
             previous = record["review"]
             if decision == "APPROVED" and previous is not None and (
                 previous["decision"] == decision
                 and previous["reviewer"] == reviewer
                 and previous["note"] == note
+                and record["status"] != Status.CANCELLED.value
             ):
                 return record
             if record["status"] != Status.PENDING_REVIEW.value:
@@ -230,6 +235,28 @@ class TicketStore:
 
     def reject(self, decision_id: str, reviewer: str, note: str = "") -> dict:
         return self._review(decision_id, reviewer, note, "REJECTED")
+
+    def cancel(self, decision_id: str, reviewer: str, note: str) -> dict:
+        """Withdraw an unexecuted decision; retain any prior approval and its provenance."""
+        with self._transaction():
+            record = self._get(decision_id)
+            self._authorize_reviewer(record, reviewer, note)
+            if not note.strip():
+                raise DecisionError("Cancellation requires a nonempty reason")
+            if record["status"] == Status.CANCELLED.value:
+                cancellation = record["events"][-1]
+                if cancellation["reviewer"] == reviewer and cancellation["note"] == note:
+                    return record
+                raise StateError("Cancellation is already recorded with a different actor or reason")
+            if record["status"] not in (Status.READY.value, Status.PENDING_REVIEW.value):
+                raise StateError(f"Cannot cancel decision in state {record['status']}")
+            record["schema_version"] = 2
+            record["status"] = Status.CANCELLED.value
+            record["events"].append({
+                "event": "CANCELLED", "at": _now(), "reviewer": reviewer, "note": note,
+            })
+            self._save(record)
+            return record
 
     def execute(self, decision_id: str) -> dict:
         with self._transaction() as connection:

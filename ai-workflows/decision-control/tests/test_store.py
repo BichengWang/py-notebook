@@ -388,6 +388,119 @@ class TicketStoreTests(unittest.TestCase):
         self.assertIn(saved["status"], ("READY", "REJECTED"))
         self.assertEqual(self.store.get_ticket("ticket-1"), self.ticket)
 
+    def test_approval_can_be_cancelled_without_erasing_review_and_survives_restart(self):
+        pending = self.submit(destination="legal")
+        approved = self.store.approve(pending["id"], "alice", "checked")
+        cancelled = self.store.cancel(pending["id"], "bob", "Approval was mistaken")
+        self.assertEqual(cancelled["status"], "CANCELLED")
+        self.assertEqual(cancelled["review"], approved["review"])
+        self.assertEqual(self.event_names(cancelled), ["SUBMITTED", "APPROVED", "CANCELLED"])
+        self.assertEqual(cancelled["events"][-1]["reviewer"], "bob")
+        self.assertEqual(cancelled["events"][-1]["note"], "Approval was mistaken")
+        self.reopen()
+        with self.assertRaises(StateError):
+            self.store.execute(pending["id"])
+        with self.assertRaises(StateError):
+            self.store.approve(pending["id"], "alice", "checked")
+        self.assertEqual(self.store.get(pending["id"]), cancelled)
+        self.assertEqual(self.store.get_ticket("ticket-1"), self.ticket)
+        self.assertEqual(replay(export_record(cancelled))["status"], "CANCELLED")
+
+    def test_pending_and_automatically_allowed_decisions_can_be_cancelled(self):
+        for destination in ("legal", "support"):
+            with self.subTest(destination=destination):
+                record = self.submit(destination=destination)
+                cancelled = self.store.cancel(record["id"], "alice", "Request withdrawn")
+                self.assertEqual(cancelled["status"], "CANCELLED")
+                self.assertIsNone(cancelled["review"])
+                self.assertEqual(self.event_names(cancelled), ["SUBMITTED", "CANCELLED"])
+                with self.assertRaises(StateError):
+                    self.store.execute(record["id"])
+                with self.assertRaises(StateError):
+                    self.store.reject(record["id"], "alice")
+        self.assertEqual(self.store.pending(), [])
+        self.assertEqual(self.store.get_ticket("ticket-1"), self.ticket)
+
+    def test_cancellation_requires_authorization_and_a_reason_without_mutation(self):
+        record = self.submit()
+        for reviewer, note, error in (
+                ("mallory", "Stop it", StateError),
+                ("alice", "", DecisionError),
+                ("alice", " \n ", DecisionError),
+                ("alice", None, DecisionError)):
+            with self.subTest(reviewer=reviewer, note=note):
+                with self.assertRaises(error):
+                    self.store.cancel(record["id"], reviewer, note)
+                self.assertEqual(self.store.get(record["id"]), record)
+        self.assertEqual(self.store.get_ticket("ticket-1"), self.ticket)
+
+    def test_cancellation_retry_cannot_rewrite_its_actor_or_reason(self):
+        record = self.submit()
+        cancelled = self.store.cancel(record["id"], "alice", "Request withdrawn")
+        self.assertEqual(self.store.cancel(record["id"], "alice", "Request withdrawn"), cancelled)
+        for reviewer, note in (("bob", "Request withdrawn"), ("alice", "Different reason"),
+                               ("mallory", "Request withdrawn")):
+            with self.subTest(reviewer=reviewer, note=note):
+                with self.assertRaises(StateError):
+                    self.store.cancel(record["id"], reviewer, note)
+        self.assertEqual(self.store.get(record["id"]), cancelled)
+
+    def test_cancellation_is_not_an_undo_of_a_terminal_decision(self):
+        denied = self.submit(destination="forbidden")
+        abstained = self.submit(probability=None)
+        pending = self.submit(destination="legal")
+        rejected = self.store.reject(pending["id"], "alice")
+        queued = self.submit()
+        executed = self.store.execute(self.submit(destination="finance")["id"])
+        stale = self.store.execute(queued["id"])
+        for terminal in (denied, abstained, rejected, executed, stale):
+            with self.subTest(status=terminal["status"]):
+                with self.assertRaises(StateError):
+                    self.store.cancel(terminal["id"], "alice", "Too late")
+                self.assertEqual(self.store.get(terminal["id"]), terminal)
+        self.assertEqual(self.store.get_ticket("ticket-1"), Ticket("ticket-1", "finance", 1))
+
+    def test_racing_cancellation_and_execution_commit_only_one_effect(self):
+        record = self.submit()
+
+        def attempt(store, action):
+            try:
+                return (store.execute(record["id"]) if action == "execute"
+                        else store.cancel(record["id"], "alice", "Request withdrawn"))
+            except StateError:
+                return None
+
+        outcomes = self.race([
+            lambda store: attempt(store, "execute"),
+            lambda store: attempt(store, "cancel"),
+        ])
+        committed = [outcome for outcome in outcomes if outcome is not None]
+        self.assertEqual(len(committed), 1)
+        saved = self.store.get(record["id"])
+        self.assertEqual(saved, committed[0])
+        self.assertIn(saved["status"], ("EXECUTED", "CANCELLED"))
+        self.assertEqual(self.event_names(saved), ["SUBMITTED", saved["status"]])
+        expected = Ticket("ticket-1", "support", 1) if saved["status"] == "EXECUTED" else self.ticket
+        self.assertEqual(self.store.get_ticket("ticket-1"), expected)
+
+    def test_failed_cancellation_save_preserves_the_approval_and_rolls_back(self):
+        pending = self.submit(destination="legal")
+        approved = self.store.approve(pending["id"], "alice", "checked")
+        with closing(sqlite3.connect(self.db_path)) as connection, connection:
+            connection.execute("""
+                CREATE TRIGGER refuse_cancellation BEFORE UPDATE ON decisions
+                WHEN NEW.status = 'CANCELLED'
+                BEGIN SELECT RAISE(ABORT, 'injected storage failure'); END
+            """)
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.store.cancel(pending["id"], "alice", "Request withdrawn")
+        self.assertEqual(self.store.get(pending["id"]), approved)
+        self.assertEqual(self.store.get_ticket("ticket-1"), self.ticket)
+        with closing(sqlite3.connect(self.db_path)) as connection, connection:
+            connection.execute("DROP TRIGGER refuse_cancellation")
+        self.store.execute(pending["id"])
+        self.assertEqual(self.store.get_ticket("ticket-1"), Ticket("ticket-1", "legal", 1))
+
     def test_corrupt_frozen_snapshots_evaluation_or_history_do_not_authorize_execution(self):
         def change_destination(record):
             record["recommendation"]["destination"] = "forbidden"

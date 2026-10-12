@@ -1,0 +1,38 @@
+{
+  "record": {
+    "schema_version": 1,
+    "id": "dcf03b49-5a9c-472b-9d0d-06bf37d906f6",
+    "created_at": "2026-10-11T19:07:30.344400+00:00",
+    "recommendation": {
+      "action": "reassign_ticket",
+      "ticket_id": "withdraw-me",
+      "destination": "engineering",
+      "probability": 0.95,
+      "model": "supplied-response",
+      "question_version": "route/v1",
+      "refused": false
+    },
+    "ticket": {"id": "withdraw-me", "department": "intake", "revision": 0},
+    "policy": {
+      "version": "withdrawal-policy/v1",
+      "allowed_destinations": ["support", "engineering"],
+      "review_destinations": ["engineering"],
+      "reviewers": ["operator"],
+      "min_probability": 0.8
+    },
+    "evaluation": {"verdict": "REVIEW", "reasons": ["destination_requires_review"]},
+    "status": "READY",
+    "review": {
+      "decision": "APPROVED",
+      "reviewer": "operator",
+      "note": "Initial approval",
+      "at": "2026-10-11T19:07:30.344927+00:00"
+    },
+    "result": null,
+    "events": [
+      {"event": "SUBMITTED", "at": "2026-10-11T19:07:30.344400+00:00"},
+      {"event": "APPROVED", "at": "2026-10-11T19:07:30.344927+00:00"}
+    ]
+  },
+  "sha256": "e1a0b739bd45ecfa31ac5244123f4b62cdfc410abf259989361c8b9088a098dd"
+}
