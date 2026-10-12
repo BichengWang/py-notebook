@@ -250,9 +250,13 @@ def _choice_metrics(question, pairs):
     return {
         "n": len(pairs),
         **_accuracy([a.choice == y for a, y in pairs]),
-        "brier": _mean([sum((p - (label == y)) ** 2 for label, p in a.probabilities.items()) for a, y in pairs]),
-        "log_loss": _mean([_log_loss(a.probabilities.get(y, 0.0)) for a, y in pairs]),
-        "ece": expected_calibration_error([(a.probabilities[a.choice], a.choice == y) for a, y in pairs]),
+        "brier": _mean([sum((a.probabilities[label] - (label == y)) ** 2 for label in question.labels)
+                        for a, y in pairs])
+                 if all(all(label in a.probabilities for label in question.labels) for a, _ in pairs) else None,
+        "log_loss": _mean([_log_loss(a.probabilities[y]) for a, y in pairs])
+                    if all(y in a.probabilities for a, y in pairs) else None,
+        "ece": expected_calibration_error([(a.probability, a.choice == y) for a, y in pairs])
+               if all(a.probability is not None for a, _ in pairs) else None,
         "confusion": {label: row for label, row in confusion.items() if row},
     }
 
@@ -372,7 +376,7 @@ def evaluate(questions, cases, answers, errors, requirements=None):
 # Records -------------------------------------------------------------------
 
 def _fmt(value):
-    return "" if value is None else f"{value:.4g}"
+    return "unmeasured" if value is None else f"{value:.4g}"
 
 
 MAX_LISTED_MISSES = 20

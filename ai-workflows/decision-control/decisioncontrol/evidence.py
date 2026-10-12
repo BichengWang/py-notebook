@@ -3,6 +3,7 @@
 A checksum detects corruption, not a malicious writer who can replace the checksum.
 """
 
+from collections.abc import Mapping
 from datetime import datetime, timedelta
 import hashlib
 import json
@@ -37,7 +38,7 @@ def _timestamp(value):
 
 def _validate_record(record):
     raw = _fields(record, RECORD_FIELDS)
-    if type(raw["schema_version"]) is not int or raw["schema_version"] != 1:
+    if type(raw["schema_version"]) is not int or raw["schema_version"] not in (1, 2):
         raise DecisionError("unsupported evidence schema_version")
     _text(raw["id"], "decision id")
     try:
@@ -62,9 +63,10 @@ def _validate_record(record):
     state = INITIAL_STATUS[expected.verdict]
     review_event = None
     for index, event in enumerate(events):
-        event = _fields(event, {"event", "at"})
+        name = event.get("event") if isinstance(event, Mapping) else None
+        fields = {"event", "at", "reviewer", "note"} if name == "CANCELLED" else {"event", "at"}
+        event = _fields(event, fields)
         at = _timestamp(event["at"])
-        name = event["event"]
         if index == 0:
             if name != "SUBMITTED" or at != raw["created_at"]:
                 raise DecisionError("first event must match submission time")
@@ -74,6 +76,13 @@ def _validate_record(record):
             state = Status.READY.value if name == "APPROVED" else Status.REJECTED.value
         elif name in ("EXECUTED", "STALE") and state == Status.READY.value:
             state = name
+        elif (name == "CANCELLED" and raw["schema_version"] == 2
+              and state in (Status.READY.value, Status.PENDING_REVIEW.value)):
+            if event["reviewer"] not in policy.reviewers:
+                raise DecisionError("cancelling reviewer is not authorized by the frozen policy")
+            if not isinstance(event["note"], str) or not event["note"].strip():
+                raise DecisionError("cancellation must contain a nonempty reason")
+            state = Status.CANCELLED.value
         else:
             raise DecisionError("event history contains a prohibited transition")
     if status.value != state:

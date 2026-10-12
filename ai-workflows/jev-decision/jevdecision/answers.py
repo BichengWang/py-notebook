@@ -190,9 +190,7 @@ def _parse_choice(question, entry, where):
     unknown = set(probabilities) - set(labels)
     if unknown:
         raise ResponseError(f"{where}: probabilities name unknown options {sorted(unknown)}")
-    ordered = {label: probabilities.get(label, 0.0) for label in labels}
-    if not probabilities:
-        ordered[choice] = 1.0
+    ordered = {label: probabilities[label] for label in labels if label in probabilities}
     return ChoiceAnswer(question.name, choice, ordered, _confidence(entry, where))
 
 
