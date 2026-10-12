@@ -1,10 +1,10 @@
 # Jev decision model (`jevdecision`)
 
 The core decision model for this workspace. A decision model answers bounded
-questions about a state with **typed, probability-bearing answers** instead of
+questions about a state with **typed answers and reported probabilities** instead of
 generated text: a yes/no probability, one label from a fixed set, or a position
-on an ordered scale. That makes it suitable for gating agent tool calls, routing
-tickets, triage, and other steps where software acts on the answer directly.
+on an ordered scale. These can inform gating agent tool calls, routing tickets,
+and triage; missing choice uncertainty never becomes permission to route.
 
 [Jev](https://docs.typesafe.ai/api) (TypeSafe's System One model) is the default
 backend. The [OpenAI Decisions API](https://developers.openai.com/api/docs/guides/decisions)
@@ -56,7 +56,28 @@ model.route(state, department_question, min_confidence=0.7,
 ```
 
 `route` uses the provider's `confidence` when it returns one, otherwise the
-probability of the chosen label.
+reported probability of the chosen label. If neither is supplied, it returns
+`fallback` (default `None`), even with `min_confidence=0.0`. A reported confidence
+still takes precedence over a reported choice probability; neither is a calibrated
+safety guarantee or a replacement for application policy.
+
+### Choice uncertainty contract
+
+`ask` and `decide` retain a valid choice even when its uncertainty is unknown:
+
+- `.probabilities` contains only labels whose probabilities were actually supplied,
+  in question-option order. Missing, null, or empty probability collections yield `{}`.
+- `.probability` is `None` when the chosen label has no reported probability.
+  A supplied `confidence` does not manufacture a choice probability.
+- `.ranked()` ranks only reported probabilities. `to_dict()` preserves missing
+  entries instead of fabricating a complete distribution.
+- A reported `0.0` remains zero, distinct from an absent value.
+
+**Safety correction:** earlier code fabricated probability `1.0` for a choice
+without probabilities and filled omitted labels with `0.0`. Callers must use
+`.probability` or `.probabilities.get(label)` and handle `None`; do not rely on
+every label being present. To inspect an unscored recommendation, use `ask` or
+`decide`, not a confidence-gated route with an invented probability.
 
 ## Configuration
 
@@ -138,6 +159,22 @@ well as a high hit rate. `ece` is the
 expected calibration error over ten equal-width probability bins. Log loss clips
 probabilities to [1e-6, 1 - 1e-6].
 
+Missing choice probabilities do not exclude otherwise valid answers from `n`,
+accuracy, its interval, or the confusion matrix. Probability metrics require the
+inputs they measure on **every scored case**, not a selectively observed subset:
+
+- Brier score requires a reported probability for every option.
+- Log loss requires the expected label's reported probability.
+- ECE requires the chosen label's reported probability; provider `confidence`
+  is not substituted for that probability.
+
+If any scored case lacks a metric's required inputs, that metric is `null` in
+JSON and `unmeasured` in the report. A requirement on it fails. Per-case records
+retain the prediction and a null chosen probability, and raw responses remain
+available for replay. Re-evaluating older responses with missing probabilities
+may therefore fail gates that previously scored fabricated values. Complete
+probability responses retain their previous scores.
+
 A requirement file sets the gate. Each bound is a `min` or `max` on one metric,
 and `max_error_rate` (default 0) bounds the share of cases whose request or
 response failed. A failed case counts as an error, never as a wrong answer, and
@@ -190,3 +227,16 @@ From the repository root, `make jev-eval` runs the example into a temporary dire
   error and MAE are point estimates, which are noisy with a few dozen cases, so set
   `n` minimums that match the thresholds you rely on.
 - A live evaluation sends one request per case, sequentially.
+
+## Safety verification
+
+The unknown-choice-uncertainty correction was verified with the behavioral suite
+on Python 3.11 and 3.13 and fresh standalone installs on both versions. Installed
+SDK calls exercised both provider formats through a local HTTP fixture: unknown
+uncertainty fell back at thresholds 0 and 0.99, while reported confidence,
+probability, and explicit zero retained their routing semantics.
+
+Installed decision/evaluation CLI runs preserved unknown probabilities, retained
+all labeled cases, failed unmeasured metric gates, and reproduced the failed report
+byte-identically from its exported responses. This is local software verification,
+not a live-provider call, calibration result, or deployment-safety claim.

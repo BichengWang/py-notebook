@@ -145,6 +145,43 @@ class MetricTest(unittest.TestCase):
         # Chosen-label probabilities 0.7 (right), 0.8 (right), 0.6 (wrong) fall in three bins.
         self.assertAlmostEqual(m["ece"], (0.3 + 0.2 + 0.6) / 3)
 
+    def test_unknown_choice_probabilities_do_not_score_as_certainty_or_skip_cases(self):
+        self.answers["c"] = parse_answers(
+            {"department": {"choice": "billing", "confidence": 0.99}}, [DEPARTMENT])
+        requirements = {"questions": {"department": {
+            "brier": {"max": 1.0}, "log_loss": {"max": 20.0}, "ece": {"max": 1.0}}}}
+        report = evaluate([DEPARTMENT], self.cases, self.answers, [], requirements)
+        metrics = report["questions"]["department"]
+        self.assertEqual(metrics["n"], 3)
+        self.assertAlmostEqual(metrics["accuracy"], 2 / 3)
+        self.assertEqual(metrics["confusion"]["sales"], {"billing": 1})
+        for metric in ("brier", "log_loss", "ece"):
+            self.assertIsNone(metrics[metric])
+        self.assertFalse(report["pass"])
+        self.assertTrue(all(check["value"] is None and not check["pass"]
+                            for check in report["requirements"][1:]))
+        row = case_results([DEPARTMENT], self.cases, self.answers, [])[-1]
+        self.assertEqual(row["questions"]["department"],
+                         {"expected": "sales", "predicted": "billing", "probability": None, "correct": False})
+
+    def test_partial_choice_probabilities_measure_only_supported_metrics(self):
+        cases = [Case("a", "x", {"department": "billing"})]
+        for probabilities, log_loss, ece in (({"technical": 0.7}, None, 0.7),
+                                             ({"billing": 0.3}, -math.log(0.3), None),
+                                             ({"billing": 0.0}, -math.log(1e-6), None)):
+            with self.subTest(probabilities=probabilities):
+                answers = {"a": parse_answers({"department": {
+                    "choice": "technical", "probabilities": probabilities}}, [DEPARTMENT])}
+                metrics = score_answers([DEPARTMENT], cases, answers)["department"]
+                self.assertEqual(metrics["n"], 1)
+                self.assertEqual(metrics["accuracy"], 0.0)
+                self.assertIsNone(metrics["brier"])
+                for metric, expected in (("log_loss", log_loss), ("ece", ece)):
+                    if expected is None:
+                        self.assertIsNone(metrics[metric])
+                    else:
+                        self.assertAlmostEqual(metrics[metric], expected)
+
     def test_score_metrics_skip_unlabeled_cases(self):
         m = self.report["frustration"]
         self.assertEqual(m["n"], 2)  # case c has no frustration label
