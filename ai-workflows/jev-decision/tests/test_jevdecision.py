@@ -429,6 +429,48 @@ class DecisionModelTest(unittest.TestCase):
                                                      "probabilities": {"sales": 0.4, "billing": 0.6}}}})
         self.assertIsNone(DecisionModel(backend).route(STATE, DEPARTMENT, min_confidence=0.5))
 
+    def test_route_falls_back_when_uncertainty_is_unknown(self):
+        for factory in (jev, openai):
+            for fields in ({}, {"probabilities": None}, {"probabilities": {}},
+                           {"probabilities": []}, {"probabilities": {"billing": 1.0}},
+                           {"probabilities": [{"value": "billing", "probability": 1.0}]}):
+                for floor in (0.0, 0.99):
+                    with self.subTest(backend=factory.__name__, fields=fields, floor=floor):
+                        entry = {"type": "choice", "name": "department", "choice": "technical", **fields}
+                        response = {"answers": {"department": entry}} if factory is jev else {"answers": [entry]}
+                        backend, _ = factory(response)
+                        self.assertEqual(DecisionModel(backend).route(
+                            STATE, DEPARTMENT, min_confidence=floor, fallback="human"), "human")
+
+    def test_choice_preserves_missing_and_explicit_zero_probabilities(self):
+        backend, _ = jev({"answers": {"department": {
+            "choice": "technical", "probabilities": {"billing": 0.0}}}})
+        answer = DecisionModel(backend).ask(STATE, DEPARTMENT)
+        self.assertIsNone(answer.probability)
+        self.assertIsNone(answer.confidence)
+        self.assertEqual(answer.probabilities, {"billing": 0.0})
+        self.assertEqual(answer.ranked(), [("billing", 0.0)])
+        self.assertNotIn("technical", answer.to_dict()["probabilities"])
+
+    def test_route_uses_supplied_confidence_without_inventing_probabilities(self):
+        for factory in (jev, openai):
+            for confidence, floor, expected in ((0.8, 0.8, "technical"), (0.8, 0.81, "human"),
+                                                (0.0, 0.0, "technical"), (0.0, 0.01, "human")):
+                with self.subTest(backend=factory.__name__, confidence=confidence, floor=floor):
+                    entry = {"name": "department", "choice": "technical", "confidence": confidence}
+                    response = {"answers": {"department": entry}} if factory is jev else {"answers": [entry]}
+                    backend, _ = factory(response, response)
+                    model = DecisionModel(backend)
+                    answer = model.ask(STATE, DEPARTMENT)
+                    self.assertIsNone(answer.probability)
+                    self.assertEqual(answer.probabilities, {})
+                    self.assertEqual(model.route(STATE, DEPARTMENT, min_confidence=floor, fallback="human"), expected)
+
+    def test_route_accepts_reported_choice_probability_at_the_boundary(self):
+        backend, _ = jev({"answers": {"department": {
+            "choice": "technical", "probabilities": {"technical": 0.0}}}})
+        self.assertEqual(DecisionModel(backend).route(STATE, DEPARTMENT), "technical")
+
 
 class CLITest(unittest.TestCase):
     def run_cli(self, *args):

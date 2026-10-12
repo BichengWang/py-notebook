@@ -44,10 +44,11 @@ class DecisionModel:
         return self.ask(state, question).is_yes(threshold)
 
     def route(self, state, question, min_confidence=0.0, fallback=None):
-        """The chosen label, or `fallback` when the provider's confidence is below `min_confidence`.
+        """The chosen label, or `fallback` when confidence is unknown or below `min_confidence`.
 
         Confidence is the provider's own field when present, otherwise the
-        probability of the chosen label.
+        reported probability of the chosen label. Missing values stay unknown,
+        including when `min_confidence` is zero.
         """
         if not isinstance(question, Choice):
             raise DecisionError("route() takes a Choice question")
