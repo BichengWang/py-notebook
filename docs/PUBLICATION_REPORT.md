@@ -139,7 +139,7 @@ These are recommended acceptance milestones, not promised results or already fun
 4. **Demonstrate authorized application usefulness:** use representative held-out data and independent labels; freeze policies and thresholds before examining results; evaluate errors, uncertainty and residual security/privacy/bias risks. Keep synthetic results separate from these future outcomes.
 5. **Corroborate broader implications and dissemination:** retain actual user interest/use, attributable outcomes, transferable methods and any independent editorial coverage. Document publication URLs/dates/disclosures; paid or syndicated placement must not be relabeled independent recognition.
 
-The [news briefing](NEWS_READY.md) is ready for attributed first-party outreach. The report is intended for public repository publication on the development branch, with review status stated explicitly. Publication is not a package release or proof of news coverage.
+The [news briefing](NEWS_READY.md) is ready for attributed first-party outreach. The report has been published on the repository's development branch with a review PR; exact public locations and content-identity checks are in the [publication record](PUBLICATION_RECORD.md). This is not a merged release, package acceptance or proof of independent news coverage. Repository-wide dependency security has not been cleared and must be triaged before production-readiness claims.
 
 ## Sources and disclosure
 

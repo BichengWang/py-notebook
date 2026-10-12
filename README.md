@@ -52,6 +52,7 @@ evidence gaps relevant to an EB-2 NIW assessment. It is not independent
 recognition, a legal eligibility finding, or an accepted RELIA release.
 
 - [News and reviewer briefing](docs/NEWS_READY.md) — attributed announcement and editorial pitch
+- [Public publication record](docs/PUBLICATION_RECORD.md) — report/source identity and review status
 - [Official USCIS/NIST source notes](docs/NIW_SOURCE_NOTES.md) — evidence requirements and claim limits
 - [Publication protocol](docs/PUBLICATION_GUIDE.md) — reproduction, artifact integrity and rights boundaries
 - [Compact local evidence summary](docs/publication/evidence-2026-10-11.json) — source and selected artifact hashes
