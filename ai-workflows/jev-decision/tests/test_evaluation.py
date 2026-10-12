@@ -1,3 +1,4 @@
+import hashlib
 import io
 import json
 import math
@@ -157,7 +158,7 @@ class MetricTest(unittest.TestCase):
         self.assertEqual(metrics["confusion"]["sales"], {"billing": 1})
         for metric in ("brier", "log_loss", "ece"):
             self.assertIsNone(metrics[metric])
-        self.assertFalse(report["pass"])
+        self.assertEqual(report["status"], "FAIL")
         self.assertTrue(all(check["value"] is None and not check["pass"]
                             for check in report["requirements"][1:]))
         row = case_results([DEPARTMENT], self.cases, self.answers, [])[-1]
@@ -217,8 +218,8 @@ class MetricTest(unittest.TestCase):
                    for i, case in enumerate(cases)}
         loose = evaluate([REFUND], cases, answers, [], {"questions": {"refund": {"accuracy": {"min": 0.9}}}})
         strict = evaluate([REFUND], cases, answers, [], {"questions": {"refund": {"accuracy_lower": {"min": 0.9}}}})
-        self.assertTrue(loose["pass"])  # 11 of 12 correct
-        self.assertFalse(strict["pass"])  # but the interval reaches down to 0.65
+        self.assertEqual(loose["status"], "PASS")  # 11 of 12 correct
+        self.assertEqual(strict["status"], "FAIL")  # but the interval reaches down to 0.65
         self.assertAlmostEqual(strict["requirements"][1]["value"], 0.6461, places=4)
 
     def test_log_loss_is_clipped(self):
@@ -312,15 +313,32 @@ class LoadTest(unittest.TestCase):
 class RunTest(unittest.TestCase):
     CASES = [Case("a", "first", {"department": "technical"}), Case("b", "second", {"department": "billing"})]
 
+    def test_missing_question_bounds_are_ungated(self):
+        answers = {"a": parse_answers(JEV_RESPONSE["answers"], QUESTIONS),
+                   "b": parse_answers(JEV_RESPONSE["answers"], QUESTIONS)}
+        for spec in (None, {}, {"max_error_rate": 0}, {"questions": {}},
+                     {"max_error_rate": 1, "questions": {}}):
+            with self.subTest(spec=spec):
+                report = evaluate(QUESTIONS, self.CASES, answers, [], spec)
+                self.assertEqual(report["status"], "UNGATED")
+                self.assertNotIn("pass", report)
+                self.assertTrue(report["requirements"][0]["pass"])
+        for spec in (False, [], "", 0):
+            with self.subTest(spec=spec), self.assertRaises(DatasetError):
+                evaluate(QUESTIONS, self.CASES, answers, [], spec)
+        report = evaluate(QUESTIONS, self.CASES, answers, [],
+                          {"questions": {"department": {"n": {"min": 2}}}})
+        self.assertEqual(report["status"], "PASS")  # Explicit sample-count gate, not accuracy validation.
+
     def test_requirements_gate_the_report(self):
         answers = {"a": parse_answers(JEV_RESPONSE["answers"], QUESTIONS),
                    "b": parse_answers(JEV_RESPONSE["answers"], QUESTIONS)}
         report = evaluate(QUESTIONS, self.CASES, answers, [],
                           {"questions": {"department": {"accuracy": {"min": 0.5}}}})
-        self.assertTrue(report["pass"])
+        self.assertEqual(report["status"], "PASS")
         report = evaluate(QUESTIONS, self.CASES, answers, [],
                           {"questions": {"department": {"accuracy": {"min": 0.75}}}})
-        self.assertFalse(report["pass"])
+        self.assertEqual(report["status"], "FAIL")
         self.assertEqual(report["requirements"][-1]["value"], 0.5)
 
     def test_requirement_on_an_unlabeled_question_fails(self):
@@ -337,8 +355,12 @@ class RunTest(unittest.TestCase):
         self.assertEqual([e["id"] for e in errors], ["b"])
         report = evaluate(QUESTIONS, self.CASES, answers, errors)
         self.assertEqual(report["error_rate"], 0.5)
-        self.assertFalse(report["pass"])  # max_error_rate defaults to 0
-        self.assertTrue(evaluate(QUESTIONS, self.CASES, answers, errors, {"max_error_rate": 0.5})["pass"])
+        self.assertEqual(report["status"], "FAIL")  # max_error_rate defaults to 0
+        self.assertEqual(evaluate(QUESTIONS, self.CASES, answers, errors,
+                                  {"max_error_rate": 0.5})["status"], "UNGATED")
+        self.assertEqual(evaluate(QUESTIONS, self.CASES, answers, errors, {
+            "max_error_rate": 0.5, "questions": {"department": {"accuracy": {"min": 0.5}}}
+        })["status"], "PASS")
 
     def test_replay_counts_a_missing_response_as_an_error(self):
         answers, raw, errors = replay(JevBackend(env={}), QUESTIONS, self.CASES, {"a": JEV_RESPONSE})
@@ -438,6 +460,87 @@ class CLITest(unittest.TestCase):
                                  "--out", Path(tmp, "c"))
             self.assertEqual(code, 0)
             self.assertEqual((Path(tmp, "c") / "evaluation.json").read_bytes(), records[0])
+
+    def test_ungated_cli_and_exact_byte_provenance(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            manifests = []
+            for name in ("a", "b"):
+                out = Path(tmp, name)
+                code, stdout, _ = run_cli("--questions", QUESTIONS_FILE, "--cases", CASES_FILE,
+                                          "--responses", RESPONSES_FILE, "--out", out)
+                self.assertEqual(code, 3)
+                self.assertTrue(stdout.startswith("UNGATED "))
+                self.assertIn("unverified", stdout)
+                report = json.loads((out / "evaluation.json").read_text())
+                self.assertEqual(report["status"], "UNGATED")
+                self.assertIn("evaluation: UNGATED", (out / "EVALUATION.md").read_text())
+                manifest = json.loads((out / "provenance.json").read_text())
+                self.assertEqual(manifest["response_mode"], "replay")
+                self.assertIn("unverified", manifest["response_origin"])
+                self.assertIsNone(manifest["inputs"]["requirements"])
+                for role, path in (("questions", QUESTIONS_FILE), ("cases", CASES_FILE),
+                                   ("responses", RESPONSES_FILE)):
+                    self.assertEqual(manifest["inputs"][role]["sha256"],
+                                     hashlib.sha256(path.read_bytes()).hexdigest())
+                for filename, record in manifest["outputs"].items():
+                    self.assertEqual(record["sha256"], hashlib.sha256((out / filename).read_bytes()).hexdigest())
+                manifests.append((out / "provenance.json").read_bytes())
+            self.assertEqual(manifests[0], manifests[1])
+            # JSON whitespace changes provenance, not the metric record.
+            altered = Path(tmp, "responses.jsonl")
+            altered.write_text("".join(json.dumps(json.loads(line), separators=(",", ":")) + "\n"
+                                       for line in RESPONSES_FILE.read_text().splitlines()))
+            out = Path(tmp, "c")
+            code, _, _ = run_cli("--questions", QUESTIONS_FILE, "--cases", CASES_FILE,
+                                 "--responses", altered, "--out", out)
+            self.assertEqual(code, 3)
+            self.assertEqual((out / "evaluation.json").read_bytes(), Path(tmp, "a", "evaluation.json").read_bytes())
+            self.assertNotEqual((out / "provenance.json").read_bytes(), manifests[0])
+
+    def test_cli_empty_and_malformed_requirement_specs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for i, spec in enumerate(({}, {"max_error_rate": 0}, {"questions": {}},
+                                      False, [], None, {"questions": {"refund": {}}})):
+                requirement = Path(tmp, f"requirement-{i}.json")
+                requirement.write_text(json.dumps(spec))
+                out = Path(tmp, f"out-{i}")
+                code, stdout, stderr = run_cli("--questions", QUESTIONS_FILE, "--cases", CASES_FILE,
+                                               "--responses", RESPONSES_FILE, "--require", requirement, "--out", out)
+                with self.subTest(spec=spec):
+                    if i < 3:
+                        self.assertEqual(code, 3)
+                        self.assertTrue(stdout.startswith("UNGATED "))
+                        manifest = json.loads((out / "provenance.json").read_text())
+                        self.assertEqual(manifest["inputs"]["requirements"]["sha256"],
+                                         hashlib.sha256(requirement.read_bytes()).hexdigest())
+                    else:
+                        self.assertEqual(code, 2)
+                        self.assertIn("requirements", stderr)
+                        self.assertFalse(out.exists())
+
+    def test_cli_response_error_is_fail_without_quality_bounds(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            responses = Path(tmp, "empty.jsonl")
+            responses.write_bytes(b"")
+            out = Path(tmp, "out")
+            code, stdout, _ = run_cli("--questions", QUESTIONS_FILE, "--cases", CASES_FILE,
+                                      "--responses", responses, "--out", out)
+            self.assertEqual(code, 1)
+            self.assertTrue(stdout.startswith("FAIL "))
+            self.assertEqual(json.loads((out / "evaluation.json").read_text())["status"], "FAIL")
+            self.assertIn("evaluation: FAIL", (out / "EVALUATION.md").read_text())
+
+    def test_live_cli_provenance_has_no_replay_input_or_credentials(self):
+        backend, _ = jev(*([JEV_RESPONSE] * 12))
+        with tempfile.TemporaryDirectory() as tmp, unittest.mock.patch(
+                "jevdecision.evaluation.create_backend", return_value=backend):
+            out = Path(tmp, "out")
+            code, _, _ = run_cli("--questions", QUESTIONS_FILE, "--cases", CASES_FILE, "--out", out)
+            self.assertEqual(code, 3)
+            manifest = json.loads((out / "provenance.json").read_text())
+            self.assertEqual(manifest["response_mode"], "live")
+            self.assertIsNone(manifest["inputs"]["responses"])
+            self.assertEqual(set(manifest), {"response_mode", "response_origin", "inputs", "outputs"})
 
     def test_failing_requirement_exits_1(self):
         with tempfile.TemporaryDirectory() as tmp:

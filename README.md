@@ -43,3 +43,27 @@ to rights clearance.
 
 Setup, environments, the directory layout and the decision-loop quick start for the
 `src/` research material are in the [setup guide](scripts/README.md).
+
+## Technical report and news readiness
+
+The [author-produced portfolio report](docs/PUBLICATION_REPORT.md) documents the
+four independent projects, fresh local verification, adverse outcomes, and
+evidence gaps relevant to an EB-2 NIW assessment. It is not independent
+recognition, a legal eligibility finding, or an accepted RELIA release.
+
+- [News and reviewer briefing](docs/NEWS_READY.md) — attributed announcement and editorial pitch
+- [Public publication record](docs/PUBLICATION_RECORD.md) — report/source identity and review status
+- [Official USCIS/NIST source notes](docs/NIW_SOURCE_NOTES.md) — evidence requirements and claim limits
+- [Publication protocol](docs/PUBLICATION_GUIDE.md) — reproduction, artifact integrity and rights boundaries
+- [Compact local evidence summary](docs/publication/evidence-2026-10-11.json) — source and selected artifact hashes
+
+Run the existing project workflows and retain a new external evidence directory:
+
+```bash
+uv run --no-project --python 3.11 python scripts/publication_evidence.py --out /tmp/ai-decision-evidence-new
+uv run --no-project --python 3.11 python scripts/publication_evidence.py --verify /tmp/ai-decision-evidence-new
+```
+
+No provider calls are made. Fixture passes are not live-model quality, adoption,
+production impact, or national-importance evidence. RELIA publication and reuse
+remain subject to its separate rights/reproduction/acceptance process.

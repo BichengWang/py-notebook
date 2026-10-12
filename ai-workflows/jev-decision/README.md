@@ -175,10 +175,25 @@ available for replay. Re-evaluating older responses with missing probabilities
 may therefore fail gates that previously scored fabricated values. Complete
 probability responses retain their previous scores.
 
-A requirement file sets the gate. Each bound is a `min` or `max` on one metric,
-and `max_error_rate` (default 0) bounds the share of cases whose request or
-response failed. A failed case counts as an error, never as a wrong answer, and
-a bound on a question with no labeled cases fails.
+A requirement file supplies explicit question metric bounds, each a `min` or
+`max`. The overall JSON field is `status` (not a boolean `pass`):
+
+- `PASS`: at least one valid question metric bound was supplied, and all checks pass.
+- `FAIL`: an explicit metric bound or the error-rate check fails.
+- `UNGATED`: all checks pass but there are no question metric bounds. Omitting
+  `--require`, `{}`, `{"max_error_rate": 0}`, and `{"questions": {}}` are all
+  ungated, not model-quality validation.
+
+`max_error_rate` (default 0) bounds the share of cases whose request or response
+failed; it alone is not a question gate. A failed case counts as an error, never
+as a wrong answer. A bound on an unmeasured metric fails. A valid question bound
+means a finite numeric `min`/`max` on a supported metric; it does not mean the
+threshold is scientifically adequate. For example, an `n`-only gate checks sample
+count, not accuracy. Select meaningful thresholds for the decision being made.
+Malformed specs (including JSON `null`, `false`, arrays, empty per-question metric
+objects and empty bounds) are invalid input, not ungated runs. In the Python
+`evaluate()` API, `None` means no requirement spec. Individual requirement rows
+retain boolean `pass` values; the overall report does not.
 
 ```json
 {"max_error_rate": 0.0,
@@ -186,27 +201,44 @@ a bound on a question with no labeled cases fails.
 ```
 
 ```bash
-# Replay recorded responses: no API key, same report every time
+# Replay supplied responses: no API key; origin remains unverified
 python3 -m jevdecision.evaluation --questions examples/support-ticket.json \
     --cases examples/support-ticket-cases.jsonl \
     --responses examples/support-ticket-responses.jsonl \
     --require examples/support-ticket-requirements.json --out eval-run
 
-# Ask the provider live (needs its API key)
+# Ask the provider live (needs its API key); no question bounds means UNGATED
 python3 -m jevdecision.evaluation --questions examples/support-ticket.json \
     --cases examples/support-ticket-cases.jsonl --backend openai --out live-run
 ```
 
 `--out` must be new or empty. Each run writes `evaluation.json` (sorted keys),
-a readable `EVALUATION.md`, `responses.jsonl` with the raw provider
-responses, and `cases.jsonl` with one row per case: each labeled question's
-expected and predicted answer (with the probability or score) and whether it was
-correct, or the case's error. `EVALUATION.md` lists the incorrect answers (the first
-20), so a failed gate points at the cases to inspect. Passing that file back as `--responses` reproduces the report, so a
-live run can be audited and re-scored without calling the provider again.
-`--backend` names the response format to replay (`jev` by default). Exit codes:
-0 when every requirement passes, 1 when one fails or the provider cannot be
-used, 2 for invalid input.
+a readable `EVALUATION.md`, `responses.jsonl` with the supplied replay responses
+or responses obtained through the live backend, and `cases.jsonl` with one row
+per case: each labeled question's expected and predicted answer (with probability
+or score) and whether it was correct, or the case's error. `EVALUATION.md` lists
+the first 20 incorrect answers. Exported responses can be passed as `--responses`
+to re-score without calling a provider. Identical replay question, case, response
+and requirement content produces byte-identical `evaluation.json`; live-to-replay
+metrics remain the same, but the report's `source` changes.
+
+CLI runs also write a separate deterministic `provenance.json`:
+
+- `inputs` records SHA-256 of the exact question, case, requirement and response
+  file bytes read for the run, with `null` for absent optional inputs.
+- `response_mode` is `live` or `replay`. Replay origin is explicitly **unverified**:
+  files may be hand-written, and their `model` fields do not authenticate provider output.
+- `outputs` records SHA-256 of `evaluation.json`, `EVALUATION.md`, `responses.jsonl`
+  and `cases.jsonl`. The manifest does not hash itself, include timestamps, paths,
+  headers or credentials, or enter the metric records. Whitespace-only input
+  changes can therefore change provenance without changing `evaluation.json`.
+
+Hashes identify bytes, not authenticity, reviewer independence or model quality.
+Raw responses and labeled cases may contain sensitive material; inspect them
+before sharing. `--backend` names the response format to replay (`jev` by default).
+The CLI and Markdown display the same overall status. Exit codes: **0** for PASS,
+**1** for FAIL or a provider that cannot be used, **2** for invalid input (which
+produces no evaluation artifacts), and **3** for UNGATED.
 
 The example responses are hand-written in Jev's response format to show the
 workflow. They are not output from Jev or any other model, and the example

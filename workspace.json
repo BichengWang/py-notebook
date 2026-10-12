@@ -207,7 +207,7 @@
     "workspace-tooling": {
       "kind": "tooling",
       "path": "scripts",
-      "summary": "Delivery controller, workspace tool, and RELIA export script (standard library only)",
+      "summary": "Delivery controller, workspace, RELIA export, and publication evidence tooling (standard library only)",
       "sources": [
         "scripts/**"
       ],
@@ -218,8 +218,10 @@
       "paths": [
         "scripts/continual_delivery.py",
         "scripts/workspace.py",
+        "scripts/publication_evidence.py",
         "scripts/tests/test_continual_delivery.py",
         "scripts/tests/test_workspace.py",
+        "scripts/tests/test_publication_evidence.py",
         ".github/workflows/delivery-policy.yml"
       ],
       "ci": {
@@ -238,6 +240,9 @@
         },
         {
           "run": "python3 -m unittest discover -s tests -p test_workspace.py"
+        },
+        {
+          "run": "python3 -m unittest discover -s tests -p test_publication_evidence.py"
         },
         {
           "run": "python3 workspace.py check"
