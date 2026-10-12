@@ -19,7 +19,12 @@ sensitive ticket identifiers and review notes out of public evidence bundles.
 Inputs and database paths must come from a trusted operator. This component is
 not hardened for hostile tenants, unlimited JSON inputs or untrusted SQLite files.
 It contains no credential storage, model provider connection or external executor.
-Frozen policies are not retroactively revoked by editing a policy file. Atomic
-execution and idempotency apply to the local SQLite queue only; never treat them
-as guarantees for external side effects. RELIA is a separate component and is not
-covered or modified by this project's implementation or license.
+Frozen policies are not retroactively revoked by editing a policy file. Explicit
+cancellation requires a reviewer authorized by the decision's frozen policy and
+a nonempty reason. It only withdraws PENDING_REVIEW or READY decisions; it never
+undoes an executed action. Cancellation and execution serialize within the same
+local SQLite writer transaction.
+
+Atomic execution and idempotency apply to the local SQLite queue only; never
+treat them as guarantees for external side effects. RELIA is a separate component
+and is not covered or modified by this project's implementation or license.

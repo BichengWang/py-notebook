@@ -43,12 +43,38 @@ Copy the returned decision `id` into `DECISION_ID`, then run:
 ```bash
 decision-control --db queue.sqlite3 show "$DECISION_ID"
 decision-control --db queue.sqlite3 approve "$DECISION_ID" --reviewer local-reviewer --note 'Checked routing'
+```
+
+The decision is now READY, not yet executed. Choose execution or withdrawal.
+
+To execute:
+
+```bash
 decision-control --db queue.sqlite3 execute "$DECISION_ID"
 decision-control --db queue.sqlite3 execute "$DECISION_ID"
 decision-control --db queue.sqlite3 ticket-show T-100
 decision-control --db queue.sqlite3 export "$DECISION_ID" --out approved-record.json
 decision-control replay --record approved-record.json
 ```
+
+To withdraw **before executing**, use a reviewer from the decision's frozen policy
+and a nonempty reason. This also works for pending reviews and automatically
+allowed READY decisions:
+
+```bash
+decision-control --db queue.sqlite3 cancel "$DECISION_ID" --reviewer local-reviewer --note 'Approval was mistaken'
+decision-control --db queue.sqlite3 export "$DECISION_ID" --out cancelled-record.json
+decision-control replay --record cancelled-record.json
+```
+
+Cancellation leaves the ticket unchanged and permanently blocks execution and
+further review. The record retains any original approval and adds a CANCELLED
+event with the cancelling reviewer, reason and time. SDK callers use
+`store.cancel(decision_id, reviewer, note)`. Repeating the same cancellation is
+idempotent; a different actor or reason cannot rewrite it. A cancelled pending
+review leaves the pending queue. If execution commits first, cancellation fails:
+it is not an undo operation. Both operations use the same SQLite writer
+transaction, so overlapping callers cannot both commit their conflicting actions.
 
 Alternatively `reject ID --reviewer local-reviewer --note TEXT` permanently rejects
 a pending review. `export ID` without `--out` prints the envelope; file export
@@ -170,7 +196,7 @@ SDK entry points are `EvaluationCase`, `load_cases(path)`,
 and `replay_evaluation(envelope)`. Evaluation evidence is distinct from the
 executed-decision records below. Both checksums detect corruption, not forgery.
 
-## Record schema v1
+## Record schema v2 (v1 readable)
 
 An export contains `record` and `sha256`. The record includes:
 
@@ -182,8 +208,15 @@ An export contains `record` and `sha256`. The record includes:
 
 The full record is checksummed, including review and execution history. Replay
 rejects inconsistent verdicts, illegal transitions, unauthorized recorded reviewers
-and results that disagree with the frozen action. Schema versions other than 1
-require an explicit migration rather than silent reinterpretation.
+and results that disagree with the frozen action. New decisions use
+`schema_version: 2`; a CANCELLED event has `event`, `at`, `reviewer` and `note`
+fields. Other event shapes remain unchanged.
+
+Archived v1 evidence and stored v1 decisions remain valid under their original
+lifecycle rules. Cancelling a stored v1 decision explicitly promotes that record
+to v2, preserving its inputs and prior approval. Unknown schema versions are
+rejected rather than silently reinterpreted. Policy-evaluation reports use their
+own unchanged schema.
 
 Supply the probability of the proposed choice, not an unrelated provider confidence
 score. The host owns provider adaptation, model/question identity and threshold
@@ -196,8 +229,8 @@ or turn model recommendations into trusted permissions.
   not authenticated identities. There is no login, server, RBAC service or network
   boundary. A malicious process with file access can modify the database/evidence.
 * Policies and ticket snapshots are frozen at submission. Updating a policy file
-  does not retroactively revoke existing decisions or approvals. Apply revocation
-  in the trusted host's lifecycle rather than assuming current-policy checks.
+  does not retroactively revoke existing decisions or approvals. Use `cancel` for
+  explicit pre-execution withdrawal, not an assumed current-policy check.
 * Execution checks the frozen ticket department/revision against current state.
   A competing reassignment makes the decision STALE without changing the ticket.
   SQLite commits queue mutation, revision increment, result and event together.
@@ -238,3 +271,11 @@ commands on both interpreters: PASS, FAIL, UNGATED and unmeasured-exposure gates
 failed report preservation; and replay retaining the failed disposition.
 The adverse hand-authored fixture remains a failed evaluation, not a retuned
 success or a provider benchmark.
+
+Cancellation was exercised through fresh installed CLIs on both interpreters:
+independent-process approval and withdrawal, blocked execution/re-approval,
+unchanged ticket revision, idempotent cancellation, export/replay, and historical
+v1 replay. Overlapping cancellation/execution processes committed one operation;
+execution-winning races refused cancellation without inventing an undo.
+Behavioral regression coverage also includes cancellation persistence rollback
+and promotion of a historical v1 approval while preserving its review evidence.

@@ -23,3 +23,12 @@
   gate exit codes that preserve failing evidence.
 - Adverse hand-authored evaluation cases and requirements; installed evaluation
   and rejection/replay scenarios in CI, without model-quality claims.
+- Authorized withdrawal of pending reviews and READY decisions, including prior
+  approvals; cancellation requires a reason, preserves review provenance, and
+  blocks execution across restarts without pretending to undo completed actions.
+- Cancellation retries retain immutable actor/reason evidence; cancellation and
+  execution share the existing SQLite transaction and rollback boundary.
+- Decision evidence schema v2 with authorized cancellation events; historical v1
+  replay remains valid, and cancelling a stored v1 decision promotes it to v2.
+- Installed CLI verification of approval withdrawal, export/replay and conflicting
+  processes; regressions cover no-undo behavior and cancellation save rollback.

@@ -75,6 +75,30 @@ class CliTests(unittest.TestCase):
         self.assertEqual(self.call("execute", decision)[0], 1)
         self.assertEqual(self.call("show", decision)[1]["status"], "REJECTED")
 
+    def test_withdrawing_approval_blocks_execution_and_preserves_exported_review(self):
+        decision = self.create_review()
+        self.call("approve", decision, "--reviewer", "alice", "--note", "checked")
+        code, cancelled, _ = self.call("cancel", decision, "--reviewer", "alice",
+                                       "--note", "Approval was mistaken")
+        self.assertEqual(code, 0)
+        self.assertEqual(cancelled["status"], "CANCELLED")
+        self.assertEqual(cancelled["review"]["decision"], "APPROVED")
+        self.assertEqual(cancelled["events"][-1]["note"], "Approval was mistaken")
+        self.assertEqual(self.call("execute", decision)[0], 1)
+        self.assertEqual(self.call("approve", decision, "--reviewer", "alice", "--note", "checked")[0], 1)
+        self.assertEqual(self.call("ticket-show", "T1")[1],
+                         {"id": "T1", "department": "intake", "revision": 0})
+        exported = self.root / "cancelled-record.json"
+        self.assertEqual(self.call("export", decision, "--out", str(exported))[0], 0)
+        self.assertEqual(self.call("replay", "--record", str(exported), db=False)[1]["status"], "CANCELLED")
+
+    def test_unauthorized_or_unexplained_cancellation_does_not_remove_pending_review(self):
+        decision = self.create_review()
+        self.assertEqual(self.call("cancel", decision, "--reviewer", "mallory", "--note", "Stop")[0], 1)
+        self.assertEqual(self.call("cancel", decision, "--reviewer", "alice", "--note", " ")[0], 2)
+        self.assertEqual(self.call("pending")[1][0]["id"], decision)
+        self.assertEqual(self.call("ticket-show", "T1")[1]["revision"], 0)
+
     def test_input_and_io_errors(self):
         self.assertEqual(self.call("pending", db=False)[0], 2)
         self.assertEqual(self.call("ticket-show", "unknown")[0], 2)

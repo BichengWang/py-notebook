@@ -27,6 +27,7 @@ class Status(str, Enum):
     DENIED = "DENIED"
     ABSTAINED = "ABSTAINED"
     REJECTED = "REJECTED"
+    CANCELLED = "CANCELLED"
     EXECUTED = "EXECUTED"
     STALE = "STALE"
 

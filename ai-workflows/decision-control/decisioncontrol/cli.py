@@ -29,11 +29,11 @@ def _parser():
     submit.add_argument("--proposal", required=True)
     submit.add_argument("--policy", required=True)
     commands.add_parser("pending")
-    for name in ("approve", "reject"):
+    for name in ("approve", "reject", "cancel"):
         review = commands.add_parser(name)
         review.add_argument("id")
         review.add_argument("--reviewer", required=True)
-        review.add_argument("--note", default="")
+        review.add_argument("--note", default="", required=name == "cancel")
     export = commands.add_parser("export")
     export.add_argument("id")
     export.add_argument("--out")
@@ -74,7 +74,7 @@ def _run(args):
             return store.pending()
         if args.command == "show":
             return store.get(args.id)
-        if args.command in ("approve", "reject"):
+        if args.command in ("approve", "reject", "cancel"):
             return getattr(store, args.command)(args.id, args.reviewer, args.note)
         if args.command == "execute":
             return store.execute(args.id)
