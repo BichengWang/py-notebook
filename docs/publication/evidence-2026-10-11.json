@@ -1,0 +1,395 @@
+{
+  "classification": "Author-side local software verification; not independent validation or legal evidence of eligibility",
+  "full_record_location": "Private local evidence directory ai-decision-evidence-20261011-a; not included in this compact public summary",
+  "full_retained_record_sha256": "ab4d344bcfc47ee96e0237747ba8a8b21cc2e2923901711c765afc89fd736cfc",
+  "limits": [
+    "Raw logs and full artifacts are retained locally, not contained in this compact summary.",
+    "No provider calls or authenticated reviewer identity.",
+    "Two-run RELIA equality is within one local environment, not a stored-reference comparison or unaffiliated reproduction.",
+    "Legacy src research was not exercised by this portfolio command.",
+    "Hashes identify bytes and do not authenticate the author or certify rights."
+  ],
+  "observations": {
+    "decision-control": {
+      "adverse_gate": "FAIL",
+      "execution": "local SQLite only",
+      "states": {
+        "abstain": [
+          "ABSTAIN",
+          "ABSTAINED",
+          "intake",
+          0
+        ],
+        "allow": [
+          "ALLOW",
+          "EXECUTED",
+          "support",
+          1
+        ],
+        "deny": [
+          "DENY",
+          "DENIED",
+          "intake",
+          0
+        ],
+        "review": [
+          "REVIEW",
+          "EXECUTED",
+          "engineering",
+          1
+        ]
+      }
+    },
+    "experiment-gate": {
+      "cuped": "HOLD",
+      "early-regression": "ROLLBACK",
+      "flat": "HOLD",
+      "guardrail-breach": "ROLLBACK",
+      "regression": "ROLLBACK",
+      "srm": "INVALID",
+      "win": "SHIP"
+    },
+    "jev-decision": {
+      "cases": 12,
+      "gated": "PASS",
+      "origin": "hand-authored bundled responses; no provider call",
+      "ungated": "UNGATED"
+    },
+    "relia": {
+      "primary": "PASS",
+      "repeat_bytes_match": true,
+      "summary": {
+        "baseline_brier": {
+          "max": 0.19038806469046898,
+          "mean": 0.19038806469046898,
+          "min": 0.19038806469046898
+        },
+        "baseline_ece": {
+          "max": 0.014759573737500985,
+          "mean": 0.014759573737500985,
+          "min": 0.014759573737500985
+        },
+        "baseline_log_loss": {
+          "max": 0.5687865542985966,
+          "mean": 0.5687865542985966,
+          "min": 0.5687865542985966
+        },
+        "candidate_brier": {
+          "max": 0.18868306388742978,
+          "mean": 0.18853071794451096,
+          "min": 0.18836960266386052
+        },
+        "candidate_ece": {
+          "max": 0.016151695783538953,
+          "mean": 0.015067107750013676,
+          "min": 0.014174625050746636
+        },
+        "candidate_log_loss": {
+          "max": 0.5607061932765367,
+          "mean": 0.5603986041583007,
+          "min": 0.5599789933017241
+        },
+        "ranking_baseline_mrr": {
+          "max": 0.9255575831305759,
+          "mean": 0.9255575831305759,
+          "min": 0.9255575831305759
+        },
+        "ranking_baseline_ndcg@10": {
+          "max": 0.9105342017437479,
+          "mean": 0.9105342017437479,
+          "min": 0.9105342017437479
+        },
+        "ranking_candidate_mrr": {
+          "max": 0.9343485691113428,
+          "mean": 0.9326893368864171,
+          "min": 0.9313072065809291
+        },
+        "ranking_candidate_ndcg@10": {
+          "max": 0.9212048627390876,
+          "mean": 0.9207709549173693,
+          "min": 0.9200695117862404
+        },
+        "stability": {
+          "max": 1.0,
+          "mean": 0.9999161566194349,
+          "min": 0.9998323132388698
+        },
+        "worst_slice_ece": {
+          "max": 0.043802430597641995,
+          "mean": 0.03715540651274931,
+          "min": 0.030080933539565452
+        }
+      },
+      "update": "REJECT_UPDATE_KEEP_CURRENT_REFERENCE"
+    }
+  },
+  "platform": "macOS-27.0.1-arm64-arm-64bit",
+  "python": "3.11.17 (main, Oct  3 2026, 00:54:14) [Clang 22.1.3 ]",
+  "recorded_at_utc": "2026-10-12T03:37:53.623240+00:00",
+  "schema_version": 1,
+  "selected_artifact_hashes": {
+    "decision-control-gated/evaluation.json": "91bf08a87db0df58196fa8077c48d276291c44d4b52f1ed259a7a5f45b9994d3",
+    "decision-control/summary.json": "8cc1c8ccc0cad0b74369c700157161d0808e59a048fe2e19dcc3a08f6018c0c5",
+    "experiment-gate/cuped/decision.json": "a6ea495ce5c6e4b0edc9578696b3a112efbcb78b897677a70049c7cbcc78a7d9",
+    "experiment-gate/early-regression/decision.json": "aca626ed15d1419d6f988538c522c1073c1642d80a54de8d782db55c829238e3",
+    "experiment-gate/flat/decision.json": "4468da21e8f828d92b69ad85dc8a5a20fc7ebf98b8df6b8af6a1f0f3b0c3fbce",
+    "experiment-gate/guardrail-breach/decision.json": "2849fb109f1d102a1b618515066be2300e5eba97ec94dbd6a0e3fe54099ebee6",
+    "experiment-gate/regression/decision.json": "73f33a0733b3a761c56046899e12a983400e446b0b7a5f3a7fec5bd9ad36b239",
+    "experiment-gate/srm/decision.json": "716d825c9209c5d168ac81e08c75c478eec64630845ce73df05417e197ee0915",
+    "experiment-gate/win/decision.json": "3c3ed3169cf0636f5ebd051f81b510ae3305d7684d0e8ee52b7983b13fa0ba32",
+    "jev-decision/evaluation.json": "5a9cc7fd1cd256baa5065af7aea1cadff73136258a4cc9815777e6780b9a35e3",
+    "jev-decision/provenance.json": "52cb25e4e672bb621839d4e8372321b8b89aee10f01a3348efc970d98c7fd9b4",
+    "jev-ungated/evaluation.json": "8cec434becd58b19652c2e3b4ad3d8b746d117c8f4fe926b847a4e589ef084df",
+    "jev-ungated/provenance.json": "f9f5197c9f763870f70e96a21798100b073411c32856135d82dfa8cc72249dc8",
+    "relia/repro-a/MANIFEST.json": "77099a694cec0a7037c564468a916145bb524fb751de17210f668959b49e1660",
+    "relia/repro-a/results.json": "459b6600c06e15ab92bfd71a9959e624412b9fb19a566f2027f20367b2862a8c",
+    "relia/repro-a/runtime.json": "ac171818d0e927d8f11a00ca459ef6248eba34347477d4816b858688aff376cc",
+    "relia/repro-b/MANIFEST.json": "77099a694cec0a7037c564468a916145bb524fb751de17210f668959b49e1660",
+    "relia/repro-b/results.json": "459b6600c06e15ab92bfd71a9959e624412b9fb19a566f2027f20367b2862a8c",
+    "relia/repro-b/runtime.json": "471f4f0355e7d92ed22bacf3ef03265a00037bb4ec86e629780a7b8c308ee936"
+  },
+  "source_head_context_only": "18e4f6aaf89662663d828176a2757329e4a89af2",
+  "source_inventory": {
+    ".github/workflows/auto-merge.yml": "d10fcdf184f60fc753ce63d24512b6de99ff7b44b6d16b89d6d41bbeca25ee62",
+    ".github/workflows/decision-control-ci.yml": "69ddfdac9ab73a99a61819c19939220e3a68cb78e2cc7da4ff86534a6258cf67",
+    ".github/workflows/delivery-policy.yml": "0210178a13bb333c90719882d3fcad6f15db348f960c0eef80ca0318a12de10a",
+    ".github/workflows/expgate-ci.yml": "5ebf0c36b43dac519b498fabb781e8f6133a343bb0fe3a2cf85b4b5cfccc8fc1",
+    ".github/workflows/jev-decision-ci.yml": "8970bf6bc460cb70ed0732f94b08a366c6e471152295f2b918af5ceec5fac677",
+    ".github/workflows/relia-ci.yml": "052595b90cc18fa18ddb6ddfe82820abd0b656f136502abae7c92c947cea6f9e",
+    ".github/workflows/relia-release-verify.yml": "69ed6c46f5608caf97417f9c84b5c1a11c4140ff39a7d5afaf33b6cf06faea63",
+    ".github/workflows/src-baseline.yml": "ed2d4b9bd48200def21d1ba17c7d4b1153d43ab42eb60a48fbe5a7d355fb434e",
+    ".github/workflows/stale.yml": "893d20da179bca850210599e3c3bb3eeb8443653beaffbb2150a4487613a488b",
+    "Makefile": "484af6f9c553f81c2e57e6f5f40c37e3adb529f50727f8e557306e9657b84cd2",
+    "ai-workflows/README.md": "c0ef8bf66cc1b068d46e1806ce8ec182fb8d90f4011feaecea1736d36aa5da14",
+    "ai-workflows/ai-decision-reliability/.gitignore": "9cdfe809104c1e4d5959c2ea96b525d056d8e4caa923d4123e392df8089f0df9",
+    "ai-workflows/ai-decision-reliability/.python-version": "3ce16e94590543a327d3e5ae412e663206e0ed1b46628ed3dd5ad29caa1ff5ac",
+    "ai-workflows/ai-decision-reliability/CHANGELOG.md": "fd24e95f0085f4407af00124fef10cff2822b6d486310501c6aa6cc596ba1f43",
+    "ai-workflows/ai-decision-reliability/CONTRIBUTING.md": "d09f072531a89d5eb8e01a84ee993e2aa1586451b53d3f4e36fe5fde9997297d",
+    "ai-workflows/ai-decision-reliability/LICENSE": "6998804dad11bef0bd81822081b6a304078dbadf5cc81cbf8844ebfce1ae04a9",
+    "ai-workflows/ai-decision-reliability/README.md": "bee092370fd71e821b963f43816c8dcac149e6f858424bb870c638826daa9bee",
+    "ai-workflows/ai-decision-reliability/SECURITY.md": "b9e9cd459dfbcfa2d0a073d6e587186702d9e885219446ef801a9758e442457b",
+    "ai-workflows/ai-decision-reliability/docs/DATA_CARD.md": "b004296e0b8689aba366f7a3dd3eb20ebc2187da848754227b7935e68f6698e6",
+    "ai-workflows/ai-decision-reliability/docs/DEVELOPMENT_LOG.md": "f32239942a12a7dac8ecf0a4382a86f249b3ba24f44441899e9c3b64a52937ee",
+    "ai-workflows/ai-decision-reliability/docs/LIMITATIONS.md": "e0ce1949ca0236a0fa3907a5e166a2cafbb716d0963142d8f6f004e31866bdaf",
+    "ai-workflows/ai-decision-reliability/docs/NIST_AI_RMF_CROSSWALK.md": "167811f05235b512bca6697dfd215018bf18b3c08b211f50bd13f4a34760b37a",
+    "ai-workflows/ai-decision-reliability/docs/REPRODUCE.md": "b92657919752f6831f40d91c28fdd95480ae9370cacfeb33a63345b90a84481c",
+    "ai-workflows/ai-decision-reliability/docs/ROADMAP.md": "32b080b5e20c00699c490263b0a337a3dff6447cef338e52e7656f9e017e0d48",
+    "ai-workflows/ai-decision-reliability/docs/SPEC.md": "10583d4e24656b6d32ff41a95751f5102ae680eafa7789a25e9d2e138c7eec59",
+    "ai-workflows/ai-decision-reliability/docs/TECHNICAL_REPORT.md": "3a4e13f519c329fbbd641cd22bbf662dc1b24084d8f79e83d68cb27e0bebc3c4",
+    "ai-workflows/ai-decision-reliability/docs/dev-runs/run-0-BLOCK-RESULTS.md": "817dc005d15a4e3a0a89d93eaa83232333b2ec9fc935c3093836d84d9908af5e",
+    "ai-workflows/ai-decision-reliability/pyproject.toml": "c431034df91b03e35bd28970107c75ac0f8b46156cabab6024c365260bc437d6",
+    "ai-workflows/ai-decision-reliability/relia/__init__.py": "cc7b92ad3f580bf216c0ca8697b859436d2bb54a125627630d20143e18f4c5ec",
+    "ai-workflows/ai-decision-reliability/relia/compare.py": "ef40255962fc26febb0177c459a122264f4a2bd35da8127e13e2c9868d41ed91",
+    "ai-workflows/ai-decision-reliability/relia/config.py": "b46a2999f58b78dfa044678cc17765cc8ade2be8343631a3c9a4c1e2f509163e",
+    "ai-workflows/ai-decision-reliability/relia/gates.py": "e06707048ccbf92bea7774357f140a400bafca13ebcf33bde09ca1bafe92068c",
+    "ai-workflows/ai-decision-reliability/relia/generator.py": "6fc66c0b7acbbcac7bb5f606d58f6729ab4109eea8d1499d0990773125b462be",
+    "ai-workflows/ai-decision-reliability/relia/guards.py": "712512644eb22872dd3768decee277494f2f930aebfed8ba410b5b7bbb53079f",
+    "ai-workflows/ai-decision-reliability/relia/incremental.py": "baec110d3291cd0b8b18426d95b92e0701ab89e1035c1d58f1876c22874bf88e",
+    "ai-workflows/ai-decision-reliability/relia/metrics.py": "172fdeaf48d55eae8fd6ab2c73f4cd12d371565a30828da2b457a79d7e3677c6",
+    "ai-workflows/ai-decision-reliability/relia/models.py": "a22ab69bb91fa1638ef4792f27419fe3fcef53ab3e72937869939ced15217f68",
+    "ai-workflows/ai-decision-reliability/relia/monitoring.py": "3c221225f77d51d0113ee9df06ebcc6d7313f90da5cac7c53e40625924e7f241",
+    "ai-workflows/ai-decision-reliability/relia/pipeline.py": "e0ce963617e84983fac39aef18bfab496f1ae0445b4c7d6ad267765492b51de0",
+    "ai-workflows/ai-decision-reliability/relia/policy.py": "5feaa3e3dbd207b8b6a25c408526a91bb03c4e2808fd3cd9d2159f6ec4168510",
+    "ai-workflows/ai-decision-reliability/relia/run.py": "03fa96da484de52aa10a424941edfc0dc34a7ff89f7b8804d02c387ab1d7dc99",
+    "ai-workflows/ai-decision-reliability/relia/splits.py": "1761e061f02fe6652e77c54cf7c366b0266af6e1750c17b3eaf8fbb728a24c95",
+    "ai-workflows/ai-decision-reliability/results/MANIFEST.json": "e4fe33512b4871cf93fcbf205dce098412169b9a1ee4059523e8b7c4c849066b",
+    "ai-workflows/ai-decision-reliability/results/RESULTS.md": "57c213a4ab5888fa7823d1305553b9d250cb6f3bebeda3222be53803d145ccd0",
+    "ai-workflows/ai-decision-reliability/results/results.json": "59dfe7ba224d220d26e5d97871078ffa2f8b9806e6446c684783cd96fabf6eb6",
+    "ai-workflows/ai-decision-reliability/results/runtime.json": "4fc7384c872b2c6314dab3587a5b9d2d21d593df7cda4a850ac841ca5a0505b5",
+    "ai-workflows/ai-decision-reliability/scripts/environment.py": "3ebe4677b9e3578010150bfb9980924333e1715cdcb4746667121b4ea5e6a73c",
+    "ai-workflows/ai-decision-reliability/scripts/reproduce.sh": "444f402d9d33e113ea20b7fc784d5759451cc7bf5738f26b1448035986dee928",
+    "ai-workflows/ai-decision-reliability/templates/incident-record.md": "0bc175c69b1e769cd79de48db9f14988e46379f14202cd31a47cac2d0c6a0154",
+    "ai-workflows/ai-decision-reliability/templates/release-record.md": "7272b468461a881e7643ef2b847aea262721adfdeb6bac7d817331117d4dc355",
+    "ai-workflows/ai-decision-reliability/templates/rollback-procedure.md": "a325458c112e5fad9764822fae68ff168e4a9cfdab1144f8ad7a0d76ca8c489d",
+    "ai-workflows/ai-decision-reliability/tests/test_compare.py": "12a86d07e2d6f8650a145602d2056cb52e8f90066b9872200e6ea7abe5e13e86",
+    "ai-workflows/ai-decision-reliability/tests/test_relia.py": "184f16553cc6f680ac06541e01b430d0ad59a13d2e0a709fa584e91cdda2201f",
+    "ai-workflows/ai-decision-reliability/uv.lock": "8214e40c49f0f8e955055096a1eb773892c2367955f16691f802f1d9e91222cf",
+    "ai-workflows/decision-control/.gitignore": "5b637ecf67732f0e25cbcd169567db3921b8332c2353231ee3ae27bf372640a7",
+    "ai-workflows/decision-control/CHANGELOG.md": "e1dbda1524cd33a4cd48df325ad66959332bcdeba9f1bc628411262dd56dfe2f",
+    "ai-workflows/decision-control/CONTRIBUTING.md": "d82b3dbdd166d52e6d16ad5427f6e9a84b997d8a422e420fdfe0e61973db233a",
+    "ai-workflows/decision-control/LICENSE": "85638249e44b5f9211759e696d20c1211b2617536d330dca6abfcc71b0c8d667",
+    "ai-workflows/decision-control/README.md": "e7fcf7551af81293bfe050161b4075c95fab7f211bd33f71233140e9918afdf7",
+    "ai-workflows/decision-control/SECURITY.md": "7f85ccdd0a95150f1d9ca6fdaff511626cf34aaaf425f03dfb8db1cfc793bd5f",
+    "ai-workflows/decision-control/decisioncontrol/__init__.py": "c8357685477273a5c30163e65454aa7352f8f3246718e4d35b201a28883bbc60",
+    "ai-workflows/decision-control/decisioncontrol/__main__.py": "935a1c1166b0c1ea35a82256345000bf2c73ded718d77773bc27a71ecce28f7d",
+    "ai-workflows/decision-control/decisioncontrol/cli.py": "91c5bef525e5109d91bc90d7ff39cfe766284df0dbf1b63e25c74d1ff60a12f1",
+    "ai-workflows/decision-control/decisioncontrol/demo.py": "176cde9f227d5f2b99dc4dccbee619143ca6f034d5b463768b0979ce0688744b",
+    "ai-workflows/decision-control/decisioncontrol/evaluation.py": "36847ad96b51a9da76948307582ec1031c0bf4370bb96d18cb772e5b5091c79d",
+    "ai-workflows/decision-control/decisioncontrol/evidence.py": "9df86ba36321e6cf7affbc62a9d7436b54180ec293c9d4def4b362e292cfecd1",
+    "ai-workflows/decision-control/decisioncontrol/models.py": "aa760b732f6a4714272dec827bff9486cc22f59dc4a96a889f62930af339001d",
+    "ai-workflows/decision-control/decisioncontrol/policy.py": "afe36a478e6ea47022e797f734753103e26775d7cd221e20ee74d6de3053ce29",
+    "ai-workflows/decision-control/decisioncontrol/store.py": "7dab0335ed9a41a6ecb4bfd3a165999159fde11a5bff0327a721d84b775f8e3f",
+    "ai-workflows/decision-control/examples/evaluation-cases.jsonl": "21177d37a30c32da0a2d45841f583bd229f59198c5074a8bb50dc2669e75b0fb",
+    "ai-workflows/decision-control/examples/evaluation-requirements.json": "f9a33e85c7134fc1b7bb4aac0dd597ed917cf98fb42bc6749fcc37ce89a4bddd",
+    "ai-workflows/decision-control/examples/policy.json": "dab00bea0aaf2a12c5a050048b5a76d501263ab3ddaf9711fcb0f220c2d7771e",
+    "ai-workflows/decision-control/examples/proposal.json": "844be743122f8d213e7622eb441405a9fdb73ca0968ec7e8395208b540d4b33b",
+    "ai-workflows/decision-control/pyproject.toml": "0db16fd01b3d3b8852bbe6734fd8d94d8acb64b7eddd05d2d34e992d0f7eb0b7",
+    "ai-workflows/decision-control/tests/fixtures/approved-v1.json": "32d36c0bf4aa626c0b9ed0c4b28e56a4ca9031bb4e07c581a13f80dc42c14147",
+    "ai-workflows/decision-control/tests/test_cli.py": "1075a6186a8f0bc9274f35f86f53a6198894da9eee2bbd9d2267ca137fe980cf",
+    "ai-workflows/decision-control/tests/test_evaluation.py": "5db0e35f2c0f0ea02120299ecf4bc408ac5517c6223c1d69e51d3df51da70d42",
+    "ai-workflows/decision-control/tests/test_evaluation_cli.py": "fe7b8d45a88e0167958993e48e416bfb1944bcd0dc38913055c6922fcce4ac0e",
+    "ai-workflows/decision-control/tests/test_evidence.py": "0f99866904b2aab71066889deafc47ff69835623b66fe8916c524e2c8a203966",
+    "ai-workflows/decision-control/tests/test_policy.py": "d97d75ee9845bdf4e963d7b86b568242758e96180535091c4376bc0b5ebf05b5",
+    "ai-workflows/decision-control/tests/test_store.py": "67dd986b933d73d28df32fcaf65f9f19deb9132b2af7c788af3885f156b181d6",
+    "ai-workflows/experiment-gate/.gitignore": "2b36933a914dc6f78e7d0e4025202df579b491602862c3312dd542c62ec2d9a1",
+    "ai-workflows/experiment-gate/README.md": "698f59840642a7f4ac117c2139ff0d963c90459a97f0155f4ee814cbc7f35fda",
+    "ai-workflows/experiment-gate/examples/offer-ranker-v2.json": "b1be9880d58cfc831abcb612797aa4c7c63f7977617ceafdc5e738630c2011c7",
+    "ai-workflows/experiment-gate/expgate/__init__.py": "d15d4557fb7cc7cb6cca41db34e7a9fe0a47abb0b691ceeab97e6530b04696d2",
+    "ai-workflows/experiment-gate/expgate/decision.py": "259ac4f424801b1aa0828dc1893bb344a4249f78c604911d790e5cada76bcefc",
+    "ai-workflows/experiment-gate/expgate/generator.py": "4950aded442d7ee2f5c22c84516f86d807d29b099514f54136391e297c79abc2",
+    "ai-workflows/experiment-gate/expgate/run.py": "0e667045210c8d104b0b0911659f306cb59c7fd81b55f5ab81411f64c1f165a6",
+    "ai-workflows/experiment-gate/expgate/stats.py": "bda55e521e51ba20d16e38af9180fd802363dd09e23b5d74ab663527f428860a",
+    "ai-workflows/experiment-gate/pyproject.toml": "82a80bc7b4ec55d7f3e6d1d95ab71c26ef0d5a2555e146e4556636c4bdff5153",
+    "ai-workflows/experiment-gate/tests/test_expgate.py": "818bfd04af9f72240111df25fad16c66cc871cb4954e8c72572741669e31b7a2",
+    "ai-workflows/jev-decision/README.md": "f4be53a61bbb714744f8ef52f6317151863e84feb8c67fa3b383ed24e0655012",
+    "ai-workflows/jev-decision/examples/support-ticket-cases.jsonl": "569a7555d79eef8f2d0af370c2811711ecb2a953b0594b288a743e661913d48c",
+    "ai-workflows/jev-decision/examples/support-ticket-requirements.json": "b35c1ca03a49f71566bf4b2daff4d89f27a3a2780879aa32f6b86087f8b0d048",
+    "ai-workflows/jev-decision/examples/support-ticket-responses.jsonl": "15d34d5b9fa0e2cf77b39122202949f9c0449dec674b81c01b2ff0732315c527",
+    "ai-workflows/jev-decision/examples/support-ticket.json": "86cb628c529dfc1ebc44ee81c3fb3c2ac2558e748b386e9e344fa4c49ba8e9a7",
+    "ai-workflows/jev-decision/jevdecision/__init__.py": "aa3a06b4235874ee004612d1ead1635ccdf7a6cf14725ea3c732535f9a66d4c2",
+    "ai-workflows/jev-decision/jevdecision/__main__.py": "e96ca38a85d47ccb0e44510b8ee238ad125e0bbf0c3433c3fa5d987230cfa003",
+    "ai-workflows/jev-decision/jevdecision/answers.py": "0bcc246ce66fe65e98dfdeb3368bb844c51c852fbc7a24de2d8d34557cfccc50",
+    "ai-workflows/jev-decision/jevdecision/backends.py": "e77e8cd58dd8eb7be19b0af58e4267c391b4b46d3ac5f390fd86dcb3b362cd0b",
+    "ai-workflows/jev-decision/jevdecision/core.py": "74123d840723944baeb0af0faffad3f738934a925298ad532a87817aa0eaee78",
+    "ai-workflows/jev-decision/jevdecision/errors.py": "70eb480798b88aeea4e2787c3c5bd52a3dd7f4c823d8c030ac9cebc3bcbca683",
+    "ai-workflows/jev-decision/jevdecision/evaluation.py": "3a0c0b5948c2cd79dd93451edffc0be1b791a9a9e79b96bf5893126ddacd004d",
+    "ai-workflows/jev-decision/jevdecision/questions.py": "ae2b5df023022e06584ea6fa0b460a0d7f099faf249edee9bb2d310300d0d2d9",
+    "ai-workflows/jev-decision/pyproject.toml": "2580d3e940211cb775d4105f1357cc338514360118885b4c38366195ccf8abbb",
+    "ai-workflows/jev-decision/tests/test_evaluation.py": "50be75bd4dc7d08dd5f9f2983d0e32116148ddd902c1f88395f016ccddce25d8",
+    "ai-workflows/jev-decision/tests/test_jevdecision.py": "e688b3ec87b7f00378e1a9afc015b5dd24f6203488e20551b677d2e37ea1af42",
+    "scripts/README.md": "2c6331c04fd9def879777a5e0f7d56e10a2aa8c837243fb1f19c4a45e3610e75",
+    "scripts/continual_delivery.py": "b48f0b85596f64322bce2db85e659e464d953d1135ae2fbe12f7c52ba53fe473",
+    "scripts/export-relia.py": "d25c8a776fff6d9a7a268efe7ad3cde784c14df5bd92d575691c76c591dc5475",
+    "scripts/publication_evidence.py": "b8dd52539b99b6146b23c4ec6e3a215eaed10177cc348959fb0855b6def54be1",
+    "scripts/tests/test_continual_delivery.py": "e8e0f9da9bd1fdb39c0a0936ab0ddab5b03fce09be1e7d2ef845c2c3777f6bf0",
+    "scripts/tests/test_export_relia.py": "a2f67df7fdbe60e4defca0982892e86cd06bcc30c4501f666122750e5659dfaf",
+    "scripts/tests/test_publication_evidence.py": "c77df5e9883b8b2aaadb731e84d0427399c26cb5872e6f4ad438213d44c2848a",
+    "scripts/tests/test_workspace.py": "0abfa048a8657ec57c0c526a615f740c5ad03dcdb4dd5e554a51649b158efc81",
+    "scripts/workspace.py": "a8f268be6473a06d523cc10dde45f59ce02c493863db2e65f8f058d7fe3c6590",
+    "workspace.json": "bdd85acdaacafcef4e01a96c329cf0b82ea90938c86138e2b8256903aa21b43e"
+  },
+  "source_inventory_sha256": "a30b161e162475914c42381d88e0916445a61a07ca81366bbf81114a62196f10",
+  "steps": [
+    {
+      "cwd": "ai-workflows/decision-control",
+      "exit": 0,
+      "expected_exit": 0,
+      "log": "logs/01-test-decision-control.txt",
+      "name": "test-decision-control",
+      "seconds": 0.19432362497900613
+    },
+    {
+      "cwd": "ai-workflows/experiment-gate",
+      "exit": 0,
+      "expected_exit": 0,
+      "log": "logs/02-test-experiment-gate.txt",
+      "name": "test-experiment-gate",
+      "seconds": 1.5312078749993816
+    },
+    {
+      "cwd": "ai-workflows/jev-decision",
+      "exit": 0,
+      "expected_exit": 0,
+      "log": "logs/03-test-jev-decision.txt",
+      "name": "test-jev-decision",
+      "seconds": 0.0874983340036124
+    },
+    {
+      "cwd": "scripts",
+      "exit": 0,
+      "expected_exit": 0,
+      "log": "logs/04-test-workspace-tooling.txt",
+      "name": "test-workspace-tooling",
+      "seconds": 0.052376041014213115
+    },
+    {
+      "cwd": "scripts",
+      "exit": 0,
+      "expected_exit": 0,
+      "log": "logs/05-test-workspace-tooling.txt",
+      "name": "test-workspace-tooling",
+      "seconds": 1.9094696670072153
+    },
+    {
+      "cwd": "scripts",
+      "exit": 0,
+      "expected_exit": 0,
+      "log": "logs/06-test-workspace-tooling.txt",
+      "name": "test-workspace-tooling",
+      "seconds": 0.05863370798761025
+    },
+    {
+      "cwd": "scripts",
+      "exit": 0,
+      "expected_exit": 0,
+      "log": "logs/07-test-workspace-tooling.txt",
+      "name": "test-workspace-tooling",
+      "seconds": 0.14697549998527393
+    },
+    {
+      "cwd": "ai-workflows/ai-decision-reliability",
+      "exit": 0,
+      "expected_exit": 0,
+      "log": "logs/08-relia-reproduce.txt",
+      "name": "relia-reproduce",
+      "seconds": 81.09740179099026
+    },
+    {
+      "cwd": ".",
+      "exit": 0,
+      "expected_exit": 0,
+      "log": "logs/09-relia-export-tests.txt",
+      "name": "relia-export-tests",
+      "seconds": 3.2700004580256063
+    },
+    {
+      "cwd": "ai-workflows/experiment-gate",
+      "exit": 0,
+      "expected_exit": 0,
+      "log": "logs/10-experiment-scenarios.txt",
+      "name": "experiment-scenarios",
+      "seconds": 0.09273545900941826
+    },
+    {
+      "cwd": "ai-workflows/jev-decision",
+      "exit": 0,
+      "expected_exit": 0,
+      "log": "logs/11-jev-gated-replay.txt",
+      "name": "jev-gated-replay",
+      "seconds": 0.04197399999247864
+    },
+    {
+      "cwd": "ai-workflows/jev-decision",
+      "exit": 3,
+      "expected_exit": 3,
+      "log": "logs/12-jev-ungated-replay.txt",
+      "name": "jev-ungated-replay",
+      "seconds": 0.03558787499787286
+    },
+    {
+      "cwd": "ai-workflows/decision-control",
+      "exit": 0,
+      "expected_exit": 0,
+      "log": "logs/13-decision-control-demo.txt",
+      "name": "decision-control-demo",
+      "seconds": 0.03552050000871532
+    },
+    {
+      "cwd": "ai-workflows/decision-control",
+      "exit": 1,
+      "expected_exit": 1,
+      "log": "logs/14-decision-control-adverse.txt",
+      "name": "decision-control-adverse",
+      "seconds": 0.029505750018870458
+    },
+    {
+      "cwd": "ai-workflows/decision-control",
+      "exit": 0,
+      "expected_exit": 0,
+      "log": "logs/15-decision-control-replay.txt",
+      "name": "decision-control-replay",
+      "seconds": 0.027833208005176857
+    }
+  ],
+  "verified": true
+}
