@@ -22,6 +22,8 @@ jobs:
         run: python3 -m unittest discover -s scripts/tests -p 'test_continual_delivery.py' -v
       - name: Workspace tool regression tests
         run: python3 -m unittest discover -s scripts/tests -p 'test_workspace.py' -v
+      - name: Publication evidence integrity tests
+        run: python3 -m unittest discover -s scripts/tests -p 'test_publication_evidence.py' -v
       - name: Workspace manifest, CI routing, and import boundaries
         run: python3 scripts/workspace.py check
       - name: Changed Python syntax

@@ -2,9 +2,9 @@
 
 A case is a state plus the expected answer to some or all questions: `true`/`false` for a
 `Noul`, a label for a `Choice`, a level (or level index) for a `Score`. Answers come either
-from recorded provider responses (replay, which needs no API key and gives the same report
-every time) or from a live backend, whose raw responses are written out so the run can be
-replayed later.
+from supplied responses (replay, which needs no API key and gives the same report every
+time) or from a live backend, whose raw responses are written out so the run can be
+replayed later. Replay response origin is unverified.
 
 Metrics per question:
 
@@ -30,7 +30,9 @@ A case whose request or response fails counts as an error, not as a wrong answer
 Each run also writes `cases.jsonl`, one row per case with every labeled question's expected
 and predicted answer (or the case's error), and EVALUATION.md lists the incorrect answers.
 
-Command line (exit 0 when every requirement passes, 1 when one fails, 2 for invalid input):
+Command line: exit 0 for PASS, 1 for FAIL/provider errors, 2 for invalid input,
+and 3 for UNGATED (no explicit question metric bounds). CLI runs also write provenance.json
+with exact input and output file SHA-256 hashes, separately from evaluation metrics.
 
     python -m jevdecision.evaluation --questions examples/support-ticket.json \
         --cases examples/support-ticket-cases.jsonl \
@@ -137,7 +139,7 @@ def load_cases(text, questions):
 
 
 def load_responses(text):
-    """Parse JSON Lines of {"id", "response"} recorded from a provider; return {id: response}."""
+    """Parse supplied JSON Lines of {"id", "response"}; origin is not verified."""
     responses = {}
     for number, row in _jsonl(text, "responses"):
         case_id = row.get("id")
@@ -352,8 +354,8 @@ def run_live(backend, questions, cases):
 
 
 def evaluate(questions, cases, answers, errors, requirements=None):
-    """Build the evaluation report and apply the requirement spec (if any)."""
-    max_error_rate, checks = load_requirements(requirements or {}, questions)
+    """Apply validated bounds: FAIL on a failed check, otherwise PASS only with question bounds."""
+    max_error_rate, checks = load_requirements({} if requirements is None else requirements, questions)
     metrics = score_answers(questions, cases, answers)
     error_rate = len(errors) / len(cases)
     results = [{"check": "error_rate", "bound": "max", "limit": max_error_rate, "value": error_rate,
@@ -369,7 +371,7 @@ def evaluate(questions, cases, answers, errors, requirements=None):
         "error_rate": error_rate,
         "questions": metrics,
         "requirements": results,
-        "pass": all(result["pass"] for result in results),
+        "status": "FAIL" if not all(result["pass"] for result in results) else "PASS" if checks else "UNGATED",
     }
 
 
@@ -383,13 +385,18 @@ MAX_LISTED_MISSES = 20
 
 
 def render_markdown(report, digest, cases=None):
-    lines = [f"# Decision model evaluation: {'PASS' if report['pass'] else 'FAIL'}\n",
+    lines = [f"# Decision model evaluation: {report['status']}\n",
              f"- evaluation.json SHA-256: `{digest}`",
              f"- jevdecision {report['jevdecision_version']}; backend {report['backend']}; "
              f"model {report['model']}; source {report['source']}",
              f"- {report['cases']} cases, {report['answered']} answered, "
              f"{len(report['errors'])} errors (rate {_fmt(report['error_rate'])})\n",
              "| Question | Type | n | Metrics |", "|---|---|---:|---|"]
+    if report["status"] == "UNGATED":
+        lines.insert(4, "- No explicit question metric bounds: metrics are descriptive, not a quality gate.\n")
+    if report["source"] == "replay":
+        lines.insert(4, "- Replay origin is unverified; response model fields are supplied metadata, "
+                     "not proof of provider output.\n")
     for name, metrics in report["questions"].items():
         shown = ", ".join(f"{key} {_fmt(metrics[key])}" for key in METRICS[metrics["type"]][1:])
         lines.append(f"| {name} | {metrics['type']} | {metrics['n']} | {shown} |")
@@ -440,7 +447,7 @@ def main(argv=None):
     parser.add_argument("--questions", required=True, type=Path, help="JSON question map (Jev format)")
     parser.add_argument("--cases", required=True, type=Path, help='JSON Lines of {"id", "state", "labels"}')
     parser.add_argument("--responses", type=Path,
-                        help='recorded JSON Lines of {"id", "response"}; replays them instead of calling the provider')
+                        help='supplied JSON Lines of {"id", "response"}; unverified origin, no provider call')
     parser.add_argument("--require", type=Path, help="JSON requirement spec")
     parser.add_argument("--out", required=True, type=Path, help="new or empty output directory")
     parser.add_argument("--backend", choices=sorted(BACKENDS), default="jev",
@@ -454,14 +461,17 @@ def main(argv=None):
     if args.out.exists() and (not args.out.is_dir() or any(args.out.iterdir())):
         parser.error("--out must be a new path or an existing empty directory")
     try:
-        questions = check_question_set(questions_from_spec(json.loads(args.questions.read_text(encoding="utf-8"))))
-        cases = load_cases(args.cases.read_text(encoding="utf-8"), questions)
-        requirements = json.loads(args.require.read_text(encoding="utf-8")) if args.require else {}
+        inputs = {name: path.read_bytes() if path else None for name, path in (
+            ("questions", args.questions), ("cases", args.cases),
+            ("requirements", args.require), ("responses", args.responses))}
+        questions = check_question_set(questions_from_spec(json.loads(inputs["questions"].decode("utf-8"))))
+        cases = load_cases(inputs["cases"].decode("utf-8"), questions)
+        requirements = json.loads(inputs["requirements"].decode("utf-8")) if args.require else {}
         load_requirements(requirements, questions)
         backend = create_backend(args.backend, model=args.model, base_url=args.base_url,
                                  path=args.path, timeout=args.timeout)
         if args.responses:
-            responses = load_responses(args.responses.read_text(encoding="utf-8"))
+            responses = load_responses(inputs["responses"].decode("utf-8"))
             answers, raw, errors = replay(backend, questions, cases, responses)
         else:
             backend.headers()  # fail before the first case when there is no API key
@@ -479,11 +489,27 @@ def main(argv=None):
               "source": "replay" if args.responses else "live",
               **evaluate(questions, cases, answers, errors, requirements)}
     digest = write_records(report, raw, args.out, case_results(questions, cases, answers, errors))
-    print(f"{'PASS' if report['pass'] else 'FAIL'} {digest}")
+    provenance = {
+        "response_mode": report["source"],
+        "response_origin": ("unverified: supplied replay responses may be hand-written; model fields "
+                            "do not authenticate provider output" if args.responses else
+                            "live: responses obtained by this CLI through the configured backend"),
+        "inputs": {name: {"sha256": hashlib.sha256(blob).hexdigest()} if blob is not None else None
+                   for name, blob in inputs.items()},
+        "outputs": {name: {"sha256": hashlib.sha256((args.out / name).read_bytes()).hexdigest()}
+                    for name in ("evaluation.json", "EVALUATION.md", "responses.jsonl", "cases.jsonl")},
+    }
+    (args.out / "provenance.json").write_text(
+        json.dumps(provenance, indent=2, sort_keys=True, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(f"{report['status']} {digest}")
+    if report["status"] == "UNGATED":
+        print("  No explicit question metric bounds; descriptive metrics only.")
+    if args.responses:
+        print("  Replay origin is unverified; supplied responses are not authenticated provider output.")
     for result in report["requirements"]:
         if not result["pass"]:
             print(f"  {result['check']}: {_fmt(result['value'])} fails {result['bound']} {_fmt(result['limit'])}")
-    return 0 if report["pass"] else 1
+    return {"PASS": 0, "FAIL": 1, "UNGATED": 3}[report["status"]]
 
 
 if __name__ == "__main__":
