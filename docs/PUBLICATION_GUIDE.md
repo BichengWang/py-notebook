@@ -24,7 +24,7 @@ The command:
 5. Checks dispositions and actual serialized demo ticket states. Expected adverse results are preserved: rejected RELIA update, experiment HOLD/ROLLBACK/INVALID, Jev UNGATED with exit 3, and policy-evaluation FAIL with exit 1.
 6. Rejects changed source during execution. Writes `VERIFICATION.md` and `EVIDENCE.json` with commands, expected/actual exit statuses, timings, source hashes and retained artifact hashes. A failed step leaves its evidence and a FAIL report; no retry erases it.
 
-Successful collection exits 0; failed verification exits 1; invalid invocation or unreadable inputs exit 2. `--verify` checks the retained artifact bytes against the recorded hashes, not author authenticity. Hashes are not signatures, and a malicious actor can rewrite the record. Keep the original record separately if integrity matters.
+Successful collection and retained-artifact integrity checks exit 0; a failed collection exits 1. Invalid invocation, unreadable inputs, or an artifact mismatch during `--verify` exits 2. `--verify` checks the retained artifact bytes against the recorded hashes, not author authenticity. Hashes are not signatures, and a malicious actor can rewrite the record. Keep the original record separately if integrity matters.
 
 ## Scope and claim limits
 
