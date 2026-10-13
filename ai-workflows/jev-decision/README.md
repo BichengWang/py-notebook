@@ -1,6 +1,6 @@
 # Jev decision model (`jevdecision`)
 
-The core decision model for this workspace. A decision model answers bounded
+Replayable decision records for AI-assisted go/no-go decisions. A decision model answers bounded
 questions about a state with **typed answers and reported probabilities** instead of
 generated text: a yes/no probability, one label from a fixed set, or a position
 on an ordered scale. These can inform gating agent tool calls, routing tickets,
@@ -11,6 +11,18 @@ backend. The [OpenAI Decisions API](https://developers.openai.com/api/docs/guide
 is a drop-in alternative: questions are defined once and answers come back in the
 same types from either provider. The package uses only the Python standard
 library, so it has no dependencies and no lockfile.
+
+## Install
+
+Requires Python 3.11 or later; runtime dependencies: none.
+
+```bash
+pip install jevdecision
+```
+
+The distribution includes `jev-decision` and `jev-decision-eval`; existing
+`python -m jevdecision` and `python -m jevdecision.evaluation` commands remain supported.
+Installed examples are available through `importlib.resources.files("jevdecision") / "examples"`.
 
 ## Question types
 
@@ -23,8 +35,10 @@ library, so it has no dependencies and no lockfile.
 Questions are validated before anything is sent: names are unique identifiers,
 instructions are non-empty, a choice has 1 to 255 options, and a score has 2 to
 10 distinct levels. Responses are checked against the questions they answer.
-Every question must be answered with its own type, a choice must be one of the
-options, and probabilities and scores must lie in range. Anything else raises
+Every question must have a matching answer or an explicit `type: "refusal"` result; a choice must be one of the
+options, and probabilities and scores must lie in range. Probabilities must be finite and within [0,1]. Complete distributions must sum
+to 1 within `1e-6 * number_of_options + 1e-3`; partial collections retain unknown
+entries and are not treated as complete distributions. Invalid responses raise
 `ResponseError`, so the application never acts on a malformed answer.
 
 ## Usage
@@ -61,6 +75,19 @@ reported probability of the chosen label. If neither is supplied, it returns
 still takes precedence over a reported choice probability; neither is a calibrated
 safety guarantee or a replacement for application policy.
 
+### Refusals and score uncertainty
+
+An explicit per-question refusal becomes `RefusalAnswer` with `.name` and
+`.type == "refusal"`. `ask`/`decide` retain valid sibling answers. `gate` returns
+`False` for a refusal, even at threshold zero; `route` returns its fallback.
+The OpenAI guide documents this marker; TypeSafe's reference does not document
+refusal fields, so no reason or other provider-specific field is assumed.
+
+Score probabilities are a tuple in level order, with `None` for missing entries.
+`.probability` is the reported probability of the nearest level, or `None`.
+A supplied score remains usable without probabilities; deriving a missing score
+requires a complete distribution. Missing values are never zero-filled.
+
 ### Choice uncertainty contract
 
 `ask` and `decide` retain a valid choice even when its uncertainty is unknown:
@@ -96,7 +123,7 @@ must be a finite non-negative number of seconds; zero permits immediate retries
 unless `Retry-After` requests a wait. Invalid settings raise `DecisionError`
 before any request is sent. Use `base_url` and `path` for a gateway
 that serves Jev elsewhere, for example `path="/v1/decisions"` with
-`model="typesafe/jev"`. Rate-limit (429), server (5xx), and connection errors are
+`model="typesafe/jev"`. Request timeout (408), rate-limit (429), server (5xx), connection and HTTP protocol errors are
 retried with exponential backoff (2 retries by default). When the provider sends a
 `Retry-After` header (seconds or an HTTP date), the client waits at least that long
 before retrying. A provider that asks for more than `max_retry_wait` seconds (60 by
@@ -105,6 +132,12 @@ carries the requested wait, instead of blocking the caller. Other HTTP errors ar
 raised as `APIError` immediately. `transport` is any callable
 `(url, headers, body_bytes, timeout) -> dict`, which tests use to replace the
 network.
+
+Remote `base_url` values require HTTPS. HTTP is accepted only for `localhost`
+or a literal loopback IP address (IPv4 or IPv6). Credentials, query strings and
+fragments in the base URL are rejected with `QuestionError`. Authenticated POSTs
+never follow redirects: every 3xx response raises a non-retryable `APIError`.
+Custom transports must enforce equivalent credential protection themselves.
 
 The structured state can be text, a JSON object, or a list of non-empty strings. Jev
 receives it unchanged. The OpenAI backend sends text, so it serializes an object
@@ -127,7 +160,7 @@ The questions file uses Jev's native question map
 accepted as an alias of `noul`. A `.json` state file is sent as structured
 state, and any other file is sent as text. `--dry-run` prints the provider request
 without sending it, so it needs no API key; the state is validated first either
-way. The decision is printed as JSON. Exit codes: 0 for success, 1 for a provider
+way. The decision is printed as JSON. Exit codes: 0 for success, 1 for a result containing refusals or a provider
 or response error, 2 for invalid input (questions, state, or a `--timeout` that is
 not a positive number of seconds).
 
@@ -153,7 +186,7 @@ questions: `true` or `false` for a `noul`, a label for a `choice`, and a level
 |---|---|
 | `noul` | `accuracy` (at probability 0.5), `brier`, `log_loss`, `ece`, `base_rate`, `mean_probability` |
 | `choice` | `accuracy`, `brier` (summed over labels), `log_loss`, `ece` (probability of the chosen label against correctness), a confusion matrix |
-| `score` | `accuracy` (nearest level), `within_one`, `mae` (in level steps) |
+| `score` | `accuracy` (nearest level), `within_one`, `mae` (in level steps), `brier`, `log_loss`, `ece` (nearest level probability) |
 
 Every question also reports `n`, the number of cases that label it, and
 `accuracy_lower` and `accuracy_upper`, the 95% Wilson score interval for
@@ -162,6 +195,11 @@ interval of [0.646, 0.985], so a gate on `accuracy_lower` asks for enough cases 
 well as a high hit rate. `ece` is the
 expected calibration error over ten equal-width probability bins. Log loss clips
 probabilities to [1e-6, 1 - 1e-6].
+
+Every question also reports `refusals` and `refusal_rate` among its labeled,
+parsed results. Refusals count in `n`, accuracy and its Wilson interval as
+incorrect, and make probability metrics unmeasured. Score MAE and within-one
+are also unmeasured if any result refuses. Request/parse errors remain separate.
 
 Missing choice probabilities do not exclude otherwise valid answers from `n`,
 accuracy, its interval, or the confusion matrix. Probability metrics require the
@@ -177,7 +215,10 @@ JSON and `unmeasured` in the report. A requirement on it fails. Per-case records
 retain the prediction and a null chosen probability, and raw responses remain
 available for replay. Re-evaluating older responses with missing probabilities
 may therefore fail gates that previously scored fabricated values. Complete
-probability responses retain their previous scores.
+probability responses retain their previous scores. Score Brier requires every
+level probability, log loss requires the expected level probability, and ECE
+requires the nearest level probability on every case. Missing inputs yield
+`null` and fail metric requirements, as for choices.
 
 A requirement file supplies explicit question metric bounds, each a `min` or
 `max`. The overall JSON field is `status` (not a boolean `pass`):
@@ -216,15 +257,31 @@ python3 -m jevdecision.evaluation --questions examples/support-ticket.json \
     --cases examples/support-ticket-cases.jsonl --backend openai --out live-run
 ```
 
-`--out` must be new or empty. Each run writes `evaluation.json` (sorted keys),
+`--out` must be new or empty. Files are prepared in a sibling `.NAME-*` staging
+directory, then published with `os.replace` after all summaries are complete.
+Live runs print the staging path and append/fsync each completed response and
+case result before requesting the next case, including malformed JSON responses
+that parsed as JSON but failed answer validation. Interrupted runs retain these
+JSONL files for inspection and replay; the target remains available for a rerun.
+A 401/403 stops immediately with exit 2 and retains progress without a final report.
+There is no automatic resume; replay the saved responses with the original cases
+(missing responses count as errors), or start a new live run.
+
+Each run writes `evaluation.json` (canonical JSON),
 a readable `EVALUATION.md`, `responses.jsonl` with the supplied replay responses
 or responses obtained through the live backend, and `cases.jsonl` with one row
 per case: each labeled question's expected and predicted answer (with probability
 or score) and whether it was correct, or the case's error. `EVALUATION.md` lists
 the first 20 incorrect answers. Exported responses can be passed as `--responses`
-to re-score without calling a provider. Identical replay question, case, response
+to re-score without calling a provider. Within the same Python runtime, identical replay question, case, response
 and requirement content produces byte-identical `evaluation.json`; live-to-replay
 metrics remain the same, but the report's `source` changes.
+
+Decision records use `schema_version: 1`; evaluation and provenance records use
+`schema_version: 2`. They carry `produced_by: {"name": "jevdecision", "version": "0.1.0"}`.
+Raw provider response replay remains compatible with existing unversioned fixtures.
+JSON records use sorted keys, compact separators and UTF-8 without ASCII escaping;
+SHA-256 digests are lowercase hexadecimal. JSONL rows use the same encoding.
 
 CLI runs also write a separate deterministic `provenance.json`:
 
@@ -241,8 +298,8 @@ Hashes identify bytes, not authenticity, reviewer independence or model quality.
 Raw responses and labeled cases may contain sensitive material; inspect them
 before sharing. `--backend` names the response format to replay (`jev` by default).
 The CLI and Markdown display the same overall status. Exit codes: **0** for PASS,
-**1** for FAIL or a provider that cannot be used, **2** for invalid input (which
-produces no evaluation artifacts), and **3** for UNGATED.
+**1** for FAIL or a provider that cannot be used, **2** for invalid input/unreadable files or live 401/403 (authentication failures
+retain staged progress; invalid input produces no final artifacts), and **3** for UNGATED.
 
 The example responses are hand-written in Jev's response format to show the
 workflow. They are not output from Jev or any other model, and the example
@@ -263,16 +320,16 @@ From the repository root, `make jev-eval` runs the example into a temporary dire
   error and MAE are point estimates, which are noisy with a few dozen cases, so set
   `n` minimums that match the thresholds you rely on.
 - A live evaluation sends one request per case, sequentially.
+- Floating-point metrics can differ at the last decimal place across Python
+  versions, changing canonical record hashes and potentially bounds set exactly
+  at that value. Use the same runtime for byte-identical replay verification.
 
-## Safety verification
+## Local software verification
 
-The unknown-choice-uncertainty correction was verified with the behavioral suite
-on Python 3.11 and 3.13 and fresh standalone installs on both versions. Installed
-SDK calls exercised both provider formats through a local HTTP fixture: unknown
-uncertainty fell back at thresholds 0 and 0.99, while reported confidence,
-probability, and explicit zero retained their routing semantics.
-
-Installed decision/evaluation CLI runs preserved unknown probabilities, retained
-all labeled cases, failed unmeasured metric gates, and reproduced the failed report
-byte-identically from its exported responses. This is local software verification,
-not a live-provider call, calibration result, or deployment-safety claim.
+Release checks cover refusals, unknown probabilities, malformed distributions,
+HTTP retries and redirect protection, interrupted live progress, authentication
+stops and atomic publication. Tests use synthetic provider responses and a local
+HTTP fixture. Fresh wheel installs exercise both backend dry runs and the gated
+12-case replay example; exported responses reproduce the evaluation bytes within
+the same runtime. These checks are not live-provider calls, calibration results,
+or deployment-safety evidence.

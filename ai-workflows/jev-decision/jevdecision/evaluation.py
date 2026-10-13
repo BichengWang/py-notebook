@@ -44,6 +44,8 @@ import argparse
 import hashlib
 import json
 import math
+import os
+import tempfile
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -51,7 +53,8 @@ from statistics import NormalDist
 
 from . import __version__
 from .backends import BACKENDS, _check_state, create_backend
-from .errors import DatasetError, DecisionError
+from .errors import APIError, DatasetError, DecisionError, ResponseError
+from .answers import RefusalAnswer
 from .questions import Choice, Noul, Score
 
 EPSILON = 1e-6
@@ -61,8 +64,11 @@ _ACCURACY = ("accuracy", "accuracy_lower", "accuracy_upper")
 METRICS = {
     "noul": ("n", *_ACCURACY, "brier", "log_loss", "ece", "base_rate", "mean_probability"),
     "choice": ("n", *_ACCURACY, "brier", "log_loss", "ece"),
-    "score": ("n", *_ACCURACY, "within_one", "mae"),
+    "score": ("n", *_ACCURACY, "within_one", "mae", "brier", "log_loss", "ece"),
 }
+
+for _metrics_type in METRICS:
+    METRICS[_metrics_type] += ("refusals", "refusal_rate")
 
 
 @dataclass(frozen=True)
@@ -270,6 +276,12 @@ def _score_metrics(question, pairs):
         **_accuracy([question.levels.index(a.level) == y for a, y in pairs]),
         "within_one": _mean([float(abs(question.levels.index(a.level) - y) <= 1) for a, y in pairs]),
         "mae": _mean([abs(a.score - y) for a, y in pairs]),
+        "brier": _mean([sum((p - (i == y)) ** 2 for i, p in enumerate(a.probabilities))
+                        for a, y in pairs]) if all(all(p is not None for p in a.probabilities) for a, _ in pairs) else None,
+        "log_loss": _mean([_log_loss(a.probabilities[y]) for a, y in pairs])
+                    if all(a.probabilities[y] is not None for a, y in pairs) else None,
+        "ece": expected_calibration_error([(a.probability, question.levels.index(a.level) == y) for a, y in pairs])
+               if all(a.probability is not None for a, _ in pairs) else None,
     }
 
 
@@ -279,18 +291,32 @@ def score_answers(questions, cases, answers):
     for question in questions:
         pairs = [(answers[case.id][question.name], case.labels[question.name])
                  for case in cases if case.id in answers and question.name in case.labels]
+        refusals = sum(isinstance(a, RefusalAnswer) for a, _ in pairs)
+        valid = [(a, y) for a, y in pairs if not isinstance(a, RefusalAnswer)]
         if isinstance(question, Noul):
-            metrics = _noul_metrics([(answer.probability, expected) for answer, expected in pairs])
+            metrics = _noul_metrics([(answer.probability, expected) for answer, expected in valid])
         elif isinstance(question, Choice):
-            metrics = _choice_metrics(question, pairs)
+            metrics = _choice_metrics(question, valid)
         else:
-            metrics = _score_metrics(question, pairs)
+            metrics = _score_metrics(question, valid)
+        if refusals:
+            correct = [row["correct"] for row in (_case_result(question, a, y) for a, y in pairs)]
+            metrics.update(_accuracy(correct))
+            for key in ("brier", "log_loss", "ece", "mean_probability", "mae", "within_one"):
+                if key in metrics:
+                    metrics[key] = None
+            if isinstance(question, Noul):
+                metrics["base_rate"] = _mean([float(y) for _, y in pairs])
+        metrics.update(n=len(pairs), refusals=refusals, refusal_rate=refusals / len(pairs) if pairs else None)
         report[question.name] = {"type": question.type, **metrics}
     return report
 
 
 def _case_result(question, answer, expected):
     """Expected and predicted answer for one labeled question in one case."""
+    if isinstance(answer, RefusalAnswer):
+        return {"expected": question.levels[expected] if isinstance(question, Score) else expected,
+                "predicted": None, "probability": None, "refused": True, "correct": False}
     if isinstance(question, Noul):
         return {"expected": expected, "predicted": answer.is_yes(), "probability": answer.probability,
                 "correct": answer.is_yes() == expected}
@@ -340,7 +366,7 @@ def replay(backend, questions, cases, responses):
     return answers, raw, errors
 
 
-def run_live(backend, questions, cases):
+def run_live(backend, questions, cases, progress=None):
     """Ask the backend about every case; a failing case is recorded as an error, not raised."""
     answers, raw, errors = {}, {}, []
     for case in cases:
@@ -348,8 +374,19 @@ def run_live(backend, questions, cases):
             decision = backend.decide(case.state, questions)
         except DecisionError as error:
             errors.append({"id": case.id, "error": str(error)})
+            if isinstance(error, ResponseError) and error.response_received:
+                raw[case.id] = error.response
+            if progress:
+                if isinstance(error, ResponseError) and error.response_received:
+                    progress(case, None, errors[-1], error.response)
+                else:
+                    progress(case, None, errors[-1])
+            if isinstance(error, APIError) and error.status in (401, 403):
+                raise
             continue
         answers[case.id], raw[case.id] = decision.answers, decision.raw
+        if progress:
+            progress(case, decision, None)
     return answers, raw, errors
 
 
@@ -420,22 +457,42 @@ def render_markdown(report, digest, cases=None):
 
 
 def _write_jsonl(path, rows):
-    lines = [json.dumps(row, sort_keys=True, ensure_ascii=False) for row in rows]
+    lines = [json.dumps(row, sort_keys=True, separators=(",", ":"), ensure_ascii=False) for row in rows]
     path.write_text("".join(line + "\n" for line in lines), encoding="utf-8")
 
 
-def write_records(report, raw, out, cases=None):
+def _write_records(report, raw, out, cases=None, preserve_streams=False):
     """Write evaluation.json (sorted keys), EVALUATION.md, the raw responses as JSON Lines, and,
     when `cases` (from `case_results`) is given, the per-case results as cases.jsonl."""
     out.mkdir(parents=True, exist_ok=True)
-    blob = json.dumps(report, indent=2, sort_keys=True, ensure_ascii=False).encode("utf-8")
+    blob = json.dumps(report, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
     digest = hashlib.sha256(blob).hexdigest()
     (out / "evaluation.json").write_bytes(blob)
     (out / "EVALUATION.md").write_text(render_markdown(report, digest, cases), encoding="utf-8")
-    _write_jsonl(out / "responses.jsonl", ({"id": case_id, "response": response} for case_id, response in raw.items()))
-    if cases is not None:
+    if not preserve_streams or not (out / "responses.jsonl").exists():
+        _write_jsonl(out / "responses.jsonl", ({"id": case_id, "response": response} for case_id, response in raw.items()))
+    if cases is not None and (not preserve_streams or not (out / "cases.jsonl").exists()):
         _write_jsonl(out / "cases.jsonl", cases)
     return digest
+
+
+def write_records(report, raw, out, cases=None):
+    """Publish complete records from a staging directory beside the target."""
+    out = Path(out)
+    if out.exists() and (not out.is_dir() or any(out.iterdir())):
+        raise DatasetError("output must be new or empty")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    staging = Path(tempfile.mkdtemp(prefix=f".{out.name}-", dir=out.parent))
+    digest = _write_records(report, raw, staging, cases)
+    os.replace(staging, out)
+    return digest
+
+
+def _append_jsonl(path, row):
+    with path.open("a", encoding="utf-8") as stream:
+        stream.write(json.dumps(row, sort_keys=True, separators=(",", ":"), ensure_ascii=False) + "\n")
+        stream.flush()
+        os.fsync(stream.fileno())
 
 
 def main(argv=None):
@@ -460,6 +517,7 @@ def main(argv=None):
 
     if args.out.exists() and (not args.out.is_dir() or any(args.out.iterdir())):
         parser.error("--out must be a new path or an existing empty directory")
+    staging = None
     try:
         inputs = {name: path.read_bytes() if path else None for name, path in (
             ("questions", args.questions), ("cases", args.cases),
@@ -475,32 +533,56 @@ def main(argv=None):
             answers, raw, errors = replay(backend, questions, cases, responses)
         else:
             backend.headers()  # fail before the first case when there is no API key
-            answers, raw, errors = run_live(backend, questions, cases)
+            args.out.parent.mkdir(parents=True, exist_ok=True)
+            staging = Path(tempfile.mkdtemp(prefix=f".{args.out.name}-", dir=args.out.parent))
+            print(f"Live progress: {staging}", file=sys.stderr)
+            no_response = object()
+            def progress(case, decision, error, response=no_response):
+                if decision is not None:
+                    _append_jsonl(staging / "responses.jsonl", {"id": case.id, "response": decision.raw})
+                elif response is not no_response:
+                    _append_jsonl(staging / "responses.jsonl", {"id": case.id, "response": response})
+                rows = case_results(questions, [case], {case.id: decision.answers} if decision else {},
+                                    [error] if error else [])
+                _append_jsonl(staging / "cases.jsonl", rows[0])
+            answers, raw, errors = run_live(backend, questions, cases, progress)
     except (OSError, json.JSONDecodeError, ValueError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
     except DecisionError as error:
         print(f"error: {error}", file=sys.stderr)
-        return 1
+        return 2 if isinstance(error, APIError) and error.status in (401, 403) else 1
 
     models = sorted({str(r.get("model")) for r in raw.values() if isinstance(r, dict) and r.get("model")})
-    report = {"jevdecision_version": __version__, "backend": backend.name,
+    report = {"schema_version": 2, "produced_by": {"name": "jevdecision", "version": __version__},
+              "jevdecision_version": __version__, "backend": backend.name,
               "model": ", ".join(models) or backend.model,
               "source": "replay" if args.responses else "live",
               **evaluate(questions, cases, answers, errors, requirements)}
-    digest = write_records(report, raw, args.out, case_results(questions, cases, answers, errors))
-    provenance = {
-        "response_mode": report["source"],
-        "response_origin": ("unverified: supplied replay responses may be hand-written; model fields "
-                            "do not authenticate provider output" if args.responses else
-                            "live: responses obtained by this CLI through the configured backend"),
-        "inputs": {name: {"sha256": hashlib.sha256(blob).hexdigest()} if blob is not None else None
-                   for name, blob in inputs.items()},
-        "outputs": {name: {"sha256": hashlib.sha256((args.out / name).read_bytes()).hexdigest()}
-                    for name in ("evaluation.json", "EVALUATION.md", "responses.jsonl", "cases.jsonl")},
-    }
-    (args.out / "provenance.json").write_text(
-        json.dumps(provenance, indent=2, sort_keys=True, ensure_ascii=False) + "\n", encoding="utf-8")
+    try:
+        if staging is None:
+            args.out.parent.mkdir(parents=True, exist_ok=True)
+            staging = Path(tempfile.mkdtemp(prefix=f".{args.out.name}-", dir=args.out.parent))
+        digest = _write_records(report, raw, staging, case_results(questions, cases, answers, errors),
+                                preserve_streams=not args.responses)
+        provenance = {
+            "schema_version": 2,
+            "produced_by": {"name": "jevdecision", "version": __version__},
+            "response_mode": report["source"],
+            "response_origin": ("unverified: supplied replay responses may be hand-written; model fields "
+                                "do not authenticate provider output" if args.responses else
+                                "live: responses obtained by this CLI through the configured backend"),
+            "inputs": {name: {"sha256": hashlib.sha256(blob).hexdigest()} if blob is not None else None
+                       for name, blob in inputs.items()},
+            "outputs": {name: {"sha256": hashlib.sha256((staging / name).read_bytes()).hexdigest()}
+                        for name in ("evaluation.json", "EVALUATION.md", "responses.jsonl", "cases.jsonl")},
+        }
+        (staging / "provenance.json").write_text(
+            json.dumps(provenance, sort_keys=True, separators=(",", ":"), ensure_ascii=False), encoding="utf-8")
+        os.replace(staging, args.out)
+    except OSError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 2
     print(f"{report['status']} {digest}")
     if report["status"] == "UNGATED":
         print("  No explicit question metric bounds; descriptive metrics only.")

@@ -9,6 +9,10 @@ Three question types cover both providers:
 | `Score` | `score` with ordered `criteria` | `score` with `levels` | probability-weighted level index |
 """
 
+from __future__ import annotations
+
+from collections.abc import Iterable, Mapping, Sequence
+from typing import Any, TypeAlias
 import re
 from dataclasses import dataclass, field
 from types import MappingProxyType
@@ -44,7 +48,7 @@ class Noul:
     instructions: str
     type = "noul"
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         _check_common(self.name, self.instructions)
 
 
@@ -58,10 +62,10 @@ class Choice:
 
     name: str
     instructions: str
-    options: "dict[str, str]" = field(default_factory=dict)
+    options: Mapping[str, str] = field(default_factory=dict)
     type = "choice"
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         _check_common(self.name, self.instructions)
         if not hasattr(self.options, "items"):
             raise QuestionError(f"question {self.name!r}: options must map labels to descriptions")
@@ -77,7 +81,7 @@ class Choice:
         object.__setattr__(self, "options", MappingProxyType(options))
 
     @property
-    def labels(self):
+    def labels(self) -> tuple[str, ...]:
         return tuple(self.options)
 
 
@@ -87,10 +91,10 @@ class Score:
 
     name: str
     instructions: str
-    levels: "tuple[str, ...]" = ()
+    levels: Sequence[str] = ()
     type = "score"
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         _check_common(self.name, self.instructions)
         if isinstance(self.levels, str):
             raise QuestionError(f"question {self.name!r}: levels must be a sequence of strings")
@@ -107,10 +111,12 @@ class Score:
         object.__setattr__(self, "levels", levels)
 
 
+Question: TypeAlias = Noul | Choice | Score
+
 QUESTION_TYPES = (Noul, Choice, Score)
 
 
-def check_question_set(questions):
+def check_question_set(questions: Iterable[Question] | Question) -> tuple[Question, ...]:
     """Return the questions as a tuple; raise QuestionError if the set is invalid."""
     if isinstance(questions, QUESTION_TYPES):
         questions = [questions]
@@ -127,7 +133,7 @@ def check_question_set(questions):
     return questions
 
 
-def questions_from_spec(spec):
+def questions_from_spec(spec: Mapping[str, Any]) -> tuple[Question, ...]:
     """Build questions from Jev's native map: {name: {type, instructions, criteria}}.
 
     `criteria` is a label -> description map for `choice`, an ordered list of
@@ -136,12 +142,12 @@ def questions_from_spec(spec):
     """
     if not isinstance(spec, dict) or not spec:
         raise QuestionError("the question spec must be a non-empty object keyed by question name")
-    questions = []
+    questions: list[Question] = []
     for name, entry in spec.items():
         if not isinstance(entry, dict):
             raise QuestionError(f"question {name!r}: the spec entry must be an object")
         kind = entry.get("type")
-        instructions = entry.get("instructions")
+        instructions: Any = entry.get("instructions")
         criteria = entry.get("criteria")
         if kind in ("noul", "predicate"):
             questions.append(Noul(name, instructions))

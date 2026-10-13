@@ -20,7 +20,7 @@ questions and answers once and talks to either provider:
     decision["department"].choice
 """
 
-from .answers import ChoiceAnswer, Decision, NoulAnswer, ScoreAnswer
+from .answers import ChoiceAnswer, Decision, NoulAnswer, RefusalAnswer, ScoreAnswer
 from .backends import JevBackend, OpenAIDecisionsBackend, create_backend
 from .core import DecisionModel
 from .errors import APIError, DatasetError, DecisionError, QuestionError, ResponseError
@@ -43,6 +43,7 @@ __all__ = [
     "Predicate",
     "QuestionError",
     "ResponseError",
+    "RefusalAnswer",
     "Score",
     "ScoreAnswer",
     "create_backend",

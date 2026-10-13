@@ -7,6 +7,9 @@ per-option probabilities). `parse_answers` accepts either shape and checks every
 answer against the question it answers, so callers see one typed result.
 """
 
+from __future__ import annotations
+
+from collections.abc import Iterator
 import math
 import re
 from dataclasses import dataclass, field
@@ -15,11 +18,21 @@ from typing import Any, Optional
 from .errors import ResponseError
 from .questions import Choice, Noul, Score
 
-# Providers round probabilities; tolerate that much overshoot of [0, 1].
+# Retain the existing rounding tolerance for numeric score indices only.
 PROBABILITY_SLACK = 1e-6
 LABEL_KEYS = ("value", "label", "choice", "level", "name")
 LEVEL_INDEX_RE = re.compile(r"[0-9]+")
 PROBABILITY_KEYS = ("probability", "p", "prob")
+
+
+@dataclass(frozen=True)
+class RefusalAnswer:
+    """A provider declined this question; sibling answers remain usable."""
+    name: str
+    type = "refusal"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"type": self.type}
 
 
 @dataclass(frozen=True)
@@ -28,10 +41,10 @@ class NoulAnswer:
     probability: float
     type = "noul"
 
-    def is_yes(self, threshold=0.5):
+    def is_yes(self, threshold: float=0.5) -> bool:
         return self.probability >= threshold
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         return {"type": self.type, "probability": self.probability}
 
 
@@ -44,14 +57,14 @@ class ChoiceAnswer:
     type = "choice"
 
     @property
-    def probability(self):
+    def probability(self) -> Optional[float]:
         return self.probabilities.get(self.choice)
 
-    def ranked(self):
+    def ranked(self) -> list[tuple[str, float]]:
         """Labels with their probabilities, most likely first (ties keep option order)."""
         return sorted(self.probabilities.items(), key=lambda item: -item[1])
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         return {
             "type": self.type,
             "choice": self.choice,
@@ -65,22 +78,26 @@ class ScoreAnswer:
     name: str
     score: float
     levels: "tuple[str, ...]"
-    probabilities: "tuple[float, ...]"
+    probabilities: "tuple[Optional[float], ...]"
     confidence: Optional[float] = None
     type = "score"
 
     @property
-    def level(self):
+    def level(self) -> str:
         """The level nearest to the score."""
         index = min(max(int(math.floor(self.score + 0.5)), 0), len(self.levels) - 1)
         return self.levels[index]
 
     @property
-    def normalized(self):
+    def probability(self) -> Optional[float]:
+        return self.probabilities[self.levels.index(self.level)]
+
+    @property
+    def normalized(self) -> float:
         """The score rescaled to [0, 1]."""
         return self.score / (len(self.levels) - 1)
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         return {
             "type": self.type,
             "score": self.score,
@@ -95,24 +112,27 @@ class ScoreAnswer:
 class Decision:
     """All answers for one request, keyed by question name."""
 
-    answers: "dict[str, Any]"
+    answers: "dict[str, Answer]"
     backend: str
     model: Optional[str] = None
     usage: "dict[str, Any]" = field(default_factory=dict)
     id: Optional[str] = None
     raw: "dict[str, Any]" = field(default_factory=dict, repr=False, compare=False)
 
-    def __getitem__(self, name):
+    def __getitem__(self, name: str) -> Answer:
         return self.answers[name]
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         return iter(self.answers)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.answers)
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
+        from . import __version__
         return {
+            "schema_version": 1,
+            "produced_by": {"name": "jevdecision", "version": __version__},
             "backend": self.backend,
             "model": self.model,
             "id": self.id,
@@ -134,7 +154,7 @@ def _number(value, where):
 
 def _probability(value, where):
     value = _number(value, where)
-    if not -PROBABILITY_SLACK <= value <= 1 + PROBABILITY_SLACK:
+    if not 0 <= value <= 1:
         raise ResponseError(f"{where}: probability {value} is outside [0, 1]")
     return min(max(value, 0.0), 1.0)
 
@@ -168,6 +188,12 @@ def _probability_map(raw, where):
     raise ResponseError(f"{where}: expected an object or a list, got {raw!r}")
 
 
+def _distribution(values, where):
+    values = tuple(values)
+    if abs(sum(values) - 1) > 1e-6 * len(values) + 1e-3:
+        raise ResponseError(f"{where}: probability distribution must sum to 1")
+
+
 def _confidence(entry, where):
     value = entry.get("confidence")
     return None if value is None else _probability(value, f"{where}.confidence")
@@ -190,6 +216,8 @@ def _parse_choice(question, entry, where):
     unknown = set(probabilities) - set(labels)
     if unknown:
         raise ResponseError(f"{where}: probabilities name unknown options {sorted(unknown)}")
+    if len(probabilities) == len(labels):
+        _distribution(probabilities.values(), where)
     ordered = {label: probabilities[label] for label in labels if label in probabilities}
     return ChoiceAnswer(question.name, choice, ordered, _confidence(entry, where))
 
@@ -197,11 +225,12 @@ def _parse_choice(question, entry, where):
 def _parse_score(question, entry, where):
     levels = question.levels
     raw = entry.get("probabilities")
-    probabilities = [0.0] * len(levels)
+    probabilities = [None] * len(levels)
     if isinstance(raw, list) and all(not isinstance(item, dict) for item in raw):
-        if len(raw) != len(levels):
+        if len(raw) > len(levels):
             raise ResponseError(f"{where}: expected {len(levels)} probabilities, got {len(raw)}")
-        probabilities = [_probability(value, f"{where}.probabilities[{i}]") for i, value in enumerate(raw)]
+        probabilities[:len(raw)] = [None if value is None else _probability(value, f"{where}.probabilities[{i}]")
+                                  for i, value in enumerate(raw)]
     elif raw is not None:
         named = set()
         for key, value in _probability_map(raw, f"{where}.probabilities").items():
@@ -215,10 +244,13 @@ def _parse_score(question, entry, where):
                 raise ResponseError(f"{where}: probabilities name level {levels[index]!r} more than once")
             named.add(index)
             probabilities[index] = value
+    complete = all(p is not None for p in probabilities)
+    if complete:
+        _distribution(probabilities, where)
     score = entry.get("score")
     if score is None:
-        if raw is None:
-            raise ResponseError(f"{where}: missing the score")
+        if not complete:
+            raise ResponseError(f"{where}: missing score; deriving it requires a complete probability distribution")
         total = sum(probabilities)
         if total <= 0:
             raise ResponseError(f"{where}: probabilities are all zero")
@@ -263,7 +295,13 @@ def parse_answers(raw_answers, questions):
         if not isinstance(entry, dict):
             raise ResponseError(f"{where}: missing or not an object")
         kind = entry.get("type")
+        if kind == "refusal":
+            answers[question.name] = RefusalAnswer(question.name)
+            continue
         if kind is not None and (not isinstance(kind, str) or TYPE_ALIASES.get(kind) != question.type):
             raise ResponseError(f"{where}: answered as {kind!r}, asked as {question.type!r}")
         answers[question.name] = PARSERS[type(question)](question, entry, where)
     return answers
+
+
+Answer = NoulAnswer | ChoiceAnswer | ScoreAnswer | RefusalAnswer

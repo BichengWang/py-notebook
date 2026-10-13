@@ -54,3 +54,26 @@ jobs:
             --responses examples/support-ticket-responses.jsonl \
             --require examples/support-ticket-requirements.json --out "$RUNNER_TEMP/jev-eval"
           cat "$RUNNER_TEMP/jev-eval/EVALUATION.md" >> "$GITHUB_STEP_SUMMARY"
+      - name: Build and check distribution metadata
+        run: |
+          python -m pip install build twine
+          python -m build
+          python -m twine check --strict dist/*
+      - name: Smoke test installed wheel outside the source tree
+        run: |
+          python -m venv "$RUNNER_TEMP/jev-wheel"
+          "$RUNNER_TEMP/jev-wheel/bin/python" -m pip install dist/*.whl
+          cd "$RUNNER_TEMP"
+          example_dir=$("$RUNNER_TEMP/jev-wheel/bin/python" -c 'from importlib.resources import files; print(files("jevdecision") / "examples")')
+          for backend in jev openai; do
+            "$RUNNER_TEMP/jev-wheel/bin/jev-decision" --questions "$example_dir/support-ticket.json" \
+              --state "Help! My payouts have been failing for 3 days." --backend "$backend" --dry-run
+          done
+          set +e
+          "$RUNNER_TEMP/jev-wheel/bin/jev-decision-eval" --questions "$example_dir/support-ticket.json" \
+            --cases "$example_dir/support-ticket-cases.jsonl" \
+            --responses "$example_dir/support-ticket-responses.jsonl" \
+            --require "$example_dir/support-ticket-requirements.json" --out "$RUNNER_TEMP/jev-wheel-eval"
+          replay_exit=$?
+          set -e
+          test "$replay_exit" -eq 0
