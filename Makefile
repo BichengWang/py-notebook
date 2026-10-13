@@ -119,3 +119,24 @@ all_test: test
 clean:
 	@find . "(" -name "*.pyc" -o -name "coverage.xml" -o -name "junit.xml" ")" -delete
 	@rm -rf coverage
+
+# Release inspection and source-only record demo require Python 3.11+.
+.PHONY: release-status records-demo
+release-status:
+	python3 scripts/release.py status
+
+records-demo:
+	@case "$(DEMO_OUT)" in /*) ;; *) echo 'Set DEMO_OUT=/abs/new/dir'; exit 2;; esac; \
+	test ! -e "$(DEMO_OUT)" || { echo 'DEMO_OUT must not exist'; exit 2; }; \
+	mkdir -p "$(DEMO_OUT)" || exit 2
+	cd $(EXPGATE_DIR) && python3 -m expgate.run --all-scenarios --out "$(DEMO_OUT)/experiment-gate" && \
+		python3 -m expgate.verify "$(DEMO_OUT)"/experiment-gate/*/decision.json
+	cd $(JEV_DIR) && python3 -m jevdecision.evaluation \
+		--questions examples/support-ticket.json --cases examples/support-ticket-cases.jsonl \
+		--responses examples/support-ticket-responses.jsonl \
+		--require examples/support-ticket-requirements.json --out "$(DEMO_OUT)/jev-decision"
+	cd ai-workflows/decision-control && python3 -m decisioncontrol demo --out "$(DEMO_OUT)/decision-control" && \
+		python3 -m decisioncontrol replay --record "$(DEMO_OUT)/decision-control/record-review.json"
+	@echo 'Experiment records: $(DEMO_OUT)/experiment-gate/*/decision.json'
+	@echo 'Jev evaluation and provenance: $(DEMO_OUT)/jev-decision/{evaluation,provenance}.json'
+	@echo 'Review record: $(DEMO_OUT)/decision-control/record-review.json'

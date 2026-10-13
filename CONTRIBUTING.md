@@ -59,3 +59,8 @@ does not authorize a release or publication.
 
 Report vulnerabilities privately following [SECURITY.md](SECURITY.md).
 Community participation is covered by the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+## Releases
+
+Maintainers follow [the package release guide](docs/RELEASING.md). RELIA uses its
+separate human-gated release process linked there.

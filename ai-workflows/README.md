@@ -7,12 +7,12 @@ commands, but a project must remain runnable from its own directory.
 
 ## Current projects
 
-| Project | Purpose | Run from |
-| --- | --- | --- |
-| [`ai-decision-reliability`](ai-decision-reliability/README.md) | Synthetic-data reliability evaluation and release controls (RELIA) | `ai-workflows/ai-decision-reliability/` |
-| [`experiment-gate`](experiment-gate/README.md) | Ship / hold / rollback decisions for online A/B tests of decision models, with guardrails and sample-ratio checks | `ai-workflows/experiment-gate/` |
-| [`jev-decision`](jev-decision/README.md) | Jev as the core decision model: typed yes/no, choice, and score decisions, with the OpenAI Decisions API as an alternative backend, and offline evaluation against labeled cases | `ai-workflows/jev-decision/` |
-| [`decision-control`](decision-control/README.md) | Policy-constrained agent actions with durable approval and replayable evidence | `ai-workflows/decision-control/` |
+| Project | Purpose | Run from | Package / status |
+| --- | --- | --- | --- |
+| [`ai-decision-reliability`](ai-decision-reliability/README.md) | Synthetic-data reliability evaluation and release controls (RELIA) | `ai-workflows/ai-decision-reliability/` | Not published; unreleased, human-gated |
+| [`experiment-gate`](experiment-gate/README.md) | Ship / hold / rollback decisions for online A/B tests of decision models, with guardrails and sample-ratio checks | `ai-workflows/experiment-gate/` | `expgate`; 0.1.0 release candidate |
+| [`jev-decision`](jev-decision/README.md) | Jev as the core decision model: typed yes/no, choice, and score decisions, with the OpenAI Decisions API as an alternative backend, and offline evaluation against labeled cases | `ai-workflows/jev-decision/` | `jevdecision`; 0.1.0 release candidate |
+| [`decision-control`](decision-control/README.md) | Policy-constrained agent actions with durable approval and replayable evidence | `ai-workflows/decision-control/` | `decisioncontrol`; 0.1.0 release candidate |
 
 From the repository root, use the convenience targets in the [root Makefile](../Makefile):
 
@@ -25,6 +25,18 @@ make expgate-run EXPGATE_OUT=/abs/new/dir
 make jev-test          # jev-decision unit tests (standard library only)
 make jev-dry-run       # print the example request for both backends
 make jev-eval          # evaluate the example cases from recorded responses
+```
+
+Installed console commands are `experiment-gate` / `experiment-gate-verify`,
+`jev-decision` / `jev-decision-eval`, and `decision-control` (with `replay` and
+`replay-evaluation`). Examples and complete invocations live in the project
+READMEs. Module entry points remain supported. RELIA uses `python -m relia.compare`
+in its own environment. See [record conventions](../docs/DECISION_RECORDS.md) and
+the [maintainer release guide](../docs/RELEASING.md).
+
+```sh
+make release-status                    # Python 3.11+ candidate metadata
+make records-demo DEMO_OUT=/abs/new/dir # source-only fixture runs and replay
 ```
 
 ## Workspace manifest

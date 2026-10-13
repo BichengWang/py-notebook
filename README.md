@@ -1,125 +1,152 @@
-# Scalable AI Decision Systems
+# AI Decision System
 
-A research and development workspace for **AI-assisted decision making**: typed model answers, policy-constrained actions, experiment decisions, and reproducible reliability evaluation, alongside agents, reinforcement learning, causal inference, and quantitative-finance experiments.
+Replayable, offline-verifiable records for AI-assisted go/no-go decisions.
 
-This is a **multi-component repository, not one deployable decision system**. Projects under `ai-workflows/` run independently; the older `src/` workbench uses the root environment. A component's software checks or example results do not establish live-model quality, production safety, or validation of the other components.
+## Why
 
-## Choose a component
+Model output is not authority. Promotions, approvals and releases need a record
+that a third party can re-check against frozen inputs and rules. Dashboards and
+logs can describe what happened; re-verifiable evidence also preserves what is
+needed to recompute the decision.
 
-| Project | Use it for | Status and environment |
+```mermaid
+flowchart LR
+    J["Typed model answer<br/>jev-decision<br/>answer + replay evaluation"] --> D["Policy gate + human approval<br/>decision-control<br/>checksummed review record"]
+    D --> E["Online experiment promotion<br/>experiment-gate<br/>embedded-input decision record"]
+    E --> R["Model release/update gate<br/>RELIA<br/>results + MANIFEST"]
+```
+
+These are **independent packages, not one integrated runtime**. The arrows show
+possible decision points, not implemented cross-package connections. Each emits
+a machine-checkable record; verification mechanisms and retained-input needs
+vary. See [Decision record conventions](docs/DECISION_RECORDS.md).
+
+## Components
+
+| Component | Decision point | Package | Record and offline check | Status |
+| --- | --- | --- | --- | --- |
+| [Jev decision](ai-workflows/jev-decision/README.md) | Typed yes/no, choice and score answers; labeled quality gates | `jevdecision` | Typed answer, `evaluation.json`, provenance; `jev-decision-eval --responses …` with retained questions/cases/requirements | 0.1.0 release candidate |
+| [decision-control](ai-workflows/decision-control/README.md) | Frozen routing policy, human approval and local ticket action | `decisioncontrol` | Exported record; `decision-control replay --record …` | 0.1.0 release candidate |
+| [Experiment gate](ai-workflows/experiment-gate/README.md) | SHIP / HOLD / ROLLBACK / INVALID from exported A/B aggregates | `expgate` | `decision.json`; `experiment-gate-verify …` | 0.1.0 release candidate |
+| [RELIA](ai-workflows/ai-decision-reliability/README.md) | Synthetic model release and guarded update | Not published | `results.json`, `MANIFEST.json`; `python -m relia.compare … --protocol …` in its environment | Unreleased; human-gated |
+
+The three small packages require Python 3.11+ and use only the standard library
+at runtime. decision-control is a trusted local SDK/CLI, not an identity service
+or external executor. Experiment gate consumes summaries; it does not run an
+experiment or deploy a model. Jev supports Jev and OpenAI Decisions backends;
+provider-reported confidence is not a calibrated safety guarantee.
+
+## Quickstart from a clone
+
+Use Python 3.11+ in a virtual environment. These commands work before PyPI
+publication by installing each independent project from Git:
+
+```sh
+pip install "git+https://github.com/BichengWang/ai-decision-system#subdirectory=ai-workflows/experiment-gate"
+pip install "git+https://github.com/BichengWang/ai-decision-system#subdirectory=ai-workflows/jev-decision"
+pip install "git+https://github.com/BichengWang/ai-decision-system#subdirectory=ai-workflows/decision-control"
+```
+
+Run the examples below **from a clone's repository root**, with new output paths.
+Examples are in the source tree/sdist, not installed as wheel package data.
+
+```sh
+experiment-gate --input ai-workflows/experiment-gate/examples/offer-ranker-v2.json --out /tmp/expgate-new
+experiment-gate-verify /tmp/expgate-new/decision.json
+cat /tmp/expgate-new/DECISION.md
+```
+
+```sh
+jev-decision --questions ai-workflows/jev-decision/examples/support-ticket.json --state "My payouts failed" --dry-run
+jev-decision-eval --questions ai-workflows/jev-decision/examples/support-ticket.json \
+  --cases ai-workflows/jev-decision/examples/support-ticket-cases.jsonl \
+  --responses ai-workflows/jev-decision/examples/support-ticket-responses.jsonl \
+  --require ai-workflows/jev-decision/examples/support-ticket-requirements.json --out /tmp/jev-new
+cat /tmp/jev-new/EVALUATION.md
+```
+
+```sh
+decision-control demo --out /tmp/control-new
+decision-control replay --record /tmp/control-new/record-review.json
+cat /tmp/control-new/summary.json
+```
+
+After 0.1.0 is published, `pip install expgate jevdecision decisioncontrol` will
+be available; publication is not claimed here. Live Jev calls require
+`TYPESAFE_API_KEY` (Jev) or `OPENAI_API_KEY` (OpenAI). The examples above make no
+provider calls and use hand-written/synthetic fixtures. They are software checks,
+not live-model, calibration, adoption or production evidence. Hashes detect
+change, not forgery; identities are caller-asserted and provider origin is not
+authenticated.
+
+## How this differs
+
+These tools complement existing platforms; the bounded contribution is retained,
+re-checkable decision evidence, not a replacement for their operational features.
+
+| Category | Typical role | This repository's scope |
 | --- | --- | --- |
-| [RELIA](ai-workflows/ai-decision-reliability/README.md) | Synthetic commerce offer/ranking evaluation: calibration, input and policy guards, drift, release gates, and guarded updates | Unreleased reference candidate; Python 3.13, independent environment and lockfile; no current license grant |
-| [Experiment gate](ai-workflows/experiment-gate/README.md) | Turn aggregate online A/B-test summaries into SHIP / HOLD / ROLLBACK / INVALID records | Python 3.11+; standard library only, no lockfile; evaluates summaries, does not run the experiment or deploy a model |
-| [Jev decision model](ai-workflows/jev-decision/README.md) | Request typed yes/no, choice, and score answers from Jev or the OpenAI Decisions API; evaluate labeled cases | Python 3.11+; standard library only, no lockfile; live requests require provider credentials; examples use hand-written responses |
-| [decision-control](ai-workflows/decision-control/README.md) | Apply routing policy, persist human review, reassign local tickets in SQLite, and replay evidence | Python 3.11+; standard library runtime, no lockfile; local SDK/CLI, not an external-action or identity service |
-| [Research workbench](scripts/README.md) | Explore agents, RL, ML, finance, utilities, and study material in `src/` | Root research environment; Python 3.10+ metadata, Python 3.11 for the pinned baseline; script-specific dependencies and services |
+| Experiment platforms (GrowthBook, Statsig, Eppo) | Compute and manage experiment statistics in a platform | expgate consumes exported aggregates and emits a re-verifiable promotion decision |
+| Policy engines / human review (OPA, Cedar, LangGraph interrupts) | Decide authorization or pause a workflow for review | decision-control freezes policy, proposer and review into replayable evidence with label-based separation of duties |
+| Evaluation tools (promptfoo, OpenAI Evals) | Score prompts and model behavior | Jev gates typed answers with explicit PASS/FAIL/UNGATED and refusal/unknown-confidence semantics |
+| Registries / monitoring (MLflow, Evidently) | Track models and monitor performance | RELIA provides byte-reproducible synthetic release gates in its pinned environment |
 
-The [workspace guide](ai-workflows/README.md) explains project directories and boundary rules. Do not merge project dependencies into the root environment or assume these projects form a validated integration. RELIA's development and release dates are recorded independently of this repository's history.
-
-## Get started
-
-Run the commands below **from the repository root**, unless a subshell explicitly changes directory. Choose one component rather than installing every environment.
-
-### Credential-free workflows
-
-With Python 3.11+ available as `python3` and `make` installed, these projects run from source without a root dependency install:
-
-```shell
-# Check the independent standard-library projects.
-make workspace-test COMPONENTS="experiment-gate jev-decision decision-control"
-
-# Inspect both provider request formats without sending a request.
-make jev-dry-run
-
-# Score the bundled hand-written responses; prints EVALUATION.md.
-make jev-eval
-
-# Generate the experiment-gate scenario decision records.
-make expgate-run EXPGATE_OUT=/tmp/experiment-gate-run
-
-# Persist local ticket actions, then replay the exported review record.
-(cd ai-workflows/decision-control && \
-  python3 -m decisioncontrol demo --out /tmp/decision-control-demo && \
-  python3 -m decisioncontrol replay --record /tmp/decision-control-demo/record-review.json)
-```
-
-Use new or empty output directories; change the example `/tmp/` paths if they already contain a run. Experiment gate writes `decision.json` and `DECISION.md` per scenario; decision-control writes a SQLite queue, records, and `summary.json`. The Jev evaluation and decision-control demo use **hand-authored fixtures**, not live-provider measurements.
-
-For real inputs, installation, SDK usage, credentials, and evaluation requirements, use the component READMEs above. Live Jev calls need `TYPESAFE_API_KEY`; the OpenAI backend needs `OPENAI_API_KEY`. Provider-reported confidence is not a calibrated safety guarantee.
-
-### RELIA: frozen synthetic evaluation
-
-Install [uv](https://docs.astral.sh/uv/getting-started/installation/). RELIA declares Python 3.13 and pins 3.13.7 for candidate reproduction; its own metadata and lockfile are the dependency authorities.
-
-```shell
-make relia-sync
-make relia-test
-make relia-reproduce RELIA_OUT=/tmp/relia-reproduction
-```
-
-These targets use only RELIA's project environment. For reproduction, the absolute output directory **must not exist**, and its parent must exist. The helper performs frozen setup, the full suite, and two fresh benchmark runs, retaining logs and artifacts. It does not complete the separate stored-reference comparison or reviewer attestations.
-
-Read the [specification](ai-workflows/ai-decision-reliability/docs/SPEC.md), [reproduction protocol](ai-workflows/ai-decision-reliability/docs/REPRODUCE.md), and [limitations](ai-workflows/ai-decision-reliability/docs/LIMITATIONS.md) before interpreting results. Synthetic results do not establish real-world commercial performance, fairness, legal compliance, or consumer benefit; release thresholds are proposed engineering gates, not industry or government standards.
-
-**No accepted RELIA public release is claimed.** See the [release workflow](docs/RELIA_RELEASE.md) for project-only snapshots, source identity, and the separate rights-review, reproduction, and acceptance steps. A successful local export or test run is not release acceptance.
-
-### Existing `src/` research
-
-Use the [research setup guide](scripts/README.md) for environment choices, directory navigation, and decision-loop examples. The root [`pyproject.toml`](pyproject.toml) describes the research package (`py-notebook`), not the independent projects.
-
-For the limited, service-free research baseline, use Python 3.11 because the pinned pandas 1.5.3 has no wheels for Python 3.12+:
-
-```shell
-python3.11 -m venv venv
-source venv/bin/activate
-python -m pip install -c requirements.txt pytest pytest-custom-exit-code flake8 pandas tabulate
-make test
-```
-
-`make test` cleans generated test artifacts, lints the baseline, and runs tests in `tests/` and `src/lc/`; it is **not a repository-wide validation**. Broker integration, browser automation, and ML environment probes require their own services or environments and are excluded from that baseline. Broader notebook and agent setup is separate.
+RELIA uses its own Python 3.13 environment (3.13.7 pinned for reproduction).
+[Its reproduction protocol](ai-workflows/ai-decision-reliability/docs/REPRODUCE.md)
+requires fresh runs and separate reference comparison/reviewer attestations.
+Synthetic results do not establish real-world commercial performance, fairness,
+legal compliance or consumer benefit. Thresholds are proposed engineering gates,
+not industry/government standards; no agency endorsement is claimed.
+**No accepted RELIA public release is claimed.** Rights clearance, unaffiliated
+reproduction and acceptance remain [human-gated](docs/RELIA_RELEASE.md).
 
 ## Workspace navigation and validation
 
-[`workspace.json`](workspace.json) registers component ownership, paths, environments, CI checks, and test commands. The workspace tool itself uses only the Python standard library.
+The [workspace guide](ai-workflows/README.md) and [manifest](workspace.json)
+register independent environments, ownership, CI checks and commands.
+With Python 3.11+ resolved as `python3`:
 
-```shell
+```sh
 make workspace-list
 make workspace-check
 make affected BASE=origin/main
 make affected-test BASE=origin/main
+make workspace-test COMPONENTS="experiment-gate jev-decision decision-control"
+make release-status
+make records-demo DEMO_OUT=/abs/new/dir
 ```
 
-- `workspace-list` shows component names, paths, and CI checks.
-- `workspace-check` runs workspace-tool tests and checks registry/CI consistency, project and tooling Python syntax, import boundaries, and local Markdown links. It does not run every component's behavioral suite.
-- `affected` reports components selected by changes against the specified Git base; use an available base ref if `origin/main` is not present.
-- `affected-test` runs those components' registered tests, so prepare their environments first. To select explicitly, use names from `workspace-list`, for example `make workspace-test COMPONENTS="decision-control"`.
+`workspace-check` tests tooling and checks syntax, boundaries, CI consistency and
+Markdown links; it does not run every behavioral suite. `affected-test` needs
+prepared component environments. `release-status` inspects candidate metadata
+(Python 3.11+). `records-demo` writes and verifies experiment records, runs Jev
+fixture replay, then exports/replays a local review record; it requires an absolute
+new directory and prints retained record paths. See the [Makefile](Makefile).
+For RELIA use `make relia-sync`, `make relia-test` and
+`make relia-reproduce RELIA_OUT=/abs/new/dir`; a local pass is not release acceptance.
 
-See the [workspace manifest guide](ai-workflows/README.md#workspace-manifest) for routing details and the [root Makefile](Makefile) for convenience targets. Component READMEs remain the authority for project-specific commands and limitations.
+The older `src/` [research workbench](scripts/README.md) has a separate root
+environment. Its limited service-free `make test` baseline uses Python 3.11
+(the pinned pandas 1.5.3 lacks Python 3.12+ wheels); broker, browser and ML probes
+need separate services/environments. Root tests do not validate the whole repo.
 
-## Licensing
+## Licensing and project guides
 
-The root [MIT license](LICENSE) applies to the existing research material it covers; check component-specific licensing before reuse. RELIA has a separate [licensing status](ai-workflows/ai-decision-reliability/LICENSE): it currently grants **no license**, and the root MIT license does not grant rights to it. Its intended Apache-2.0 release remains subject to rights clearance.
+The three small packages carry their own MIT licenses; the root [MIT license](LICENSE)
+covers the research material within its scope. [RELIA's license status](ai-workflows/ai-decision-reliability/LICENSE)
+grants no current rights; intended Apache-2.0 publication requires rights clearance.
+See [SECURITY](SECURITY.md), [CONTRIBUTING](CONTRIBUTING.md), [CITATION](CITATION.cff),
+[records](docs/DECISION_RECORDS.md), [releasing](docs/RELEASING.md) and
+[delivery plan](docs/PROJECT_PLAN.md).
 
-## Technical report and news readiness
+## Portfolio and publication records
 
-The [author-produced portfolio report](docs/PUBLICATION_REPORT.md) documents the
-four independent projects, fresh local verification, adverse outcomes, and
-evidence gaps relevant to an EB-2 NIW assessment. It is not independent
-recognition, a legal eligibility finding, or an accepted RELIA release.
-
-- [News and reviewer briefing](docs/NEWS_READY.md) — attributed announcement and editorial pitch
-- [Public publication record](docs/PUBLICATION_RECORD.md) — report/source identity and review status
-- [Official USCIS/NIST source notes](docs/NIW_SOURCE_NOTES.md) — evidence requirements and claim limits
-- [Publication protocol](docs/PUBLICATION_GUIDE.md) — reproduction, artifact integrity and rights boundaries
-- [Compact local evidence summary](docs/publication/evidence-2026-10-11.json) — source and selected artifact hashes
-
-Run the existing project workflows and retain a new external evidence directory:
-
-```bash
-uv run --no-project --python 3.11 python scripts/publication_evidence.py --out /tmp/ai-decision-evidence-new
-uv run --no-project --python 3.11 python scripts/publication_evidence.py --verify /tmp/ai-decision-evidence-new
-```
-
-No provider calls are made. Fixture passes are not live-model quality, adoption,
-production impact, or national-importance evidence. RELIA publication and reuse
-remain subject to its separate rights/reproduction/acceptance process.
+The [author-produced portfolio report](docs/PUBLICATION_REPORT.md) records local
+checks and evidence gaps for an EB-2 NIW assessment. It is not independent
+recognition, a legal eligibility finding or an accepted RELIA release.
+[News/reviewer briefing](docs/NEWS_READY.md), [publication record](docs/PUBLICATION_RECORD.md),
+[USCIS/NIST source notes](docs/NIW_SOURCE_NOTES.md), [publication protocol](docs/PUBLICATION_GUIDE.md)
+and [local evidence summary](docs/publication/evidence-2026-10-11.json) retain the
+claim boundaries. Fixtures and self-produced reports are not live-model quality,
+adoption, production impact or national-importance evidence; RELIA reuse remains
+subject to rights, reproduction and acceptance review.
