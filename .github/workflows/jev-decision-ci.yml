@@ -64,7 +64,7 @@ jobs:
           python -m venv "$RUNNER_TEMP/jev-wheel"
           "$RUNNER_TEMP/jev-wheel/bin/python" -m pip install dist/*.whl
           cd "$RUNNER_TEMP"
-          example_dir=$("$RUNNER_TEMP/jev-wheel/bin/python" -c 'from importlib.resources import files; print(files("jevdecision") / "examples")')
+          example_dir="$GITHUB_WORKSPACE/ai-workflows/jev-decision/examples"
           for backend in jev openai; do
             "$RUNNER_TEMP/jev-wheel/bin/jev-decision" --questions "$example_dir/support-ticket.json" \
               --state "Help! My payouts have been failing for 3 days." --backend "$backend" --dry-run

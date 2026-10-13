@@ -197,7 +197,7 @@ def _finite(value):
 # Metrics -------------------------------------------------------------------
 
 def _mean(values):
-    return sum(values) / len(values) if values else None
+    return math.fsum(values) / len(values) if values else None
 
 
 def _log_loss(probability):
@@ -232,7 +232,7 @@ def expected_calibration_error(pairs, bins=ECE_BINS):
     grouped = {}
     for confidence, correct in pairs:
         grouped.setdefault(min(int(confidence * bins), bins - 1), []).append((confidence, correct))
-    return sum(len(group) * abs(_mean([float(c) for _, c in group]) - _mean([p for p, _ in group]))
+    return math.fsum(len(group) * abs(_mean([float(c) for _, c in group]) - _mean([p for p, _ in group]))
                for group in grouped.values()) / len(pairs)
 
 
@@ -258,7 +258,7 @@ def _choice_metrics(question, pairs):
     return {
         "n": len(pairs),
         **_accuracy([a.choice == y for a, y in pairs]),
-        "brier": _mean([sum((a.probabilities[label] - (label == y)) ** 2 for label in question.labels)
+        "brier": _mean([math.fsum((a.probabilities[label] - (label == y)) ** 2 for label in question.labels)
                         for a, y in pairs])
                  if all(all(label in a.probabilities for label in question.labels) for a, _ in pairs) else None,
         "log_loss": _mean([_log_loss(a.probabilities[y]) for a, y in pairs])
@@ -276,7 +276,7 @@ def _score_metrics(question, pairs):
         **_accuracy([question.levels.index(a.level) == y for a, y in pairs]),
         "within_one": _mean([float(abs(question.levels.index(a.level) - y) <= 1) for a, y in pairs]),
         "mae": _mean([abs(a.score - y) for a, y in pairs]),
-        "brier": _mean([sum((p - (i == y)) ** 2 for i, p in enumerate(a.probabilities))
+        "brier": _mean([math.fsum((p - (i == y)) ** 2 for i, p in enumerate(a.probabilities))
                         for a, y in pairs]) if all(all(p is not None for p in a.probabilities) for a, _ in pairs) else None,
         "log_loss": _mean([_log_loss(a.probabilities[y]) for a, y in pairs])
                     if all(a.probabilities[y] is not None for a, y in pairs) else None,

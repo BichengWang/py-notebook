@@ -23,7 +23,7 @@ class ResponseError(DecisionError):
 class APIError(DecisionError):
     """The provider returned an HTTP error or could not be reached."""
 
-    def __init__(self, message: str, status: int | None=None, body: Any=None, retry_after: float | None=None) -> None:
+    def __init__(self, message: str, status: int | None = None, body: Any = None, retry_after: float | None = None) -> None:
         super().__init__(message)
         self.status = status
         self.body = body

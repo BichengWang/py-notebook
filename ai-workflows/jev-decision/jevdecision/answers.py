@@ -41,7 +41,7 @@ class NoulAnswer:
     probability: float
     type = "noul"
 
-    def is_yes(self, threshold: float=0.5) -> bool:
+    def is_yes(self, threshold: float = 0.5) -> bool:
         return self.probability >= threshold
 
     def to_dict(self) -> dict[str, Any]:
