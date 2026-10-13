@@ -97,8 +97,10 @@ class EvaluationTests(unittest.TestCase):
                 self.assertTrue(delivery.evaluate(pr(mergeStateStatus=state), [receipt()], []))
 
     def test_release_related_diff_blocks(self):
-        changed = pr(files=[{"path": "docs/RELIA_RELEASE.md"}])
-        self.assertTrue(any("release" in item for item in delivery.evaluate(changed, [receipt()], [])))
+        for path in ("docs/RELIA_RELEASE.md", ".github/workflows/release.yml", "scripts/release.py"):
+            with self.subTest(path=path):
+                changed = pr(files=[{"path": path}])
+                self.assertTrue(any("release" in item for item in delivery.evaluate(changed, [receipt()], [])))
 
     def test_area_checks_required(self):
         changed = pr(files=[{"path": "ai-workflows/experiment-gate/expgate/run.py"}])
