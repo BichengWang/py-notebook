@@ -314,6 +314,33 @@ class ResponseValidationTest(unittest.TestCase):
 
 
 class RetryTest(unittest.TestCase):
+    def test_rejects_invalid_retry_counts(self):
+        for backend in (JevBackend, OpenAIDecisionsBackend):
+            for value in (-1, 1.5, 2.0, float("inf"), float("nan"), True, False, "2", None):
+                with self.subTest(backend=backend.name, value=value):
+                    with self.assertRaisesRegex(DecisionError, "max_retries"):
+                        backend(api_key="k", env={}, max_retries=value)
+
+    def test_rejects_invalid_backoff(self):
+        for backend in (JevBackend, OpenAIDecisionsBackend):
+            for value in (-1, float("inf"), float("nan"), True, False, "0.5", None):
+                with self.subTest(backend=backend.name, value=value):
+                    with self.assertRaisesRegex(DecisionError, "backoff"):
+                        backend(api_key="k", env={}, backoff=value)
+
+    def test_zero_retries_raises_after_the_first_attempt(self):
+        backend, transport = jev(APIError("busy", 429), JEV_RESPONSE, max_retries=0)
+        with self.assertRaises(APIError):
+            DecisionModel(backend).decide(STATE, QUESTIONS)
+        self.assertEqual(len(transport.calls), 1)
+
+    def test_zero_backoff_retries_without_waiting(self):
+        waits = []
+        transport = FakeTransport(APIError("busy", 429), JEV_RESPONSE)
+        backend = JevBackend(api_key="k", transport=transport, sleep=waits.append, env={}, backoff=0)
+        DecisionModel(backend).decide(STATE, QUESTIONS)
+        self.assertEqual((len(transport.calls), waits), (2, [0]))
+
     def test_retries_transient_errors(self):
         backend, transport = jev(APIError("busy", 429), APIError("down", 503), JEV_RESPONSE)
         DecisionModel(backend).decide(STATE, QUESTIONS)

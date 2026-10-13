@@ -274,6 +274,47 @@ class ManifestValidationTests(unittest.TestCase):
             with self.assertRaises(OSError):
                 workspace.load_manifest(folder)
 
+    def test_malformed_nested_values_report_validation_errors(self):
+        cases = [
+            ("always_required_checks", None),
+            ("always_required_checks", 1),
+            ("kind", []),
+            ("kind", {}),
+            ("packages", [{}]),
+            ("packages", [[]]),
+            ("ci", {"workflow": ".github/workflows/demo-ci.yml", "trigger": []}),
+            ("ci", {"workflow": ".github/workflows/demo-ci.yml", "trigger": {}}),
+        ]
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "workspace.json"
+            for field, value in cases:
+                with self.subTest(field=field, value=value):
+                    broken = manifest()
+                    target = broken if field == "always_required_checks" else broken["components"]["demo"]
+                    target[field] = value
+                    self.assertTrue(workspace.validate(broken))
+                    path.write_text(json.dumps(broken), encoding="utf-8")
+                    with self.assertRaisesRegex(workspace.ManifestError, field):
+                        workspace.load_manifest(folder)
+
+    def test_schema_version_requires_an_integer(self):
+        for version in (True, 1.0, "1", None):
+            with self.subTest(version=version):
+                broken = manifest()
+                broken["schema_version"] = version
+                self.assertTrue(workspace.validate(broken))
+
+    def test_invalid_manifest_cli_reports_an_error_without_a_traceback(self):
+        with tempfile.TemporaryDirectory() as folder:
+            broken = manifest(demo=component(packages=[{}]))
+            (Path(folder) / "workspace.json").write_text(json.dumps(broken), encoding="utf-8")
+            stderr = io.StringIO()
+            with contextlib.redirect_stderr(stderr):
+                code = workspace.main(["--root", folder, "list"])
+            self.assertEqual(code, 2)
+            self.assertIn("packages", stderr.getvalue())
+            self.assertNotIn("Traceback", stderr.getvalue())
+
 
 class AffectedTests(unittest.TestCase):
     def setUp(self):
@@ -364,9 +405,32 @@ class ImportBoundaryTests(unittest.TestCase):
         ])
 
     def test_unparseable_legacy_source_is_still_scanned(self):
-        problems = self.check({"ai-workflows/other/old.py": "print 'python 2'\nfrom demo import x\n"})
+        loaded = manifest(
+            demo=component(),
+            other=component(kind="legacy", path="src", sources=["src/**"], packages=["other"],
+                            third_party_imports=None),
+        )
+        problems = self.check({"src/old.py": "print 'python 2'\nfrom demo import x\n"}, loaded=loaded)
         self.assertEqual(len(problems), 1)
         self.assertIn("old.py:2: imports 'demo'", problems[0])
+
+    def test_project_and_tooling_syntax_errors_are_reported(self):
+        for kind in ("project", "tooling"):
+            for source in ("def broken(:\n", "return 1\n"):
+                with self.subTest(kind=kind, source=source):
+                    problems = self.check({"ai-workflows/demo/demo/a.py": source},
+                                          loaded=manifest(demo=component(kind=kind)))
+                    self.assertEqual(len(problems), 1)
+                    self.assertIn("a.py:1: invalid Python syntax:", problems[0])
+
+    def test_syntax_errors_do_not_hide_import_boundary_violations(self):
+        problems = self.check({"ai-workflows/demo/demo/a.py": "import other\ndef broken(:\n"})
+        self.assertEqual(len(problems), 2)
+        self.assertIn("a.py:2: invalid Python syntax:", problems[0])
+        self.assertIn("a.py:1: imports 'other'", problems[1])
+
+    def test_utf8_bom_is_valid_python_source(self):
+        self.assertEqual(self.check({"ai-workflows/demo/demo/a.py": "\ufeffimport json\n"}), [])
 
     def test_source_must_have_exactly_one_owner(self):
         problems = self.check({"orphan.py": "import os\n"})
@@ -388,6 +452,14 @@ class WorkspaceCheckTests(unittest.TestCase):
 
     def test_fixture_passes(self):
         self.assertEqual(self.repo.problems(), [])
+
+    def test_untracked_project_syntax_errors_fail_the_check(self):
+        self.repo.write("ai-workflows/demo/demo/new.py", "def broken(:\n")
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            code = workspace.main(["--root", str(self.repo.root), "check"])
+        self.assertEqual(code, 1)
+        self.assertIn("new.py:1: invalid Python syntax:", stdout.getvalue())
 
     def test_unregistered_project_directory_fails(self):
         self.repo.write("ai-workflows/stray/README.md", "Stray\n")

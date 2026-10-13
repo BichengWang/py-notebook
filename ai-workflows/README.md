@@ -72,12 +72,18 @@ you have not committed yet. It fails when:
   job in the workflow reports a declared check name (a job's `name`, or its id,
   expanded over a single-key matrix as GitHub names matrix jobs);
 - a Python file belongs to no component or to several;
+- a Python file in a project or tooling component has invalid syntax, including
+  untracked files; legacy research files still receive import-boundary checks;
 - a component imports another component's package, or a project imports a
   third-party module it does not declare;
 - a local Markdown link in the root or `docs/` pages, or in a project or
   tooling component, points to a missing file or to a heading that does not
   exist (links inside code, external URLs, and the legacy `src/` notes are not
   checked).
+
+Syntax checks use the interpreter running `workspace.py`; choose a Python
+version that supports the projects being checked. Malformed manifest values
+produce validation errors and a nonzero exit status.
 
 The [delivery controller](../scripts/continual_delivery.py) derives the checks a
 pull request must pass from the same manifest, and RELIA CI asks
