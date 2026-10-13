@@ -928,7 +928,7 @@ rpds-py==0.24.0
     #   referencing
 rsa==4.9
     # via google-auth
-safetensors==0.5.3
+safetensors==0.8.0
     # via
     #   accelerate
     #   airllm
@@ -1030,7 +1030,7 @@ tiktoken==0.9.0
     # via -r requirements.in
 tinycss2==1.4.0
     # via bleach
-tokenizers==0.22.2
+tokenizers==0.23.3
     # via transformers
 toml==0.10.2
     # via
@@ -1096,7 +1096,7 @@ traitlets==5.14.3
     #   nbconvert
     #   nbformat
     #   notebook
-transformers==5.10.1
+transformers==5.19.0
     # via
     #   -r requirements.in
     #   airllm
