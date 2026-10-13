@@ -30,7 +30,7 @@ aiohttp-cors==0.8.1
     # via ray
 aiosignal==1.4.0
     # via aiohttp
-airllm==2.11.0
+airllm==4.0.0
     # via -r requirements.in
 altair==5.5.0
     # via streamlit
@@ -309,7 +309,6 @@ huggingface-hub==1.33.0
     #   accelerate
     #   airllm
     #   datasets
-    #   optimum
     #   tokenizers
     #   transformers
 idna==3.10
@@ -547,7 +546,6 @@ numpy==1.26.4
     #   matplotlib
     #   ml-dtypes
     #   opencv-python
-    #   optimum
     #   pandas
     #   pydeck
     #   ray
@@ -658,8 +656,6 @@ opt-einsum==3.4.0
     # via
     #   tensorflow
     #   tf-nightly
-optimum==1.24.0
-    # via airllm
 optree==0.15.0
     # via
     #   keras
@@ -687,7 +683,6 @@ packaging==24.2
     #   matplotlib
     #   mkdocs
     #   nbconvert
-    #   optimum
     #   pytest
     #   ray
     #   streamlit
@@ -952,6 +947,8 @@ send2trash==1.8.3
     # via
     #   jupyter-server
     #   notebook
+sentencepiece==0.2.2
+    # via airllm
 setuptools==84.0.0
     # via
     #   jupyterlab
@@ -1050,7 +1047,6 @@ torch==2.14.0
     #   -r requirements.in
     #   accelerate
     #   airllm
-    #   optimum
     #   torchmetrics
     #   torchvision
 torchaudio==2.11.0
@@ -1104,7 +1100,6 @@ transformers==5.19.0
     # via
     #   -r requirements.in
     #   airllm
-    #   optimum
 triton==3.8.0
     # via torch
 typer==0.27.2
