@@ -324,7 +324,7 @@ iniconfig==2.1.0
     # via pytest
 iopath==0.1.10
     # via torchrec
-ipykernel==6.29.5
+ipykernel==7.3.0
     # via
     #   -r requirements.in
     #   jupyter
@@ -379,7 +379,7 @@ jsonschema-specifications==2024.10.1
     # via jsonschema
 jupyter==1.1.1
     # via -r requirements.in
-jupyter-client==8.6.3
+jupyter-client==8.10.0
     # via
     #   ipykernel
     #   jupyter-console
@@ -519,9 +519,9 @@ nbformat==5.10.4
     #   nbconvert
     #   notebook
 nest-asyncio==1.6.0
-    # via
-    #   ipykernel
-    #   notebook
+    # via notebook
+nest-asyncio2==1.7.4
+    # via ipykernel
 networkx==3.2.1
     # via torch
 notebook==6.4.12
@@ -1121,6 +1121,7 @@ typing-extensions==4.16.0
     #   gymnasium
     #   huggingface-hub
     #   iopath
+    #   jupyter-client
     #   jupyterlab
     #   lightning-utilities
     #   mistune
