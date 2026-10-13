@@ -933,7 +933,7 @@ safetensors==0.8.0
     #   accelerate
     #   airllm
     #   transformers
-scikit-learn==1.6.1
+scikit-learn==1.7.2
     # via -r requirements.in
 scipy==1.13.1
     # via
