@@ -2,8 +2,7 @@
 
 This independently maintained decision-control component is an initial 0.1.0 local
 SDK/CLI, not a hosted service. Report vulnerabilities privately to repository
-maintainer Bicheng Wang at **bichengwang17@gmail.com** (the contact published in the
-repository's `scripts/README.md`). Include the affected version, reproduction,
+maintainer Bicheng Wang at **bichengwang17@gmail.com**. Include the affected version, reproduction,
 impact and proposed mitigation; do not attach sensitive production tickets or
 credentials. No response-time or supported-release SLA is promised. Do not publish
 exploit details before giving the maintainer an opportunity to respond.

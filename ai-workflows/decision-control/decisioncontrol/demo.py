@@ -2,9 +2,9 @@
 import json
 from pathlib import Path
 
-from .evidence import export_record, replay
 from ._outputs import staged_output
-from .models import DecisionError, Recommendation, RoutingPolicy
+from .evidence import export_record, replay
+from .models import Recommendation, RoutingPolicy
 from .store import TicketStore
 
 
