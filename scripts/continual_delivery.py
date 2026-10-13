@@ -31,6 +31,8 @@ SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 ATTRIBUTION_RE = re.compile(r"codex", re.IGNORECASE)
 IMPLEMENTATION_RE = re.compile(r"^Implementation run: ([A-Za-z0-9._/-]+)$", re.M)
 RELEASE_PATHS = (
+    ".github/workflows/release.yml",
+    "scripts/release.py",
     "docs/RELIA_RELEASE.md",
     ".github/workflows/relia-release-verify.yml",
     "ai-workflows/ai-decision-reliability/LICENSE",

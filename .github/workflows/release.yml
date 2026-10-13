@@ -6,9 +6,14 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing component/vX.Y.Z tag (build-only dry run)
+        description: Existing component/vX.Y.Z tag
         required: true
         type: string
+      publish:
+        description: Create the missing GitHub Release and publish to PyPI (run the workflow on the tag ref)
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -33,6 +38,15 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.11"
+      - name: Require publishing dispatches to run on the tag they publish
+        if: github.event_name == 'workflow_dispatch' && inputs.publish
+        env:
+          RUN_REF: ${{ github.ref }}
+        run: |
+          if [ "$RUN_REF" != "refs/tags/$TAG" ]; then
+            echo "publishing dispatch must run on refs/tags/$TAG (got $RUN_REF)" >&2
+            exit 1
+          fi
       - name: Validate checked-out tag before resolving release metadata
         run: python scripts/release.py check --tag "$TAG"
       - name: Resolve validated component
@@ -87,7 +101,7 @@ jobs:
 
   github-release:
     needs: build
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || inputs.publish
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -111,12 +125,16 @@ jobs:
       - name: Create GitHub Release from dated changelog
         run: |
           python scripts/release.py check --tag "$TAG"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "GitHub Release $TAG already exists; leaving it unchanged"
+            exit 0
+          fi
           python scripts/release.py notes --tag "$TAG" > notes.md
           gh release create "$TAG" dist/* --title "$COMPONENT v$VERSION" --notes-file notes.md --verify-tag
 
   pypi:
     needs: build
-    if: github.event_name == 'push' && vars.PYPI_PUBLISH == 'true'
+    if: vars.PYPI_PUBLISH == 'true' && (github.event_name == 'push' || inputs.publish)
     runs-on: ubuntu-latest
     environment:
       name: pypi
@@ -131,3 +149,4 @@ jobs:
       - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
         with:
           attestations: true
+          skip-existing: true
