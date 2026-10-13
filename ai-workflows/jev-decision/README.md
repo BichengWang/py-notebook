@@ -14,15 +14,17 @@ library, so it has no dependencies and no lockfile.
 
 ## Install
 
-Requires Python 3.11 or later; runtime dependencies: none.
+Requires Python 3.11 or later; runtime dependencies: none. Examples live in the clone
+and source distribution under `examples/`; they are not installed in the wheel.
 
 ```bash
+# Once 0.1.0 is published:
 pip install jevdecision
 ```
 
 The distribution includes `jev-decision` and `jev-decision-eval`; existing
 `python -m jevdecision` and `python -m jevdecision.evaluation` commands remain supported.
-Installed examples are available through `importlib.resources.files("jevdecision") / "examples"`.
+Use the `examples/` directory in a clone or unpacked source distribution.
 
 ## Question types
 
@@ -273,8 +275,9 @@ or responses obtained through the live backend, and `cases.jsonl` with one row
 per case: each labeled question's expected and predicted answer (with probability
 or score) and whether it was correct, or the case's error. `EVALUATION.md` lists
 the first 20 incorrect answers. Exported responses can be passed as `--responses`
-to re-score without calling a provider. Within the same Python runtime, identical replay question, case, response
-and requirement content produces byte-identical `evaluation.json`; live-to-replay
+to re-score without calling a provider. The bundled replay produces byte-identical
+`evaluation.json`, `provenance.json`,
+`responses.jsonl` and `cases.jsonl` on Python 3.11 and 3.13; live-to-replay
 metrics remain the same, but the report's `source` changes.
 
 Decision records use `schema_version: 1`; evaluation and provenance records use
@@ -320,9 +323,9 @@ From the repository root, `make jev-eval` runs the example into a temporary dire
   error and MAE are point estimates, which are noisy with a few dozen cases, so set
   `n` minimums that match the thresholds you rely on.
 - A live evaluation sends one request per case, sequentially.
-- Floating-point metrics can differ at the last decimal place across Python
-  versions, changing canonical record hashes and potentially bounds set exactly
-  at that value. Use the same runtime for byte-identical replay verification.
+- Float sums use `math.fsum` for correctly rounded accumulation. The bundled replay
+  has identical bytes and hashes on Python 3.11 and 3.13; this check is not a
+  guarantee for every platform, math library or future algorithm version.
 
 ## Local software verification
 
@@ -330,6 +333,6 @@ Release checks cover refusals, unknown probabilities, malformed distributions,
 HTTP retries and redirect protection, interrupted live progress, authentication
 stops and atomic publication. Tests use synthetic provider responses and a local
 HTTP fixture. Fresh wheel installs exercise both backend dry runs and the gated
-12-case replay example; exported responses reproduce the evaluation bytes within
-the same runtime. These checks are not live-provider calls, calibration results,
+12-case replay example; exported responses reproduce the evaluation bytes across
+Python 3.11 and 3.13. These checks are not live-provider calls, calibration results,
 or deployment-safety evidence.

@@ -590,3 +590,13 @@ class CLITest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RoundedMetricsTests(unittest.TestCase):
+    def test_repeated_probabilities_have_correctly_rounded_metrics(self):
+        cases = [Case(str(i), "state", {"refund": False}) for i in range(10)]
+        answers = {case.id: parse_answers({"refund": {"type": "noul", "noul": 0.1}}, [REFUND]) for case in cases}
+        metrics = score_answers([REFUND], cases, answers)["refund"]
+        self.assertEqual(metrics["mean_probability"], 0.1)
+        self.assertEqual(metrics["ece"], 0.1)
+        self.assertEqual(metrics["brier"], 0.1 ** 2)

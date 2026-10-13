@@ -25,11 +25,11 @@ class DecisionModel:
     against the questions it answers, so callers get typed answers or an error.
     """
 
-    def __init__(self, backend: HTTPBackend | None=None) -> None:
+    def __init__(self, backend: HTTPBackend | None = None) -> None:
         self.backend = backend if backend is not None else create_backend(DEFAULT_BACKEND)
 
     @classmethod
-    def from_env(cls, env: Mapping[str, str] | None=None, **options: Any) -> DecisionModel:
+    def from_env(cls, env: Mapping[str, str] | None = None, **options: Any) -> DecisionModel:
         """Pick the backend from DECISION_BACKEND (`jev` or `openai`; default `jev`)."""
         env = os.environ if env is None else env
         name = env.get(BACKEND_ENV) or DEFAULT_BACKEND
@@ -43,7 +43,7 @@ class DecisionModel:
         """Answer a single question and return its typed answer."""
         return self.decide(state, [question])[question.name]
 
-    def gate(self, state: State, question: Noul, threshold: float=0.5) -> bool:
+    def gate(self, state: State, question: Noul, threshold: float = 0.5) -> bool:
         """True when the probability of yes is at least `threshold`."""
         if not isinstance(question, Noul):
             raise DecisionError("gate() takes a Noul (yes/no) question")
@@ -52,7 +52,7 @@ class DecisionModel:
         answer = self.ask(state, question)
         return False if isinstance(answer, RefusalAnswer) else cast(NoulAnswer, answer).is_yes(threshold)
 
-    def route(self, state: State, question: Choice, min_confidence: float=0.0, fallback: Fallback | None=None) -> str | Fallback | None:
+    def route(self, state: State, question: Choice, min_confidence: float = 0.0, fallback: Fallback | None = None) -> str | Fallback | None:
         """The chosen label, or `fallback` when confidence is unknown or below `min_confidence`.
 
         Confidence is the provider's own field when present, otherwise the

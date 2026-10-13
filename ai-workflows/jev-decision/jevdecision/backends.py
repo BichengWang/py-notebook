@@ -11,23 +11,22 @@ with model `typesafe/jev`); set `base_url`, `path`, and `model` for those.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
-from typing import Any, TypeAlias
-from .questions import Question
 import email.utils
 import http.client
 import ipaddress
-import urllib.parse
 import json
 import math
 import os
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
+from collections.abc import Callable, Mapping, Sequence
+from typing import Any, TypeAlias
 
 from .answers import Decision, parse_answers
 from .errors import APIError, DecisionError, QuestionError, ResponseError
-from .questions import Choice, Noul, Score
+from .questions import Choice, Noul, Question, Score
 
 State: TypeAlias = str | dict[str, Any] | list[str] | tuple[str, ...]
 Transport: TypeAlias = Callable[[str, dict[str, str], bytes, float], dict[str, Any]]
@@ -112,7 +111,7 @@ class HTTPBackend:
     api_key_env = ""
     model_env = ""
 
-    def __init__(self, api_key: str | None=None, model: str | None=None, base_url: str | None=None, path: str | None=None, timeout: float=DEFAULT_TIMEOUT, max_retries: int=2, backoff: float=0.5, transport: Transport | None=None, sleep: Callable[[float], None]=time.sleep, env: Mapping[str, str] | None=None, max_retry_wait: float=DEFAULT_MAX_RETRY_WAIT) -> None:
+    def __init__(self, api_key: str | None = None, model: str | None = None, base_url: str | None = None, path: str | None = None, timeout: float = DEFAULT_TIMEOUT, max_retries: int = 2, backoff: float = 0.5, transport: Transport | None = None, sleep: Callable[[float], None] = time.sleep, env: Mapping[str, str] | None = None, max_retry_wait: float = DEFAULT_MAX_RETRY_WAIT) -> None:
         env = os.environ if env is None else env
         if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or not (
                 math.isfinite(timeout) and timeout > 0):

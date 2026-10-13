@@ -44,7 +44,7 @@ include = ["jevdecision", "jevdecision.*"]
 namespaces = false
 
 [tool.setuptools.package-data]
-jevdecision = ["py.typed", "examples/*"]
+jevdecision = ["py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
