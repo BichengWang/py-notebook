@@ -5,13 +5,15 @@ from __future__ import annotations
 from contextlib import contextmanager
 from datetime import datetime, timezone
 import json
+import hashlib
 from pathlib import Path
 import sqlite3
 from threading import RLock
 from typing import Iterator
 from uuid import uuid4
 
-from .evidence import _validate_record
+from . import __version__
+from .evidence import _canonical, _validate_record
 from .models import (
     DecisionError,
     Recommendation,
@@ -19,12 +21,24 @@ from .models import (
     StateError,
     Status,
     Ticket,
+    _text,
 )
 from .policy import INITIAL_STATUS, evaluate
 
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="microseconds")
+
+
+STORE_SCHEMA_VERSION = 1
+
+
+class PendingDecisions(list):
+    """Valid pending records, with skipped row diagnostics in ``skipped``."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.skipped: list[dict[str, str]] = []
 
 
 class TicketStore:
@@ -45,6 +59,9 @@ class TicketStore:
         self._connection.row_factory = sqlite3.Row
         try:
             with self._transaction() as connection:
+                version = connection.execute("PRAGMA user_version").fetchone()[0]
+                if version > STORE_SCHEMA_VERSION:
+                    raise DecisionError(f"Unsupported store schema version {version}; supported: {STORE_SCHEMA_VERSION}")
                 connection.execute(
                     "CREATE TABLE IF NOT EXISTS tickets ("
                     "id TEXT PRIMARY KEY NOT NULL, department TEXT NOT NULL, "
@@ -59,6 +76,7 @@ class TicketStore:
                     "CREATE INDEX IF NOT EXISTS decisions_pending "
                     "ON decisions (status, created_at, id)"
                 )
+                connection.execute(f"PRAGMA user_version = {STORE_SCHEMA_VERSION}")
         except BaseException:
             self.close()
             raise
@@ -120,9 +138,10 @@ class TicketStore:
             self._ensure_open()
             return self._get_ticket(ticket_id)
 
-    def submit(self, recommendation: Recommendation, policy: RoutingPolicy) -> dict:
+    def submit(self, recommendation: Recommendation, policy: RoutingPolicy, proposed_by: str) -> dict:
         if not isinstance(recommendation, Recommendation) or not isinstance(policy, RoutingPolicy):
             raise DecisionError("submit requires a Recommendation and a RoutingPolicy")
+        _text(proposed_by, "proposed_by")
         recommendation = Recommendation.from_dict(recommendation.to_dict())
         policy = RoutingPolicy.from_dict(policy.to_dict())
         with self._transaction() as connection:
@@ -130,7 +149,10 @@ class TicketStore:
             evaluation = evaluate(recommendation, ticket, policy)
             created_at = _now()
             record = {
-                "schema_version": 2,
+                "schema_version": 3,
+                "produced_by": {"name": "decisioncontrol", "version": __version__},
+                "proposed_by": proposed_by,
+                "policy_sha256": hashlib.sha256(_canonical(policy.to_dict())).hexdigest(),
                 "id": str(uuid4()),
                 "created_at": created_at,
                 "recommendation": recommendation.to_dict(),
@@ -156,7 +178,7 @@ class TicketStore:
     def _decode(row: sqlite3.Row) -> dict:
         try:
             record = json.loads(row["record"])
-        except (json.JSONDecodeError, TypeError) as exc:
+        except (json.JSONDecodeError, TypeError, UnicodeError) as exc:
             raise DecisionError("Stored decision is not valid JSON") from exc
         _validate_record(record)
         if (
@@ -182,7 +204,7 @@ class TicketStore:
             self._ensure_open()
             return self._get(decision_id)
 
-    def pending(self) -> list[dict]:
+    def pending(self) -> PendingDecisions:
         with self._lock:
             self._ensure_open()
             rows = self._connection.execute(
@@ -190,7 +212,13 @@ class TicketStore:
                 "WHERE status = ? ORDER BY created_at, id",
                 (Status.PENDING_REVIEW.value,),
             ).fetchall()
-            return [self._decode(row) for row in rows]
+            pending = PendingDecisions()
+            for row in rows:
+                try:
+                    pending.append(self._decode(row))
+                except DecisionError as error:
+                    pending.skipped.append({"id": row["id"], "error": str(error)})
+            return pending
 
     def _save(self, record: dict) -> None:
         _validate_record(record)
@@ -205,6 +233,9 @@ class TicketStore:
             raise DecisionError("Reviewer must be a nonempty, stripped identifier")
         if not isinstance(note, str):
             raise DecisionError("Review note must be a string")
+        if (record["schema_version"] == 3 and record["evaluation"]["verdict"] == "REVIEW"
+                and reviewer == record["proposed_by"]):
+            raise StateError("The proposer cannot review or cancel their own REVIEW decision")
         # The frozen policy has already been validated by _get.
         if reviewer not in record["policy"]["reviewers"]:
             raise StateError(f"Reviewer is not authorized by this decision's policy: {reviewer}")
@@ -214,7 +245,7 @@ class TicketStore:
             record = self._get(decision_id)
             self._authorize_reviewer(record, reviewer, note)
             previous = record["review"]
-            if decision == "APPROVED" and previous is not None and (
+            if previous is not None and (
                 previous["decision"] == decision
                 and previous["reviewer"] == reviewer
                 and previous["note"] == note
@@ -250,7 +281,8 @@ class TicketStore:
                 raise StateError("Cancellation is already recorded with a different actor or reason")
             if record["status"] not in (Status.READY.value, Status.PENDING_REVIEW.value):
                 raise StateError(f"Cannot cancel decision in state {record['status']}")
-            record["schema_version"] = 2
+            if record["schema_version"] == 1:
+                record["schema_version"] = 2
             record["status"] = Status.CANCELLED.value
             record["events"].append({
                 "event": "CANCELLED", "at": _now(), "reviewer": reviewer, "note": note,

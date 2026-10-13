@@ -94,7 +94,7 @@ class EvaluationCliTests(unittest.TestCase):
         envelope["report"]["metrics"]["unsafe_auto_allow_rate"]["value"] = 1
         path.write_text(json.dumps(envelope), encoding="utf-8")
         code, output = self.call(["replay-evaluation", "--record", str(path)])
-        self.assertEqual(code, 2)
+        self.assertEqual(code, 1)
         self.assertIsNone(output)
 
 

@@ -1,16 +1,38 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "decisioncontrol"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Policy-constrained local ticket actions with durable review and replayable evidence"
 readme = "README.md"
 requires-python = ">=3.11"
-license = {file = "LICENSE"}
-authors = [{name = "Bicheng"}]
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{name = "Bicheng Wang"}]
 dependencies = []
+keywords = ["decision-records", "policy", "human-review", "replay", "go-no-go"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.urls]
+Homepage = "https://github.com/BichengWang/ai-decision-system/tree/main/ai-workflows/decision-control"
+Source = "https://github.com/BichengWang/ai-decision-system"
+Issues = "https://github.com/BichengWang/ai-decision-system/issues"
+Changelog = "https://github.com/BichengWang/ai-decision-system/blob/main/ai-workflows/decision-control/CHANGELOG.md"
+
+[tool.setuptools.dynamic]
+version = {attr = "decisioncontrol.__version__"}
 
 [project.scripts]
 decision-control = "decisioncontrol.cli:main"

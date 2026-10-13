@@ -13,6 +13,10 @@ from .models import DecisionError, Evaluation, Recommendation, RoutingPolicy, St
 from .policy import INITIAL_STATUS, evaluate
 
 
+class RecordMismatch(DecisionError):
+    """A checksum or recomputed decision disagrees with recorded evidence."""
+
+
 RECORD_FIELDS = {"schema_version", "id", "created_at", "recommendation", "ticket", "policy",
                  "evaluation", "status", "review", "result", "events"}
 
@@ -37,8 +41,10 @@ def _timestamp(value):
 
 
 def _validate_record(record):
-    raw = _fields(record, RECORD_FIELDS)
-    if type(raw["schema_version"]) is not int or raw["schema_version"] not in (1, 2):
+    schema = record.get("schema_version") if isinstance(record, Mapping) else None
+    fields = RECORD_FIELDS | {"produced_by", "proposed_by", "policy_sha256"} if schema == 3 else RECORD_FIELDS
+    raw = _fields(record, fields)
+    if type(raw["schema_version"]) is not int or raw["schema_version"] not in (1, 2, 3):
         raise DecisionError("unsupported evidence schema_version")
     _text(raw["id"], "decision id")
     try:
@@ -49,10 +55,18 @@ def _validate_record(record):
     proposal = Recommendation.from_dict(raw["recommendation"])
     ticket = Ticket.from_dict(raw["ticket"])
     policy = RoutingPolicy.from_dict(raw["policy"])
+    if raw["schema_version"] == 3:
+        _text(raw["proposed_by"], "proposed_by")
+        producer = _fields(raw["produced_by"], {"name", "version"})
+        if producer["name"] != "decisioncontrol":
+            raise DecisionError("unexpected evidence producer")
+        _text(producer["version"], "producer version")
+        if raw["policy_sha256"] != hashlib.sha256(_canonical(raw["policy"])).hexdigest():
+            raise RecordMismatch("policy_sha256 does not match the frozen policy")
     recorded = Evaluation.from_dict(raw["evaluation"])
     expected = evaluate(proposal, ticket, policy)
     if recorded != expected:
-        raise DecisionError("recorded verdict/reasons do not match the frozen inputs and policy")
+        raise RecordMismatch("recorded verdict/reasons do not match the frozen inputs and policy")
     try:
         status = Status(raw["status"])
     except (ValueError, TypeError) as error:
@@ -76,36 +90,41 @@ def _validate_record(record):
             state = Status.READY.value if name == "APPROVED" else Status.REJECTED.value
         elif name in ("EXECUTED", "STALE") and state == Status.READY.value:
             state = name
-        elif (name == "CANCELLED" and raw["schema_version"] == 2
+        elif (name == "CANCELLED" and raw["schema_version"] >= 2
               and state in (Status.READY.value, Status.PENDING_REVIEW.value)):
+            if (raw["schema_version"] == 3 and expected.verdict.value == "REVIEW"
+                    and event["reviewer"] == raw["proposed_by"]):
+                raise RecordMismatch("proposer cannot cancel their own REVIEW decision")
             if event["reviewer"] not in policy.reviewers:
-                raise DecisionError("cancelling reviewer is not authorized by the frozen policy")
+                raise RecordMismatch("cancelling reviewer is not authorized by the frozen policy")
             if not isinstance(event["note"], str) or not event["note"].strip():
                 raise DecisionError("cancellation must contain a nonempty reason")
             state = Status.CANCELLED.value
         else:
-            raise DecisionError("event history contains a prohibited transition")
+            raise RecordMismatch("event history contains a prohibited transition")
     if status.value != state:
-        raise DecisionError("lifecycle status does not match event history")
+        raise RecordMismatch("lifecycle status does not match event history")
     review = raw["review"]
     if review_event is None:
         if review is not None:
-            raise DecisionError("review has no corresponding review event")
+            raise RecordMismatch("review has no corresponding review event")
     else:
         review = _fields(review, {"decision", "reviewer", "note", "at"})
         if review["decision"] != review_event["event"] or review["at"] != review_event["at"]:
-            raise DecisionError("review does not match its event")
+            raise RecordMismatch("review does not match its event")
+        if raw["schema_version"] == 3 and review["reviewer"] == raw["proposed_by"]:
+            raise RecordMismatch("proposer cannot review their own REVIEW decision")
         if review["reviewer"] not in policy.reviewers:
-            raise DecisionError("reviewer is not authorized by the frozen policy")
+            raise RecordMismatch("reviewer is not authorized by the frozen policy")
         if not isinstance(review["note"], str):
             raise DecisionError("review note must be text")
     if status == Status.EXECUTED:
         result = Ticket.from_dict(raw["result"])
         expected_result = Ticket(ticket.id, proposal.destination, ticket.revision + 1)
         if result != expected_result:
-            raise DecisionError("execution result does not match the approved action")
+            raise RecordMismatch("execution result does not match the approved action")
     elif raw["result"] is not None:
-        raise DecisionError("an unexecuted decision cannot contain an execution result")
+        raise RecordMismatch("an unexecuted decision cannot contain an execution result")
     return {"valid": True, "decision_id": raw["id"], "verdict": expected.verdict.value,
             "status": status.value}
 
@@ -120,8 +139,9 @@ def replay(envelope: dict) -> dict:
     """Check integrity and reproduce authorization from frozen inputs; never execute."""
     raw = _fields(envelope, {"record", "sha256"})
     digest = raw["sha256"]
-    if not isinstance(digest, str) or len(digest) != 64:
+    if (not isinstance(digest, str) or len(digest) != 64
+            or any(character not in "0123456789abcdef" for character in digest)):
         raise DecisionError("sha256 must be a 64-character digest")
     if hashlib.sha256(_canonical(raw["record"])).hexdigest() != digest:
-        raise DecisionError("evidence checksum mismatch")
+        raise RecordMismatch("evidence checksum mismatch")
     return _validate_record(raw["record"])

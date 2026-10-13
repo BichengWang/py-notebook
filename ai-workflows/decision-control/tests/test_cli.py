@@ -35,7 +35,7 @@ class CliTests(unittest.TestCase):
 
     def create_review(self):
         self.assertEqual(self.call("ticket-create", "--ticket-id", "T1", "--department", "intake")[0], 0)
-        code, record, _ = self.call("submit", "--proposal", str(self.proposal), "--policy", str(self.policy))
+        code, record, _ = self.call("submit", "--proposal", str(self.proposal), "--policy", str(self.policy), "--proposed-by", "proposer")
         self.assertEqual(code, 0)
         self.assertEqual(record["status"], "PENDING_REVIEW")
         return record["id"]
@@ -104,7 +104,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(self.call("ticket-show", "unknown")[0], 2)
         self.call("ticket-create", "--ticket-id", "T1", "--department", "intake")
         self.proposal.write_text("{broken", encoding="utf-8")
-        self.assertEqual(self.call("submit", "--proposal", str(self.proposal), "--policy", str(self.policy))[0], 2)
+        self.assertEqual(self.call("submit", "--proposal", str(self.proposal), "--policy", str(self.policy), "--proposed-by", "proposer")[0], 2)
         self.assertEqual(self.call("pending")[1], [])
         self.assertEqual(self.call("replay", "--record", str(self.root / "missing.json"), db=False)[0], 2)
 

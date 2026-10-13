@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 
 from .evidence import export_record, replay
+from ._outputs import staged_output
 from .models import DecisionError, Recommendation, RoutingPolicy
 from .store import TicketStore
 
@@ -14,12 +15,11 @@ def _save(path, value):
 
 
 def run_demo(out):
-    directory = Path(out)
-    if directory.exists():
-        if not directory.is_dir() or any(directory.iterdir()):
-            raise DecisionError("demo output must be a new or empty directory")
-    else:
-        directory.mkdir(parents=True)
+    with staged_output(out) as staging:
+        return _build_demo(staging, Path(out))
+
+
+def _build_demo(directory, published):
     policy = RoutingPolicy("demo-policy-1", ("support", "engineering"),
                            ("engineering",), ("local-reviewer",), 0.8)
     cases = (("allow", "support", 0.95), ("review", "engineering", 0.95),
@@ -33,7 +33,7 @@ def run_demo(out):
             proposal = Recommendation("reassign_ticket", f"demo-{name}", destination,
                                       probability, "hand-authored-demo", "routing-question-1")
             _save(directory / f"proposal-{name}.json", proposal.to_dict())
-            ids[name] = store.submit(proposal, policy)["id"]
+            ids[name] = store.submit(proposal, policy, proposed_by="local-proposer")["id"]
         store.execute(ids["allow"])
     # Review is durable: close and reopen before approval by a trusted operator.
     with TicketStore(db) as store:
@@ -53,10 +53,10 @@ def run_demo(out):
             with record_path.open(encoding="utf-8") as stream:
                 replay_results[name] = replay(json.load(stream))
             records[name] = {"id": record["id"], "verdict": record["evaluation"]["verdict"],
-                             "status": record["status"], "file": str(record_path)}
+                             "status": record["status"], "file": str(published / record_path.name)}
             tickets[name] = store.get_ticket(f"demo-{name}").to_dict()
     summary = {
-        "database": str(db),
+        "database": str(published / db.name),
         "inputs": "Hand-authored probabilities and recommendations; no model or provider was called.",
         "execution_boundary": "Actual local SQLite queue reassignment only; no external action.",
         "reopened_before_approval": True,
