@@ -36,7 +36,7 @@ jobs:
         with:
           operations-per-run: 500
           days-before-branch-stale: 30
-          exempt-branches-regex: "^(main|master|relia-release)$"
+          exempt-branches-regex: "^(main|master|relia-release|release/.*)$"
           exempt-protected-branches: true
           ignore-unknown-authors: true
           default-recipient: "(Unknown author)"

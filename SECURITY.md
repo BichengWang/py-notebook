@@ -1,21 +1,26 @@
-# Security Policy
+# Security policy
 
-## Supported Versions
+Report suspected vulnerabilities privately through [GitHub private vulnerability
+reporting](https://github.com/BichengWang/ai-decision-system/security/advisories/new).
+Do not open public issues or disclose exploit details before coordinated review.
+Include the component, version, reproduction steps, impact, and any proposed
+mitigation. Do not include credentials or sensitive production data.
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
+The maintainer aims to acknowledge reports within seven days. This is a goal,
+not a service-level agreement; response and remediation times depend on the
+report and maintainer availability. For private maintainer contact, including
+conduct reports, use the same reporting route.
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 5.1.x   | :white_check_mark: |
-| 5.0.x   | :x:                |
-| 4.0.x   | :white_check_mark: |
-| < 4.0   | :x:                |
+## Supported versions
 
-## Reporting a Vulnerability
+Security fixes target the latest 0.1.x release of each independently released
+package: `expgate`, `jevdecision`, and `decisioncontrol`. Until a package's first
+release, there is no supported published version. Earlier releases are not
+supported; upgrade to the latest patch release of the affected component.
 
-Use this section to tell people how to report a vulnerability.
+RELIA is unreleased and follows its own human-gated release process. The `src/`
+research workbench is unsupported. Reports about either are still welcome.
 
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+See the component-specific policies and trust boundaries for
+[decision-control](ai-workflows/decision-control/SECURITY.md) and
+[RELIA](ai-workflows/ai-decision-reliability/SECURITY.md).

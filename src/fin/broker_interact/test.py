@@ -1,6 +1,8 @@
+import os
+
 import robin_stocks as rs
 rs.login(
-    username='bichengwang17@gmail.com',
+    username=os.environ['ROBINHOOD_USERNAME'],
     password=pw, 
     expiresIn=86400, 
     by_sms=True)

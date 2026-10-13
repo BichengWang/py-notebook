@@ -1,0 +1,54 @@
+name: Bug report
+description: Report reproducible incorrect behavior in a component.
+body:
+  - type: markdown
+    attributes:
+      value: Do not include credentials or private data. Use private security reporting for vulnerabilities.
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - experiment-gate
+        - jev-decision
+        - decision-control
+        - relia
+        - workspace tooling
+        - research workbench
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Package version or repository commit where the problem occurs.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction command and inputs
+      description: Include the working directory, exact command, and minimal non-sensitive inputs.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include output and exit code when applicable.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Operating system, Python version, and relevant dependency versions.
+    validations:
+      required: true
