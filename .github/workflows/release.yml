@@ -1,0 +1,133 @@
+name: Component release
+
+on:
+  push:
+    tags: ["experiment-gate/v*", "jev-decision/v*", "decision-control/v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing component/vX.Y.Z tag (build-only dry run)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      component: ${{ steps.component.outputs.component }}
+      version: ${{ steps.component.outputs.version }}
+      distribution: ${{ steps.component.outputs.distribution }}
+      tag: ${{ steps.component.outputs.tag }}
+      commit: ${{ steps.component.outputs.commit }}
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ inputs.tag || github.ref_name }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+      - name: Validate checked-out tag before resolving release metadata
+        run: python scripts/release.py check --tag "$TAG"
+      - name: Resolve validated component
+        id: component
+        run: |
+          python - <<'PY'
+          import os, subprocess, tomllib
+          from pathlib import Path
+          from scripts.release import parse_tag, projects, ROOT
+          components = projects(ROOT)
+          tag = os.environ["TAG"]
+          component, version = parse_tag(tag, components)
+          commit = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+          directory = components[component]["path"]
+          package = components[component]["packages"][0]
+          distribution = tomllib.loads((Path(directory) / "pyproject.toml").read_text())["project"]["name"]
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              for key, value in dict(component=component, version=version, directory=directory,
+                                     package=package, distribution=distribution, tag=tag, commit=commit).items():
+                  if "\n" in value or "\r" in value:
+                      raise ValueError("output values must be single-line")
+                  output.write(f"{key}={value}\n")
+          PY
+      - name: Component tests
+        working-directory: ${{ steps.component.outputs.directory }}
+        run: python -m unittest discover -s tests -v
+      - name: Build and validate distributions
+        working-directory: ${{ steps.component.outputs.directory }}
+        run: |
+          python -m pip install build twine
+          python -m build
+          python -m twine check --strict dist/*
+      - name: Import installed wheel outside the source tree
+        env:
+          COMPONENT_DIR: ${{ steps.component.outputs.directory }}
+          PACKAGE: ${{ steps.component.outputs.package }}
+          VERSION: ${{ steps.component.outputs.version }}
+        run: |
+          python -m venv "$RUNNER_TEMP/release-wheel"
+          "$RUNNER_TEMP/release-wheel/bin/python" -m pip install "$GITHUB_WORKSPACE/$COMPONENT_DIR"/dist/*.whl
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/release-wheel/bin/python" -I - <<'PY'
+          import importlib, os
+          package = importlib.import_module(os.environ["PACKAGE"])
+          assert package.__version__ == os.environ["VERSION"]
+          PY
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: distributions
+          path: ${{ steps.component.outputs.directory }}/dist/*
+          if-no-files-found: error
+
+  github-release:
+    needs: build
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ needs.build.outputs.tag }}
+      COMPONENT: ${{ needs.build.outputs.component }}
+      VERSION: ${{ needs.build.outputs.version }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.build.outputs.commit }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: distributions
+          path: dist
+      - name: Create GitHub Release from dated changelog
+        run: |
+          python scripts/release.py check --tag "$TAG"
+          python scripts/release.py notes --tag "$TAG" > notes.md
+          gh release create "$TAG" dist/* --title "$COMPONENT v$VERSION" --notes-file notes.md --verify-tag
+
+  pypi:
+    needs: build
+    if: github.event_name == 'push' && vars.PYPI_PUBLISH == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/${{ needs.build.outputs.distribution }}/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: distributions
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          attestations: true
