@@ -222,7 +222,10 @@
         "scripts/tests/test_continual_delivery.py",
         "scripts/tests/test_workspace.py",
         "scripts/tests/test_publication_evidence.py",
-        ".github/workflows/delivery-policy.yml"
+        ".github/workflows/delivery-policy.yml",
+        "scripts/release.py",
+        "scripts/tests/test_release.py",
+        ".github/workflows/release.yml"
       ],
       "ci": {
         "workflow": ".github/workflows/delivery-policy.yml",
@@ -243,6 +246,9 @@
         },
         {
           "run": "python3 -m unittest discover -s tests -p test_publication_evidence.py"
+        },
+        {
+          "run": "python3 -m unittest discover -s tests -p test_release.py"
         },
         {
           "run": "python3 workspace.py check"
