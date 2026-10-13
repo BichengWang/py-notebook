@@ -4,14 +4,6 @@ Research and experiment workspace for **AI-assisted decision making**: multi-age
 
 This is the setup guide for the `src/` research material. The independent projects (RELIA, experiment gate) are described in the [repository README](../README.md).
 
-## Motto
-
-Being Honest with Yourself.
-
-## Auth
-
-bichengwang17@gmail.com
-
 ## Overview
 
 This repo collects models and notebooks that turn data into a decision:
@@ -43,7 +35,7 @@ src/
   utils/           Requests, crawl, OpenAI, pandas helpers
   inter/           External study code (e.g. nanoGPT)
   lc/              Algorithm practice (not the decision runtime)
-docs/              Env notes, GPU, GCP, planning
+docs/              Research and environment notes
 ```
 
 | Path | Role in the decision system |
@@ -83,7 +75,9 @@ dependency files.
 
 Not collected, because they need a service; run them by path when you have it:
 
-- `src/fin/broker_interact/` needs an Interactive Brokers gateway.
+- `src/fin/broker_interact/` includes service-dependent broker examples. The Robinhood
+  `test.py` reads the account username from `ROBINHOOD_USERNAME`; its existing
+  password setup is still required.
 - `src/utils/web/chrome_driver/` needs Selenium and Chrome.
 - `src/ml/env_test/` probes a torch / GPU environment.
 ## Makefile

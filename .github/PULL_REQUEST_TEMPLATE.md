@@ -11,3 +11,5 @@
 ## Risks / compatibility
 
 <!-- Breaking changes, migration steps, and scope limits; write "None" if not applicable. -->
+
+- [ ] Updated the affected project’s README and CHANGELOG for behavior changes (or explained why not applicable).

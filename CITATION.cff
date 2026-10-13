@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using this metadata."
+title: "AI Decision System: replayable decision records for AI-assisted go/no-go decisions"
+type: software
+authors:
+  - family-names: Wang
+    given-names: Bicheng
+repository-code: "https://github.com/BichengWang/ai-decision-system"
+abstract: >-
+  This repository develops independent tools for replayable decision records
+  for AI-assisted go/no-go decisions, with offline verification of recorded
+  evidence. Examples and fixtures demonstrate software behavior rather than
+  live-model performance or production adoption. RELIA remains unreleased under
+  a separate human-gated process, alongside an unsupported research workbench.
+keywords:
+  - decision records
+  - offline verification
+  - replayability
+  - AI-assisted decisions
+  - go/no-go decisions

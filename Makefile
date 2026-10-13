@@ -1,24 +1,8 @@
-project := python-notebook
 pytest_args := -rs --tb short --junitxml junit.xml --suppress-no-test-exit-code
 pytest := py.test $(pytest_args)
-file_name := ''
-ifdef FILE_NAME
-	file_name := $(FILE_NAME)
-endif
 ifdef TEST_NAME
 	pytest_extra_args := -k "$(TEST_NAME)"
 endif
-server := sim-dev.dev
-ifdef SERVER
-	server := $(SERVER).dev
-endif
-ifdef VERSION
-    version := $(VERSION)
-endif
-ifdef LOG_FILE
-    log_file := $(LOG_FILE)
-endif
-
 .DEFAULT_GOAL := test
 
 RELIA_DIR := ai-workflows/ai-decision-reliability
@@ -130,16 +114,6 @@ test: clean lint
 
 .PHONY: all_test
 all_test: test
-
-.PHONY: open_tunnels
-open_tunnels:
-	echo "Opening tunnels to $(server)"
-# 	ssh -fN -L port:localhost:port $(server)
-
-.PHONY: close_tunnels
-close_tunnels:
-	echo "Closing tunnels"
-	kill $$(lsof -ti:port) 2> /dev/null &
 
 .PHONY: clean
 clean:
