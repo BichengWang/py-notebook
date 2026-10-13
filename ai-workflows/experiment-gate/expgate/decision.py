@@ -21,19 +21,23 @@ A proportion or mean metric may carry a pre-experiment ``covariate`` summary in 
 estimated with CUPED regression adjustment (see :func:`expgate.stats.cuped_effect`),
 which narrows the interval without moving the decision rules above.
 
-Each metric also reports ``mde``, the minimum detectable effect: the smallest true improvement
-that the metric's own bound would show at ``policy.power`` (default 0.8), given the current
-standard error. It tells a HOLD whether the test could have seen the effect it was run for.
+Each metric reports ``mde = (z + z_power) * se`` with its observed standard error.
+This is a normal-approximation sensitivity estimate for the current look; with
+sequential monitoring it is not power under a stopping rule. Zero-error metrics
+are inconclusive regardless of their point difference or margin.
 
-With ``policy.sequential.planned_units`` set, every bound is an always-valid confidence
-sequence instead (see :func:`expgate.stats.sequential_multiplier`). The same rules then hold
-at every interim look: the summary can be evaluated as often as the platform refreshes it,
-and SHIP or ROLLBACK can be declared as soon as a bound clears, without inflating the error
-rates that the fixed-horizon bounds would.
+With ``policy.sequential.planned_units`` set, bounds use a normal-mixture confidence
+sequence (see :func:`expgate.stats.sequential_multiplier`). Coverage is exact under
+the known-variance normal model; using observed standard errors is approximate.
+
 """
 from __future__ import annotations
 
+import copy
 import math
+
+from . import __version__
+from .records import input_digest
 
 from . import stats
 
@@ -107,11 +111,13 @@ def _known_keys(value: dict, allowed: set, where: str) -> None:
 
 def _validate(summary: dict) -> None:
     _object(summary, "experiment summary")
+    _known_keys(summary, {"experiment", "description", "seed", "metrics", "policy", "assignment", "arms"}, "experiment summary")
     if "experiment" in summary and (not isinstance(summary["experiment"], str) or not summary["experiment"].strip()):
         raise ValueError("'experiment' must be a non-empty string")
     metrics = _object(summary.get("metrics"), "'metrics'")
     for name, spec in metrics.items():
         _object(spec, f"metric {name!r}")
+        _known_keys(spec, {"type", "role", "direction", "margin"}, f"metric {name!r}")
     primaries = [n for n, s in metrics.items() if s.get("role") == "primary"]
     if len(primaries) != 1:
         raise ValueError("exactly one metric must have role 'primary'")
@@ -150,6 +156,7 @@ def _validate(summary: dict) -> None:
         if units < 1:
             raise ValueError(f"arm {arm_name!r} units must be at least 1")
         observed = _object(arm.get("metrics"), f"arm {arm_name!r} metrics")
+        _known_keys(observed, set(metrics), f"arm {arm_name!r} metrics")
         missing = set(metrics) - set(observed)
         if missing:
             raise ValueError(f"arm {arm_name!r} is missing metrics {sorted(missing)}")
@@ -235,16 +242,19 @@ def evaluate(summary: dict) -> dict:
         row = {"metric": name, "role": spec["role"], "type": spec["type"], "direction": spec["direction"],
                "control": eff.control, "treatment": eff.treatment, "diff": eff.diff, "se": eff.se,
                "improvement": improvement, "improvement_bounds": [lo, hi], "z": z,
-               "mde": stats.minimum_detectable_effect(eff.se, z, policy["power"])}
+               "mde": stats.minimum_detectable_effect(eff.se, z, policy["power"]),
+               "mde_basis": "current_look_normal_approximation" if sequential else "fixed_horizon_normal_approximation"}
         if adjustment is not None:
             row["adjustment"] = adjustment
         if spec["role"] == "primary":
-            status = "IMPROVED" if lo > 0 else ("DEGRADED" if hi < 0 else "INCONCLUSIVE")
+            status = "INCONCLUSIVE" if eff.se == 0 else ("IMPROVED" if lo > 0 else ("DEGRADED" if hi < 0 else "INCONCLUSIVE"))
             primary_status = status
         else:
             margin = spec["margin"]
             degradation, degr_lo, degr_hi = -improvement, -hi, -lo
-            if degr_lo > 0 and degradation > margin:
+            if eff.se == 0:
+                status = "INCONCLUSIVE"
+            elif degr_lo > 0 and degradation > margin:
                 status = "BREACH"
             elif degr_hi < margin:
                 status = "NON_INFERIOR"
@@ -270,13 +280,21 @@ def evaluate(summary: dict) -> dict:
         decision = "HOLD"
         if primary_status != "IMPROVED":
             primary = next(row for row in rows if row["role"] == "primary")
-            reasons.append(f"primary metric is {primary_status.lower()} (detectable improvement at "
-                           f"{policy['power']:.0%} power: {primary['mde']:.4g})")
+            if primary["se"] == 0:
+                reasons.append("primary metric is inconclusive (zero standard error; detectability cannot be inferred)")
+            elif sequential is not None:
+                reasons.append(f"primary metric is {primary_status.lower()} (current-look MDE approximation: {primary['mde']:.4g}; "
+                               "not a sequential stopping-power guarantee)")
+            else:
+                reasons.append(f"primary metric is {primary_status.lower()} (detectable improvement at "
+                               f"{policy['power']:.0%} power: {primary['mde']:.4g})")
         reasons += [f"guardrail {n} is inconclusive" for n, s in sorted(guard_status.items()) if s == "INCONCLUSIVE"]
         if sequential is not None and sequential["information_fraction"] >= 1:
             reasons.append("planned sample size reached without a decision")
 
-    report = {"experiment": summary.get("experiment", "unnamed"), "decision": decision, "reasons": reasons,
+    report = {"schema_version": 2, "produced_by": {"name": "expgate", "version": __version__},
+              "input": copy.deepcopy(summary), "input_sha256": input_digest(summary),
+              "experiment": summary.get("experiment", "unnamed"), "decision": decision, "reasons": reasons,
               "policy": policy, "sample_ratio": srm, "metrics": rows}
     if sequential is not None:
         report["sequential"] = sequential

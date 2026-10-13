@@ -1,6 +1,7 @@
 # Experiment gate (`expgate`)
 
-A small, deterministic workflow for the step that follows offline release gates:
+Replayable decision records for AI-assisted go/no-go decisions. This small,
+deterministic workflow handles the step that follows offline release gates:
 deciding whether a real-time decision model that is **already in an online A/B
 test** should be shipped, held for more data, or rolled back.
 
@@ -30,20 +31,28 @@ regression adjustment, which narrows its interval (see
 runs can replace every bound with an always-valid confidence sequence (see
 [Sequential monitoring](#sequential-monitoring)).
 
-Every metric also reports its **minimum detectable effect** (`mde`): the smallest
-true improvement, in the metric's own units, that its bound would show with
-probability `policy.power` (default 0.8) at the current sample size. It is
-`(z + z_power) * se`, where `z` is the metric's own critical value (so it accounts
-for the Bonferroni split and sequential bounds). A `HOLD` reason states the primary
-metric's MDE, which tells you whether the test could have detected the effect it
-was run for or simply needs more units. For a guardrail, a margin below its MDE
-means that even a candidate with no effect on it is unlikely to be shown
-non-inferior. In 1,000 simulated tests whose true lift equals the MDE, 80.3%
-shipped.
+Every metric reports `mde = (z + z_power) * se`, using its critical value,
+observed standard error, and `policy.power` (default 0.8). For fixed-horizon
+analysis, `mde_basis` is `fixed_horizon_normal_approximation`: approximate
+single-metric detectability at the current sample size, not a guarantee that all
+guardrails pass or the experiment ships. For sequential analysis it is
+`current_look_normal_approximation`: a sensitivity estimate for this look,
+**not a guarantee of power under repeated looks or a stopping rule**. The formula
+and thresholds are unchanged. A zero standard error makes the metric inconclusive;
+its numerical MDE of zero is not evidence of detectability.
 
 ## Quick start
 
-From this directory, with Python 3.11 or later:
+Install with Python 3.11 or later (the first PyPI release is pending):
+
+```bash
+pip install expgate
+experiment-gate --input examples/offer-ranker-v2.json --out review-run --require-ship
+experiment-gate-verify review-run/decision.json
+```
+
+The examples live in this repository; supply your own exported summary after
+installation. From this directory:
 
 ```bash
 python3 -m unittest discover -s tests
@@ -51,14 +60,27 @@ python3 -m expgate.run --all-scenarios --out review-run
 python3 -m expgate.run --input examples/offer-ranker-v2.json --out review-run/example --require-ship
 ```
 
+`python -m expgate` is also supported; `python -m expgate.run` remains available.
+
 `--out` must be new or empty. Each evaluation writes `decision.json` (sorted
 keys; byte-identical across runs for the same input) and a readable
 `DECISION.md`. `--input` takes several summaries at once (`--input exports/*.json`);
 each record then goes to `--out/<experiment>/`, so every summary must name its
 `experiment`, and the names must be distinct (ignoring case) and usable as a
 directory name. Every summary is read and evaluated before anything is written,
-so one invalid file leaves no partial records. `--require-ship` exits 1 unless every decision is `SHIP`, so the
-command can gate a promotion job. Invalid input exits 2.
+so one invalid file leaves no partial records. The entire run is written into a
+staging directory next to `--out` and atomically published with `os.replace`; a
+write failure leaves the target untouched and the run can be retried. `--require-ship` exits 1 unless every decision is `SHIP`, so the
+command can gate a promotion job.
+
+| Exit | Evaluation CLI | Verification CLI |
+|---|---|---|
+| 0 | Records written; required SHIP condition met, if requested | All records verified |
+| 1 | Completed, but `--require-ship` was not met | Hash or replay content mismatch |
+| 2 | Invalid input, usage, unreadable file, or output failure | Unreadable/invalid record, usage, or unsupported/legacy schema |
+
+Without `--require-ship`, writing a HOLD, ROLLBACK, or INVALID decision succeeds
+with exit 0; inspect the record or request the gate explicitly.
 
 From the repository root, `make expgate-test` and
 `make expgate-run EXPGATE_OUT=/abs/new/dir` run the same commands.
@@ -72,15 +94,69 @@ better (`increase` or `decrease`). `policy` and `assignment` are optional;
 `policy.sequential` turns on sequential monitoring.
 
 The summary is validated before any statistic is computed: counts must be
-integers within range, means, standard deviations and margins must be finite,
+integers within range, means, standard deviations and guardrail margins must be finite,
 `alpha`, `srm_alpha`, `power` and `expected_treatment_share` must lie in (0, 1), and
 `policy.sequential.planned_units` must be an integer of at least 2. `experiment`,
-when present, must be a non-empty string. Unknown keys in `policy`,
+when present, must be a non-empty string. The allowed top-level keys are
+`experiment`, `description`, `seed` (synthetic metadata), `metrics`, `arms`,
+`policy`, and `assignment`. Metric specs allow only `type`, `role`, `direction`,
+and `margin`; arm metrics must all be declared in the specs. Unknown keys at
+the summary top level, in metric specs, in `policy`,
 `policy.sequential`, `assignment`, an arm's metric statistics, and a `covariate`
 are rejected rather than ignored, so a misspelled setting such as `alpah` cannot
 silently fall back to its default.
 Any violation exits 2 with the offending field named, so malformed input is
-never mistaken for a `--require-ship` refusal (exit 1).
+never mistaken for a `--require-ship` refusal (exit 1). Every metric with zero
+standard error (including zero-event or all-event proportions, zero-variance
+means/ratios, and perfectly adjusted CUPED outcomes) is `INCONCLUSIVE`; it can
+neither establish significant improvement/harm nor non-inferiority. A zero-error
+primary or guardrail therefore prevents SHIP.
+
+## Decision records and offline verification
+
+`decision.json` preserves the existing decision, reasons, policy, sample-ratio,
+metrics, and `expgate_version` fields. New records have integer `schema_version: 2`,
+`produced_by: {"name": "expgate", "version": "0.1.0"}`, the full parsed `input`, and
+`input_sha256`. The input digest is lowercase SHA-256 of canonical JSON:
+`json.dumps(input, sort_keys=True, separators=(",", ":"), ensure_ascii=False)`
+encoded as UTF-8. `DECISION.md` shows the SHA-256 of the actual `decision.json`
+bytes (including formatting), which is a different digest.
+
+```bash
+python -m expgate.verify review-run/decision.json
+experiment-gate-verify review-run/*/decision.json
+```
+
+Verification recomputes the input digest and calls `evaluate` with the running
+version. It names mismatches in the decision, reasons, metrics, experiment,
+policy, sample-ratio, and sequential fields using canonical JSON comparison
+(including value types). It needs no network access. Missing
+`schema_version` means schema 1: existing JSON remains readable, but lacks the
+embedded input needed for verification and exits 2 with an explanation. Future
+versions may produce different replay results; a mismatch is reported, not hidden.
+Hashes detect changes, not forgery or authenticity: someone who rewrites the input
+and recomputes the report can produce a consistent record.
+
+The public API exports `evaluate`, `verify_record`, and `__version__` from
+`expgate`. `verify_record(record)` returns a list of mismatched field names and
+raises `ValueError` for invalid/unsupported records.
+
+## Bundled examples
+
+All examples are hand-written schema demonstrations, not live-model,
+calibration, adoption, or production evidence:
+
+| Input | Demonstrates |
+|---|---|
+| `examples/offer-ranker-v2.json` | Proportion primary and proportion/mean guardrails |
+| `examples/ratio.json` | Revenue per session with user-level numerator/denominator summaries |
+| `examples/cuped.json` | Mean primary adjusted by one pre-assignment covariate |
+| `examples/sequential.json` | An interim look toward 200,000 planned units |
+
+```bash
+experiment-gate --input examples/*.json --out example-records
+experiment-gate-verify example-records/*/decision.json
+```
 
 ## Ratio metrics
 
@@ -151,18 +227,19 @@ To check a running test, declare the total sample size (both arms) the test is p
 "policy": {"alpha": 0.05, "sequential": {"planned_units": 60000}}
 ```
 
-Every bound then becomes an always-valid confidence sequence: a one-sided normal-mixture
-sequential probability ratio test on the same normal approximation, inverted into a bound. With
-probability at least `1 - alpha` it holds at every look at once, so the summary can be evaluated
+Every bound then uses a normal-approximation confidence sequence: a one-sided normal-mixture
+sequential probability ratio test on the same normal approximation, inverted into a bound. Under the
+known-variance normal model, probability at least `1 - alpha` applies to each bound
+at every look at once. With observed standard errors this is approximate, so the summary can be evaluated
 as often as the platform refreshes it, and the experiment can stop at the first `SHIP` or
 `ROLLBACK`. The decision rules, the Bonferroni split across guardrails and CUPED are unchanged;
 only the multiplier on each standard error (the `z` in a metric's row) is larger. `decision.json`
 gains a `sequential` object (planned and current units, and the information fraction), and
-`DECISION.md` gains one line. A summary without `policy.sequential` is evaluated exactly as before.
+`DECISION.md` gains one line. A summary without `policy.sequential` uses fixed-horizon bounds.
 
 `planned_units` tunes the mixing variance so the bound is narrowest at the planned size. It must be
-fixed before the test starts; choosing it after seeing the data voids the guarantee. The bound
-stays valid before and after the plan, only wider. A `HOLD` at or past the plan says that the
+fixed before the test starts; choosing it after seeing the data voids the guarantee. Under the known-variance normal model the bound
+stays valid before and after the plan, only wider; the plug-in implementation remains approximate. A `HOLD` at or past the plan says that the
 planned sample size was reached without a decision.
 
 The price is power at the plan. In the same simulation, with a real conversion lift from 0.100 to
@@ -189,6 +266,9 @@ seed (`expgate/generator.py`):
 | `early-regression` | `ROLLBACK` (primary) at an interim look, a quarter of the way to the planned sample size |
 
 ## Limitations
+
+The simulation figures above describe synthetic experiments, not measured product
+performance or calibration on live-model outcomes.
 
 - Without `policy.sequential` the bounds are fixed-horizon: checking results repeatedly
   and stopping early inflates error rates.

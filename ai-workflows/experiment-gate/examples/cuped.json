@@ -1,0 +1,41 @@
+{
+  "experiment": "cuped-example",
+  "description": "Hand-written pre-assignment covariate example, not product evidence.",
+  "metrics": {
+    "revenue_per_user": {
+      "type": "mean",
+      "role": "primary",
+      "direction": "increase"
+    }
+  },
+  "arms": {
+    "control": {
+      "units": 2000,
+      "metrics": {
+        "revenue_per_user": {
+          "mean": 20.0,
+          "sd": 8.0,
+          "covariate": {
+            "mean": 20.0,
+            "sd": 8.0,
+            "corr": 0.8
+          }
+        }
+      }
+    },
+    "treatment": {
+      "units": 2000,
+      "metrics": {
+        "revenue_per_user": {
+          "mean": 20.4,
+          "sd": 8.0,
+          "covariate": {
+            "mean": 20.0,
+            "sd": 8.0,
+            "corr": 0.8
+          }
+        }
+      }
+    }
+  }
+}

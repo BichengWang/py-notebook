@@ -39,12 +39,29 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Unit tests
         run: python -m unittest discover -s tests -v
-      - name: Evaluate scenarios and the example summary
+      - name: Evaluate scenarios and every example
         run: |
           python -m expgate.run --all-scenarios --out "$RUNNER_TEMP/expgate/scenarios"
           python -m expgate.run --input examples/offer-ranker-v2.json \
             --out "$RUNNER_TEMP/expgate/example" --require-ship
+          python -m expgate --input examples/*.json --out "$RUNNER_TEMP/expgate/examples"
+          python -m expgate.verify "$RUNNER_TEMP/expgate/scenarios"/*/decision.json \
+            "$RUNNER_TEMP/expgate/examples"/*/decision.json "$RUNNER_TEMP/expgate/example/decision.json"
           cat "$RUNNER_TEMP/expgate/example/DECISION.md" >> "$GITHUB_STEP_SUMMARY"
+      - name: Build and check distributions
+        run: |
+          python -m pip install build twine
+          python -m build
+          twine check --strict dist/*
+      - name: Smoke test installed wheel outside source tree
+        run: |
+          python -m venv "$RUNNER_TEMP/expgate-venv"
+          "$RUNNER_TEMP/expgate-venv/bin/python" -m pip install dist/*.whl
+          mkdir -p "$RUNNER_TEMP/expgate-smoke"
+          cp -R examples "$RUNNER_TEMP/expgate-smoke/examples"
+          cd "$RUNNER_TEMP/expgate-smoke"
+          "$RUNNER_TEMP/expgate-venv/bin/experiment-gate" --input examples/*.json --out records
+          "$RUNNER_TEMP/expgate-venv/bin/experiment-gate-verify" records/*/decision.json
       - name: Retain decision records
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

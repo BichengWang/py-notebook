@@ -1,0 +1,45 @@
+{
+  "experiment": "ratio-example",
+  "description": "Hand-written ratio example, not product evidence.",
+  "metrics": {
+    "revenue_per_session": {
+      "type": "ratio",
+      "role": "primary",
+      "direction": "increase"
+    }
+  },
+  "arms": {
+    "control": {
+      "units": 10000,
+      "metrics": {
+        "revenue_per_session": {
+          "numerator": {
+            "mean": 31.0,
+            "sd": 40.0
+          },
+          "denominator": {
+            "mean": 3.1,
+            "sd": 2.4
+          },
+          "corr": 0.6
+        }
+      }
+    },
+    "treatment": {
+      "units": 10000,
+      "metrics": {
+        "revenue_per_session": {
+          "numerator": {
+            "mean": 32.5,
+            "sd": 40.0
+          },
+          "denominator": {
+            "mean": 3.1,
+            "sd": 2.4
+          },
+          "corr": 0.6
+        }
+      }
+    }
+  }
+}
