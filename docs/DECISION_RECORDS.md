@@ -1,0 +1,83 @@
+# Decision record conventions
+
+A decision record preserves the inputs and rules needed to re-check an AI-assisted
+go/no-go outcome offline. The projects are independent packages, not an integrated
+runtime. Verification checks internal consistency under the verifier's rules; it
+does not authorize a deployment or authenticate an outside event.
+
+## Encoding and integrity
+
+For the three small packages, canonical JSON is
+`json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False)`
+encoded as UTF-8. Canonical-object digests are lowercase hexadecimal SHA-256.
+A pretty-printed export envelope need not itself be canonical: its digest covers
+the canonical embedded record. Jev provenance instead hashes exact input/output
+file bytes, including JSONL newlines and Markdown formatting. Experiment-gate's
+`DECISION.md` hashes the actual `decision.json` bytes, separately from the canonical
+input digest.
+
+Sources: [expgate records](../ai-workflows/experiment-gate/expgate/records.py),
+[Jev evaluation](../ai-workflows/jev-decision/jevdecision/evaluation.py),
+[decision-control evidence](../ai-workflows/decision-control/decisioncontrol/evidence.py).
+
+## Records and checks
+
+Commands below assume installed console scripts; module forms remain available
+in each project's README. Paths denote files retained from a run.
+
+| Component / record | Current schema; older readable forms | Embedded content | Offline check | Successful check proves |
+| --- | --- | --- | --- | --- |
+| experiment-gate `decision.json` | 2; schema 1 remains an inspectable JSON report, but cannot be verified because it has no input | Aggregate input and its canonical digest, policy, metrics, reasons, disposition, producer | `experiment-gate-verify decision.json` | Input digest matches; recomputed decision, policy, statistics and reasons agree under the running implementation |
+| Jev typed answer (CLI JSON) | 1; raw unversioned provider fixtures remain replayable | Typed answers/refusals, backend/model labels, response id/usage, producer; no decision-envelope digest | Re-parse the raw response with the same question definitions using the SDK | Response shape and answer semantics satisfy the typed contract; no standalone answer verifier is shipped |
+| Jev `evaluation.json`, `provenance.json`, `responses.jsonl`, `cases.jsonl` | Evaluation/provenance 2; unversioned raw responses remain replayable, earlier reports remain inspectable | Metrics, bounds and PASS/FAIL/UNGATED; producer; provenance hashes exact input/output bytes. Original questions, labeled cases and requirements are external | `jev-decision-eval --questions questions.json --cases labels.jsonl --responses responses.jsonl --require requirements.json --out new-replay` | Re-scoring saved responses with retained inputs reproduces metrics; compare bytes/digests separately. There is no record-only provenance verifier |
+| decision-control exported `record-*.json` | 3; 1 and 2 replay under their original rules | Recommendation, ticket snapshot, frozen policy/digest, proposer, producer, verdict, review, events, execution result; canonical record checksum | `decision-control replay --record record-review.json` | Checksum, frozen policy evaluation and lifecycle evidence agree, including schema 3 separation of duties; replay executes nothing |
+| decision-control `evaluation.json` | 1; unchanged | Labeled cases, policy, requirements, exposure metrics, Wilson intervals and disposition inside a checksummed report; no producer field in this unchanged schema | `decision-control replay-evaluation --record evaluation.json` | Canonical checksum and recomputed policy-evaluation report agree |
+| RELIA `results.json`, `MANIFEST.json` | Own unversioned results/manifest format with package/spec versions; comparison protocol schema 1 | Synthetic benchmark seeds, dataset digest, partitions, per-seed metrics, gates and guarded update; manifest hashes exact results bytes | From RELIA: `uv run --frozen python -m relia.compare reference/results.json new/results.json --protocol protocol.json` | Reference hash matches the predeclared protocol; exact fields and metric tolerances agree. This is comparison, not a release acceptance |
+
+Implementation authorities: [expgate verifier](../ai-workflows/experiment-gate/expgate/verify.py),
+[Jev answers](../ai-workflows/jev-decision/jevdecision/answers.py),
+[Jev replay](../ai-workflows/jev-decision/jevdecision/evaluation.py),
+[decision-control evaluation](../ai-workflows/decision-control/decisioncontrol/evaluation.py),
+[RELIA run](../ai-workflows/ai-decision-reliability/relia/run.py) and
+[comparison](../ai-workflows/ai-decision-reliability/relia/compare.py).
+RELIA uses indented JSON and byte hashes, not the shared compact canonical encoding.
+Its machine-dependent `runtime.json` is outside the reproducible results/manifest
+claim. It remains unreleased under [its human-gated process](RELIA_RELEASE.md).
+
+## Exit codes
+
+Shared meaning: **0** success / accepted check; **1** completed but not accepted
+(or action not performed); **2** invalid input, usage or unreadable file;
+**3** ran without explicit question metric gates (Jev evaluation only).
+
+| CLI | Actual outcomes |
+| --- | --- |
+| `experiment-gate` | 0 after writing valid reports, including HOLD/ROLLBACK/INVALID; 1 only when `--require-ship` is supplied and any result is not SHIP; 2 input/output error |
+| `experiment-gate-verify` | 0 agreement; 1 mismatch; 2 malformed, unreadable, unsupported or unverifiable legacy record |
+| `jev-decision` | 0 answer/dry run; 1 refusal or provider failure; 2 input/usage error |
+| `jev-decision-eval` | 0 PASS; 1 FAIL/provider errors; 2 input/output error or live 401/403; 3 UNGATED |
+| `decision-control` | 0 successful command, including descriptive UNGATED evaluation; 1 blocked lifecycle, STALE execution, skipped corrupt pending rows, failed evaluation or replay mismatch; 2 malformed/unsupported input or I/O error |
+| `relia.compare` | 0 comparison passes/template written; 1 comparison differs; 2 usage, unreadable or invalid protocol |
+
+Sources: [expgate runner](../ai-workflows/experiment-gate/expgate/run.py),
+[Jev CLI](../ai-workflows/jev-decision/jevdecision/__main__.py),
+[decision-control CLI](../ai-workflows/decision-control/decisioncontrol/cli.py).
+Reading a valid report or replaying a FAIL outcome is distinct from accepting its gate.
+
+## Compatibility and limits
+
+Breaking record changes require a new integer schema version. Preserve currently
+supported readers and replay rules; reject unknown schemas rather than silently
+reinterpret them. Historical records cannot gain missing inputs or identity
+provenance. The exceptions above describe today's actual compatibility boundary.
+
+Digests detect change, not forgery or authorship: someone who edits an input can
+recompute its hash. Producer, model, proposer and reviewer identities are supplied
+metadata or caller-asserted labels. No record authenticates provider origin.
+Hand-written/synthetic fixtures establish software behavior, not live-model quality,
+calibration, adoption or production safety. RELIA gates are proposed engineering
+thresholds, not industry/government standards or evidence of commercial performance,
+fairness, legal compliance or consumer benefit.
+
+Next: [P-011 and P-012](PROJECT_PLAN.md#next-after-01) cover JSON Schemas with
+conformance vectors and optional authenticated records, respectively.

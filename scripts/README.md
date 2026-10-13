@@ -2,7 +2,7 @@
 
 Research and experiment workspace for **AI-assisted decision making**: multi-agent reasoning, reinforcement learning, causal inference, and quantitative finance.
 
-This is the setup guide for the `src/` research material. The independent projects (RELIA, experiment gate) are described in the [repository README](../README.md).
+This is the setup guide for the `src/` research material. The independent projects (RELIA, experiment gate, Jev decision, decision-control) are described in the [repository README](../README.md).
 
 ## Overview
 
