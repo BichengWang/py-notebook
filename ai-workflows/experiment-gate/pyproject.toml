@@ -1,9 +1,45 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "expgate"
-version = "0.1.0"
-description = "Ship / hold / rollback gates for online experiments of real-time decision models (standard library only)"
+dynamic = ["version"]
+description = "Replayable ship / hold / rollback decision records for online experiments"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{name = "Bicheng Wang"}]
 requires-python = ">=3.11"
 dependencies = []
+keywords = ["experimentation", "decision-records", "ab-testing", "release-gates"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.urls]
+Homepage = "https://github.com/BichengWang/ai-decision-system/tree/main/ai-workflows/experiment-gate"
+Source = "https://github.com/BichengWang/ai-decision-system"
+Issues = "https://github.com/BichengWang/ai-decision-system/issues"
+Changelog = "https://github.com/BichengWang/ai-decision-system/blob/main/ai-workflows/experiment-gate/CHANGELOG.md"
+
+[project.scripts]
+experiment-gate = "expgate.run:main"
+experiment-gate-verify = "expgate.verify:main"
+
+[tool.setuptools.dynamic]
+version = {attr = "expgate.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["expgate", "expgate.*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -16,6 +16,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
+import tempfile
 import sys
 from pathlib import Path
 
@@ -47,13 +49,14 @@ def render_markdown(report: dict, digest: str) -> str:
                  f"{_fmt(m['improvement'])} [{_fmt(lo)}, {_fmt(hi)}] | {_fmt(m['margin']) if 'margin' in m else ''} | "
                  f"{_fmt(m['mde'])} | {m['status']} |")
     L.append("\nImprovement is signed so that positive values are desirable. Guardrail bounds are "
-             "one-sided and Bonferroni-adjusted across guardrails. MDE is the smallest true improvement "
-             f"each bound would detect with {report['policy']['power']:.0%} power at the current sample size.")
+             "one-sided and Bonferroni-adjusted across guardrails. MDE uses the normal approximation "
+             "and the observed standard error; zero-error metrics are inconclusive.")
     if "sequential" in report:
         q = report["sequential"]
         L.append(f"\nSequential monitoring: {q['units']} of {q['planned_units']} planned units "
-                 f"({q['information_fraction']:.0%}). Bounds are always-valid confidence sequences, so this "
-                 "decision stays valid however often the experiment has been checked.")
+                 f"({q['information_fraction']:.0%}). Bounds are confidence sequences under "
+                 "the normal model with known variance; observed-variance plug-in bounds are approximate. "
+                 "MDE is a current-look approximation, not a sequential stopping-power guarantee.")
     for m in report["metrics"]:
         if "adjustment" in m:
             a = m["adjustment"]
@@ -65,10 +68,10 @@ def render_markdown(report: dict, digest: str) -> str:
 
 def write_record(report: dict, out: Path) -> str:
     out.mkdir(parents=True, exist_ok=True)
-    blob = json.dumps({"expgate_version": __version__, **report}, indent=2, sort_keys=True).encode()
+    blob = json.dumps({"expgate_version": __version__, **report}, indent=2, sort_keys=True, ensure_ascii=False).encode("utf-8")
     digest = hashlib.sha256(blob).hexdigest()
     (out / "decision.json").write_bytes(blob)
-    (out / "DECISION.md").write_text(render_markdown(report, digest))
+    (out / "DECISION.md").write_text(render_markdown(report, digest), encoding="utf-8")
     return digest
 
 
@@ -89,7 +92,7 @@ def main(argv=None) -> int:
         summaries = []
         for path in a.input:
             try:
-                summaries.append((str(path), json.loads(path.read_text())))
+                summaries.append((str(path), json.loads(path.read_text(encoding="utf-8"))))
             except (OSError, ValueError) as exc:
                 print(f"error: cannot read experiment summary {path}: {exc}", file=sys.stderr)
                 return 2
@@ -111,14 +114,21 @@ def main(argv=None) -> int:
             print(f"error: {problem}", file=sys.stderr)
             return 2
 
-    decisions = []
-    for report in reports:
-        target = a.out / report["experiment"] if len(reports) > 1 else a.out
-        digest = write_record(report, target)
-        decisions.append(report["decision"])
+    completed = []
+    try:
+        a.out.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(prefix=f".{a.out.name}-", dir=a.out.parent) as staging:
+            staged = Path(staging) / "output"
+            for report in reports:
+                target = staged / report["experiment"] if len(reports) > 1 else staged
+                completed.append((report, write_record(report, target)))
+            os.replace(staged, a.out)
+    except OSError as exc:
+        print(f"error: cannot write decision records: {exc}", file=sys.stderr)
+        return 2
+    for report, digest in completed:
         print(f"{report['experiment']}: {report['decision']} {digest}")
-
-    return 1 if a.require_ship and any(d != "SHIP" for d in decisions) else 0
+    return 1 if a.require_ship and any(r["decision"] != "SHIP" for r in reports) else 0
 
 
 def _batch_problem(summaries, reports) -> str | None:

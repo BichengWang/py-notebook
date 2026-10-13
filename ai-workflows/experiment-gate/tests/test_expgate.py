@@ -178,6 +178,8 @@ class BoundaryTest(unittest.TestCase):
     def test_primary_only_experiment(self):
         summary = generate("win")
         summary["metrics"] = {"conversion": summary["metrics"]["conversion"]}
+        for arm in summary["arms"].values():
+            arm["metrics"] = {"conversion": arm["metrics"]["conversion"]}
         report = evaluate(summary)
         self.assertEqual(report["decision"], "SHIP")
         self.assertAlmostEqual(report["metrics"][0]["z"], stats.z_for(0.05))
@@ -492,7 +494,7 @@ class SequentialTest(unittest.TestCase):
         report = evaluate(sequential_summary(40_000, 10_000, 50.0, 50.0))
         self.assertEqual(report["decision"], "HOLD")
         self.assertEqual(len(report["reasons"]), 1)
-        self.assertTrue(report["reasons"][0].startswith("primary metric is inconclusive (detectable improvement"))
+        self.assertTrue(report["reasons"][0].startswith("primary metric is inconclusive (current-look MDE approximation"))
 
     def test_fixed_horizon_records_are_unchanged(self):
         for name in sorted(set(SCENARIOS) - {"early-regression"}):
