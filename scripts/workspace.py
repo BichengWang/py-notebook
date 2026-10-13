@@ -10,7 +10,7 @@ Commands:
   list            Show registered components.
   affected        Show the components and CI checks a change affects.
   test            Run component test commands from their own directories.
-  check           Verify the manifest, CI routing, project layout, import boundaries, and doc links.
+  check           Verify the manifest, CI routing, project layout, Python syntax, import boundaries, and doc links.
   github-changes  Print `relevant=true|false` for one component in a GitHub Actions job.
   new             Scaffold a standard-library project, its CI workflow, and its registration.
 
@@ -96,15 +96,20 @@ def _relative_dir_problem(value):
 
 
 def _check_list(problems, where, value, item_problem, allow_empty=False):
+    """Record list problems and return only structurally valid entries."""
     if not isinstance(value, list) or (not value and not allow_empty):
         problems.append(f"{where} must be a {'' if allow_empty else 'non-empty '}list")
-        return
+        return []
     if len(set(map(json.dumps, value))) != len(value):
         problems.append(f"{where} has duplicate entries")
+    valid = []
     for item in value:
         problem = item_problem(item)
         if problem:
             problems.append(f"{where} entry {item!r} {problem}")
+        else:
+            valid.append(item)
+    return valid
 
 
 def _identifier_problem(value):
@@ -144,18 +149,17 @@ def validate(manifest):
     expected = {"schema_version", "description", "global_paths", "always_required_checks", "components"}
     if set(manifest) != expected:
         return [f"top-level keys must be exactly {sorted(expected)}"]
-    if manifest["schema_version"] != 1:
-        problems.append("schema_version must be 1")
+    if type(manifest["schema_version"]) is not int or manifest["schema_version"] != 1:
+        problems.append("schema_version must be the integer 1")
     _check_list(problems, "global_paths", manifest["global_paths"], pattern_problem)
-    _check_list(problems, "always_required_checks", manifest["always_required_checks"], _check_problem)
+    always_checks = _check_list(problems, "always_required_checks", manifest["always_required_checks"], _check_problem)
     components = manifest["components"]
     if not isinstance(components, dict) or not components:
         return problems + ["components must be a non-empty object"]
     workflows_by_check = {}
     owners_by_package = {}
-    for check in manifest["always_required_checks"]:
-        if not _check_problem(check):
-            workflows_by_check.setdefault(check["name"], set()).add(check["workflow"])
+    for check in always_checks:
+        workflows_by_check.setdefault(check["name"], set()).add(check["workflow"])
     for name, component in components.items():
         where = f"component {name!r}"
         if not NAME_RE.match(name):
@@ -168,7 +172,7 @@ def validate(manifest):
         if missing or unknown:
             problems.append(f"{where} is missing {sorted(missing)} or has unknown keys {sorted(unknown)}")
             continue
-        if component["kind"] not in KINDS:
+        if not isinstance(component["kind"], str) or component["kind"] not in KINDS:
             problems.append(f"{where} kind must be one of {sorted(KINDS)}")
         problem = _relative_dir_problem(component["path"])
         if problem:
@@ -177,28 +181,27 @@ def validate(manifest):
             problems.append(f"{where} summary must be a non-empty string")
         _check_list(problems, f"{where} sources", component["sources"], pattern_problem)
         _check_list(problems, f"{where} paths", component["paths"], pattern_problem)
-        _check_list(problems, f"{where} packages", component["packages"], _identifier_problem, allow_empty=True)
+        packages = _check_list(problems, f"{where} packages", component["packages"],
+                               _identifier_problem, allow_empty=True)
         if component["third_party_imports"] is not None:
             _check_list(problems, f"{where} third_party_imports", component["third_party_imports"],
                         _identifier_problem, allow_empty=True)
         ci = component["ci"]
         if (not isinstance(ci, dict) or set(ci) != {"workflow", "trigger"}
-                or ci.get("trigger") not in TRIGGERS or pattern_problem(ci.get("workflow"))
+                or not isinstance(ci.get("trigger"), str) or ci["trigger"] not in TRIGGERS
+                or pattern_problem(ci.get("workflow"))
                 or not str(ci.get("workflow")).startswith(".github/workflows/")):
             problems.append(f"{where} ci must name a .github/workflows file and a trigger in {sorted(TRIGGERS)}")
-        _check_list(problems, f"{where} checks", component["checks"], _check_problem)
+        checks = _check_list(problems, f"{where} checks", component["checks"], _check_problem)
         _check_list(problems, f"{where} test", component["test"], _test_problem)
         env = component.get("test_env", {})
         if not isinstance(env, dict) or not all(
                 isinstance(key, str) and key and isinstance(value, str) for key, value in env.items()):
             problems.append(f"{where} test_env must map variable names to strings")
-        if isinstance(component["checks"], list):
-            for check in component["checks"]:
-                if not _check_problem(check):
-                    workflows_by_check.setdefault(check["name"], set()).add(check["workflow"])
-        if isinstance(component["packages"], list):
-            for package in component["packages"]:
-                owners_by_package.setdefault(package, []).append(name)
+        for check in checks:
+            workflows_by_check.setdefault(check["name"], set()).add(check["workflow"])
+        for package in packages:
+            owners_by_package.setdefault(package, []).append(name)
     for check, workflows in sorted(workflows_by_check.items()):
         if len(workflows) > 1:
             problems.append(f"check {check!r} is attributed to several workflows: {sorted(workflows)}")
@@ -469,7 +472,7 @@ def workflow_check_names(text):
     return names, problems
 
 
-# Import boundaries ---------------------------------------------------------
+# Python source checks ------------------------------------------------------
 
 def import_roots(source, filename="<source>"):
     """Yield (line, top-level module) for absolute imports in Python source.
@@ -499,7 +502,7 @@ def source_owners(manifest, path):
 
 
 def import_problems(root, manifest, files, stdlib=None):
-    """Check that each Python file belongs to one component and respects its boundaries."""
+    """Check source ownership, non-legacy syntax, and component import boundaries."""
     if stdlib is None:
         stdlib = getattr(sys, "stdlib_module_names", None)
     components = manifest["components"]
@@ -518,10 +521,15 @@ def import_problems(root, manifest, files, stdlib=None):
         component = components[owner]
         allowed = component["third_party_imports"]
         try:
-            source = (Path(root) / path).read_text(encoding="utf-8")
+            source = (Path(root) / path).read_text(encoding="utf-8-sig")
         except (OSError, UnicodeDecodeError) as error:
             problems.append(f"{path}: cannot read source: {error}")
             continue
+        if component["kind"] != "legacy":
+            try:
+                compile(source, path, "exec", dont_inherit=True)
+            except SyntaxError as error:
+                problems.append(f"{path}:{error.lineno or 1}: invalid Python syntax: {error.msg}")
         for line, module in import_roots(source, path):
             other = package_owner.get(module)
             if other and other != owner:
@@ -588,7 +596,7 @@ def _workflow_problems(root, name, component, global_paths):
 
 
 def check_workspace(root=ROOT, manifest=None):
-    """Return every problem with the manifest, layout, CI routing, and imports."""
+    """Return every problem with the manifest, layout, CI routing, Python sources, and links."""
     root = Path(root)
     manifest = manifest if manifest is not None else load_manifest(root)
     files = workspace_files(root)
@@ -1161,7 +1169,7 @@ def build_parser():
     test.add_argument("--dry-run", action="store_true", help="print commands without running them")
     add_change_source(test)
 
-    sub.add_parser("check", help="verify the manifest, CI routing, layout, and import boundaries")
+    sub.add_parser("check", help="verify the manifest, CI routing, layout, Python syntax, and import boundaries")
 
     new = sub.add_parser("new", help="scaffold a standard-library project, its CI workflow, and its registration")
     new.add_argument("name", help="directory name under ai-workflows/ (lowercase, digits, hyphens)")

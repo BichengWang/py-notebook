@@ -100,6 +100,11 @@ class HTTPBackend:
         if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or not (
                 math.isfinite(timeout) and timeout > 0):
             raise DecisionError(f"{self.name}: timeout must be a positive number of seconds")
+        if isinstance(max_retries, bool) or not isinstance(max_retries, int) or max_retries < 0:
+            raise DecisionError(f"{self.name}: max_retries must be a non-negative integer")
+        if isinstance(backoff, bool) or not isinstance(backoff, (int, float)) or not (
+                math.isfinite(backoff) and backoff >= 0):
+            raise DecisionError(f"{self.name}: backoff must be a finite non-negative number of seconds")
         self.api_key = api_key if api_key is not None else env.get(self.api_key_env)
         self.model = model or env.get(self.model_env) or self.default_model
         self.base_url = (base_url or self.default_base_url).rstrip("/")

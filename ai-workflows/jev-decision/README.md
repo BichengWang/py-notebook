@@ -90,7 +90,11 @@ every label being present. To inspect an unscored recommendation, use `ask` or
 | `OPENAI_DECISIONS_MODEL` | `openai` | Model (default `gpt-6-luna`) |
 
 Every backend also takes `api_key`, `model`, `base_url`, `path`, `timeout`,
-`max_retries`, and `transport` arguments. Use `base_url` and `path` for a gateway
+`max_retries`, `backoff`, `max_retry_wait`, and `transport` arguments.
+`max_retries` must be a non-negative integer; zero disables retries. `backoff`
+must be a finite non-negative number of seconds; zero permits immediate retries
+unless `Retry-After` requests a wait. Invalid settings raise `DecisionError`
+before any request is sent. Use `base_url` and `path` for a gateway
 that serves Jev elsewhere, for example `path="/v1/decisions"` with
 `model="typesafe/jev"`. Rate-limit (429), server (5xx), and connection errors are
 retried with exponential backoff (2 retries by default). When the provider sends a

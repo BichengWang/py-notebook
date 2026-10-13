@@ -90,7 +90,7 @@ make affected-test BASE=origin/main
 ```
 
 - `workspace-list` shows component names, paths, and CI checks.
-- `workspace-check` runs workspace-tool tests and checks registry/CI consistency, import boundaries, and local Markdown links. It does not run every component's behavioral suite.
+- `workspace-check` runs workspace-tool tests and checks registry/CI consistency, project and tooling Python syntax, import boundaries, and local Markdown links. It does not run every component's behavioral suite.
 - `affected` reports components selected by changes against the specified Git base; use an available base ref if `origin/main` is not present.
 - `affected-test` runs those components' registered tests, so prepare their environments first. To select explicitly, use names from `workspace-list`, for example `make workspace-test COMPONENTS="decision-control"`.
 
