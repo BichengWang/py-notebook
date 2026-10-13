@@ -25,9 +25,9 @@ vary. See [Decision record conventions](docs/DECISION_RECORDS.md).
 
 | Component | Decision point | Package | Record and offline check | Status |
 | --- | --- | --- | --- | --- |
-| [Jev decision](ai-workflows/jev-decision/README.md) | Typed yes/no, choice and score answers; labeled quality gates | `jevdecision` | Typed answer, `evaluation.json`, provenance; `jev-decision-eval --responses …` with retained questions/cases/requirements | 0.1.0 release candidate |
-| [decision-control](ai-workflows/decision-control/README.md) | Frozen routing policy, human approval and local ticket action | `decisioncontrol` | Exported record; `decision-control replay --record …` | 0.1.0 release candidate |
-| [Experiment gate](ai-workflows/experiment-gate/README.md) | SHIP / HOLD / ROLLBACK / INVALID from exported A/B aggregates | `expgate` | `decision.json`; `experiment-gate-verify …` | 0.1.0 release candidate |
+| [Jev decision](ai-workflows/jev-decision/README.md) | Typed yes/no, choice and score answers; labeled quality gates | `jevdecision` | Typed answer, `evaluation.json`, provenance; `jev-decision-eval --responses …` with retained questions/cases/requirements | 0.1.0 (GitHub release; PyPI pending) |
+| [decision-control](ai-workflows/decision-control/README.md) | Frozen routing policy, human approval and local ticket action | `decisioncontrol` | Exported record; `decision-control replay --record …` | 0.1.0 (GitHub release; PyPI pending) |
+| [Experiment gate](ai-workflows/experiment-gate/README.md) | SHIP / HOLD / ROLLBACK / INVALID from exported A/B aggregates | `expgate` | `decision.json`; `experiment-gate-verify …` | 0.1.0 (GitHub release; PyPI pending) |
 | [RELIA](ai-workflows/ai-decision-reliability/README.md) | Synthetic model release and guarded update | Not published | `results.json`, `MANIFEST.json`; `python -m relia.compare … --protocol …` in its environment | Unreleased; human-gated |
 
 The three small packages require Python 3.11+ and use only the standard library

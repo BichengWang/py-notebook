@@ -3,7 +3,7 @@
 All notable changes are documented here, following [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
 This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0] - Unreleased
+## [0.1.0] - 2026-10-13
 
 ### Added
 - Installable standard-library-only package, annotated public API, MIT license, source/sdist examples, and `jev-decision` / `jev-decision-eval` commands.
