@@ -1,9 +1,50 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "jevdecision"
-version = "0.1.0"
-description = "Jev as the core decision model, with an OpenAI Decisions API backend (standard library only)"
+dynamic = ["version"]
+description = "Typed AI-assisted decisions and replayable offline evaluation records"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{name = "Bicheng Wang"}]
 requires-python = ">=3.11"
 dependencies = []
+keywords = ["decisions", "evaluation", "replay", "probability", "gating"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Typing :: Typed",
+]
+
+[project.urls]
+Homepage = "https://github.com/BichengWang/ai-decision-system/tree/main/ai-workflows/jev-decision"
+Source = "https://github.com/BichengWang/ai-decision-system"
+Issues = "https://github.com/BichengWang/ai-decision-system/issues"
+Changelog = "https://github.com/BichengWang/ai-decision-system/blob/main/ai-workflows/jev-decision/CHANGELOG.md"
+
+[project.scripts]
+jev-decision = "jevdecision.__main__:main"
+jev-decision-eval = "jevdecision.evaluation:main"
+
+[tool.setuptools.dynamic]
+version = {attr = "jevdecision.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["jevdecision", "jevdecision.*"]
+namespaces = false
+
+[tool.setuptools.package-data]
+jevdecision = ["py.typed", "examples/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

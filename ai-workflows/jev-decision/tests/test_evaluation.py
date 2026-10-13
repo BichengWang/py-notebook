@@ -299,7 +299,7 @@ class LoadTest(unittest.TestCase):
             "error rate above 1": {"max_error_rate": 2},
             "boolean error rate": {"max_error_rate": True},
             "unknown question": {"questions": {"other": {"n": {"min": 1}}}},
-            "metric of another type": {"questions": {"frustration": {"brier": {"max": 1}}}},
+            "metric of another type": {"questions": {"frustration": {"base_rate": {"max": 1}}}},
             "confusion is not a bound": {"questions": {"department": {"confusion": {"max": 1}}}},
             "unknown bound": {"questions": {"refund": {"brier": {"below": 1}}}},
             "empty bounds": {"questions": {"refund": {"brier": {}}}},
@@ -540,7 +540,7 @@ class CLITest(unittest.TestCase):
             manifest = json.loads((out / "provenance.json").read_text())
             self.assertEqual(manifest["response_mode"], "live")
             self.assertIsNone(manifest["inputs"]["responses"])
-            self.assertEqual(set(manifest), {"response_mode", "response_origin", "inputs", "outputs"})
+            self.assertEqual(set(manifest), {"schema_version", "produced_by", "response_mode", "response_origin", "inputs", "outputs"})
 
     def test_failing_requirement_exits_1(self):
         with tempfile.TemporaryDirectory() as tmp:

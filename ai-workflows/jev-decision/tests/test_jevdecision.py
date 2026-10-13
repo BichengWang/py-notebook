@@ -414,11 +414,11 @@ class RetryAfterTest(unittest.TestCase):
         headers = email.message.Message()
         headers["Retry-After"] = "12"
         error = urllib.error.HTTPError("https://x", 429, "Too Many Requests", headers, io.BytesIO(b"slow down"))
-        with mock.patch("urllib.request.urlopen", side_effect=error), self.assertRaises(APIError) as raised:
+        with mock.patch("urllib.request.OpenerDirector.open", side_effect=error), self.assertRaises(APIError) as raised:
             urllib_transport("https://x", {}, b"{}", 5)
         self.assertEqual((raised.exception.status, raised.exception.retry_after), (429, 12.0))
         error = urllib.error.HTTPError("https://x", 503, "Unavailable", email.message.Message(), io.BytesIO(b""))
-        with mock.patch("urllib.request.urlopen", side_effect=error), self.assertRaises(APIError) as raised:
+        with mock.patch("urllib.request.OpenerDirector.open", side_effect=error), self.assertRaises(APIError) as raised:
             urllib_transport("https://x", {}, b"{}", 5)
         self.assertIsNone(raised.exception.retry_after)
 

@@ -9,7 +9,15 @@ Jev is also served by gateways under other paths (for example `/v1/decisions`
 with model `typesafe/jev`); set `base_url`, `path`, and `model` for those.
 """
 
+from __future__ import annotations
+
+from collections.abc import Callable, Mapping, Sequence
+from typing import Any, TypeAlias
+from .questions import Question
 import email.utils
+import http.client
+import ipaddress
+import urllib.parse
 import json
 import math
 import os
@@ -18,8 +26,11 @@ import urllib.error
 import urllib.request
 
 from .answers import Decision, parse_answers
-from .errors import APIError, DecisionError, ResponseError
+from .errors import APIError, DecisionError, QuestionError, ResponseError
 from .questions import Choice, Noul, Score
+
+State: TypeAlias = str | dict[str, Any] | list[str] | tuple[str, ...]
+Transport: TypeAlias = Callable[[str, dict[str, str], bytes, float], dict[str, Any]]
 
 DEFAULT_TIMEOUT = 30.0
 # Longest Retry-After the client honors; a provider asking for more fails the request instead.
@@ -42,17 +53,25 @@ def parse_retry_after(value, now=None):
     return max(when.timestamp() - (time.time() if now is None else now), 0.0)
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 def urllib_transport(url, headers, body, timeout):
     """POST `body` (bytes) as JSON and return the decoded JSON response."""
     request = urllib.request.Request(url, data=body, headers=headers, method="POST")
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with urllib.request.build_opener(_NoRedirect()).open(request, timeout=timeout) as response:
             payload = response.read()
     except urllib.error.HTTPError as error:
-        text = error.read().decode("utf-8", "replace")
+        try:
+            text = error.read().decode("utf-8", "replace")
+        except (http.client.HTTPException, OSError, TimeoutError) as body_error:
+            raise APIError(f"could not read HTTP error response from {url}: {body_error}") from body_error
         retry_after = parse_retry_after(error.headers.get("Retry-After") if error.headers else None)
         raise APIError(f"HTTP {error.code} from {url}: {text[:500]}", error.code, text, retry_after) from error
-    except (urllib.error.URLError, TimeoutError, OSError) as error:
+    except (urllib.error.URLError, TimeoutError, OSError, http.client.HTTPException) as error:
         raise APIError(f"could not reach {url}: {error}") from error
     try:
         return json.loads(payload)
@@ -93,9 +112,7 @@ class HTTPBackend:
     api_key_env = ""
     model_env = ""
 
-    def __init__(self, api_key=None, model=None, base_url=None, path=None, timeout=DEFAULT_TIMEOUT,
-                 max_retries=2, backoff=0.5, transport=None, sleep=time.sleep, env=None,
-                 max_retry_wait=DEFAULT_MAX_RETRY_WAIT):
+    def __init__(self, api_key: str | None=None, model: str | None=None, base_url: str | None=None, path: str | None=None, timeout: float=DEFAULT_TIMEOUT, max_retries: int=2, backoff: float=0.5, transport: Transport | None=None, sleep: Callable[[float], None]=time.sleep, env: Mapping[str, str] | None=None, max_retry_wait: float=DEFAULT_MAX_RETRY_WAIT) -> None:
         env = os.environ if env is None else env
         if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or not (
                 math.isfinite(timeout) and timeout > 0):
@@ -108,6 +125,15 @@ class HTTPBackend:
         self.api_key = api_key if api_key is not None else env.get(self.api_key_env)
         self.model = model or env.get(self.model_env) or self.default_model
         self.base_url = (base_url or self.default_base_url).rstrip("/")
+        parsed = urllib.parse.urlsplit(self.base_url)
+        try:
+            loopback = ipaddress.ip_address(parsed.hostname or "").is_loopback
+        except ValueError:
+            loopback = parsed.hostname == "localhost"
+        if (not parsed.hostname or parsed.username is not None or parsed.password is not None
+                or parsed.query or parsed.fragment or parsed.scheme not in ("http", "https")
+                or (parsed.scheme != "https" and not loopback)):
+            raise QuestionError("base_url must use HTTPS (HTTP is allowed only for loopback hosts), without credentials, query or fragment")
         self.path = path or self.default_path
         self.timeout = timeout
         self.max_retries = max_retries
@@ -120,13 +146,13 @@ class HTTPBackend:
         self._sleep = sleep
 
     @property
-    def url(self):
+    def url(self) -> str:
         return self.base_url + self.path
 
-    def build_request(self, state, questions):
+    def build_request(self, state: State, questions: Sequence[Question]) -> dict[str, Any]:
         raise NotImplementedError
 
-    def headers(self):
+    def headers(self) -> dict[str, str]:
         if not self.api_key:
             raise DecisionError(f"{self.name}: no API key; set {self.api_key_env} or pass api_key")
         return {
@@ -135,7 +161,7 @@ class HTTPBackend:
             "Accept": "application/json",
         }
 
-    def decide(self, state, questions):
+    def decide(self, state: State, questions: Sequence[Question]) -> Decision:
         state = _check_state(state)
         body = json.dumps(self.build_request(state, questions)).encode("utf-8")
         headers = self.headers()
@@ -149,7 +175,12 @@ class HTTPBackend:
                     raise
                 self._sleep(self._retry_delay(error, attempt))
                 attempt += 1
-        return self.parse_response(raw, questions)
+        try:
+            return self.parse_response(raw, questions)
+        except ResponseError as error:
+            error.response = raw
+            error.response_received = True
+            raise
 
     def _retry_delay(self, error, attempt):
         """Exponential backoff, or longer when the provider's Retry-After asks for it."""
@@ -162,7 +193,7 @@ class HTTPBackend:
                            error.retry_after) from error
         return max(delay, error.retry_after)
 
-    def parse_response(self, raw, questions):
+    def parse_response(self, raw: Any, questions: Sequence[Question]) -> Decision:
         if not isinstance(raw, dict):
             raise ResponseError(f"{self.name}: response must be a JSON object")
         if "error" in raw and "answers" not in raw:
@@ -192,10 +223,10 @@ class JevBackend(HTTPBackend):
     api_key_env = "TYPESAFE_API_KEY"
     model_env = "JEV_MODEL"
 
-    def build_request(self, state, questions):
+    def build_request(self, state: State, questions: Sequence[Question]) -> dict[str, Any]:
         encoded = {}
         for question in questions:
-            item = {"type": question.type, "instructions": question.instructions}
+            item: dict[str, Any] = {"type": question.type, "instructions": question.instructions}
             if isinstance(question, Choice):
                 item["criteria"] = dict(question.options)
             elif isinstance(question, Score):
@@ -214,10 +245,10 @@ class OpenAIDecisionsBackend(HTTPBackend):
     api_key_env = "OPENAI_API_KEY"
     model_env = "OPENAI_DECISIONS_MODEL"
 
-    def build_request(self, state, questions):
+    def build_request(self, state: State, questions: Sequence[Question]) -> dict[str, Any]:
         encoded = []
         for question in questions:
-            item = {"name": question.name, "instructions": question.instructions}
+            item: dict[str, Any] = {"name": question.name, "instructions": question.instructions}
             if isinstance(question, Noul):
                 item["type"] = "predicate"
             elif isinstance(question, Choice):
@@ -236,7 +267,7 @@ class OpenAIDecisionsBackend(HTTPBackend):
 BACKENDS = {"jev": JevBackend, "openai": OpenAIDecisionsBackend}
 
 
-def create_backend(name, **options):
+def create_backend(name: str, **options: Any) -> HTTPBackend:
     """Create a backend by name (`jev` or `openai`)."""
     try:
         cls = BACKENDS[name]

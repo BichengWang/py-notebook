@@ -14,6 +14,7 @@ import os
 import sys
 from pathlib import Path
 
+from .answers import RefusalAnswer
 from .backends import BACKENDS, _check_state, create_backend
 from .core import BACKEND_ENV, DEFAULT_BACKEND, DecisionModel
 from .errors import DecisionError
@@ -78,8 +79,8 @@ def main(argv=None):
     except DecisionError as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
-    print(json.dumps(decision.to_dict(), indent=2, sort_keys=True, ensure_ascii=False))
-    return 0
+    print(json.dumps(decision.to_dict(), sort_keys=True, separators=(",", ":"), ensure_ascii=False))
+    return 1 if any(isinstance(a, RefusalAnswer) for a in decision.answers.values()) else 0
 
 
 if __name__ == "__main__":
