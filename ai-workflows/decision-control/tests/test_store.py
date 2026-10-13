@@ -43,7 +43,7 @@ class TicketStoreTests(unittest.TestCase):
         return replace(proposal, **changes)
 
     def submit(self, **changes):
-        return self.store.submit(self.proposal(**changes), self.policy)
+        return self.store.submit(self.proposal(**changes), self.policy, proposed_by="proposer")
 
     def reopen(self):
         self.store.close()
@@ -98,7 +98,7 @@ class TicketStoreTests(unittest.TestCase):
 
     def test_submission_freezes_inputs_and_only_execution_mutates_the_ticket(self):
         proposal = self.proposal()
-        record = self.store.submit(proposal, self.policy)
+        record = self.store.submit(proposal, self.policy, proposed_by="proposer")
         self.assertEqual(self.store.get_ticket("ticket-1"), self.ticket)
         decision_id = record["id"]
         record["recommendation"]["destination"] = "finance"
@@ -116,7 +116,7 @@ class TicketStoreTests(unittest.TestCase):
         for recommendation, policy in (({}, self.policy), (self.proposal(), {})):
             with self.subTest(recommendation=recommendation, policy=policy):
                 with self.assertRaises(DecisionError):
-                    self.store.submit(recommendation, policy)
+                    self.store.submit(recommendation, policy, proposed_by="proposer")
         with closing(sqlite3.connect(self.db_path)) as connection:
             self.assertEqual(connection.execute("SELECT COUNT(*) FROM decisions").fetchone()[0], 0)
         self.assertEqual(self.store.get_ticket("ticket-1"), self.ticket)
@@ -230,7 +230,7 @@ class TicketStoreTests(unittest.TestCase):
     def test_frozen_policy_not_a_later_policy_controls_review_and_action(self):
         pending = self.submit(destination="legal")
         new_policy = RoutingPolicy("routing-revoked", ("finance",), (), ("carol",), 0.9)
-        newer = self.store.submit(self.proposal(destination="legal"), new_policy)
+        newer = self.store.submit(self.proposal(destination="legal"), new_policy, proposed_by="proposer")
         self.assertEqual(newer["status"], "DENIED")
         with self.assertRaises(StateError):
             self.store.approve(pending["id"], "carol")
@@ -281,7 +281,7 @@ class TicketStoreTests(unittest.TestCase):
     def test_new_proposal_uses_current_trusted_revision(self):
         self.store.execute(self.submit()["id"])
         proposal = self.proposal(destination="finance", question_version="routing-question-4")
-        record = self.store.submit(proposal, self.policy)
+        record = self.store.submit(proposal, self.policy, proposed_by="proposer")
         self.assertEqual(record["ticket"], Ticket("ticket-1", "support", 1).to_dict())
         self.assertEqual(record["recommendation"], proposal.to_dict())
         executed = self.store.execute(record["id"])
@@ -546,8 +546,9 @@ class TicketStoreTests(unittest.TestCase):
             connection.execute(
                 "UPDATE decisions SET status = 'PENDING_REVIEW' WHERE id = ?", (record["id"],),
             )
-        with self.assertRaises(DecisionError):
-            self.store.pending()
+        pending = self.store.pending()
+        self.assertEqual(pending, [])
+        self.assertEqual(pending.skipped[0]["id"], record["id"])
         with self.assertRaises(DecisionError):
             self.store.execute(record["id"])
         self.assertEqual(self.store.get_ticket("ticket-1"), self.ticket)

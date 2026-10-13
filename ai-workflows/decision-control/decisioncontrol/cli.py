@@ -5,7 +5,8 @@ import sqlite3
 import sys
 from pathlib import Path
 
-from .evidence import export_record, replay
+from ._outputs import staged_output
+from .evidence import RecordMismatch, export_record, replay
 from .evaluation import evaluate_cases, load_cases, replay_evaluation, write_evaluation
 from .models import DecisionError, Recommendation, RoutingPolicy, StateError
 from .store import TicketStore
@@ -28,6 +29,7 @@ def _parser():
     submit = commands.add_parser("submit")
     submit.add_argument("--proposal", required=True)
     submit.add_argument("--policy", required=True)
+    submit.add_argument("--proposed-by", required=True)
     commands.add_parser("pending")
     for name in ("approve", "reject", "cancel"):
         review = commands.add_parser(name)
@@ -69,7 +71,7 @@ def _run(args):
             return store.get_ticket(args.id).to_dict()
         if args.command == "submit":
             return store.submit(Recommendation.from_dict(_json_file(args.proposal)),
-                                RoutingPolicy.from_dict(_json_file(args.policy)))
+                                RoutingPolicy.from_dict(_json_file(args.policy)), args.proposed_by)
         if args.command == "pending":
             return store.pending()
         if args.command == "show":
@@ -81,9 +83,10 @@ def _run(args):
         if args.command == "export":
             envelope = export_record(store.get(args.id))
             if args.out:
-                with Path(args.out).open("x", encoding="utf-8") as stream:
-                    json.dump(envelope, stream, indent=2, allow_nan=False)
-                    stream.write("\n")
+                with staged_output(args.out, directory=False) as staging:
+                    with staging.open("x", encoding="utf-8") as stream:
+                        json.dump(envelope, stream, indent=2, allow_nan=False)
+                        stream.write("\n")
             return envelope
     raise DecisionError("unknown command")
 
@@ -94,6 +97,9 @@ def main(argv=None):
     try:
         args = parser.parse_args(argv)
         result = _run(args)
+    except RecordMismatch as error:
+        print(f"decision-control: {error}", file=sys.stderr)
+        return 1 if args.command in ("replay", "replay-evaluation") else 2
     except StateError as error:
         print(f"decision-control: {error}", file=sys.stderr)
         return 1
@@ -101,4 +107,10 @@ def main(argv=None):
         print(f"decision-control: {error}", file=sys.stderr)
         return 2
     print(json.dumps(result, indent=2, allow_nan=False))
+    if args.command == "pending" and result.skipped:
+        for row in result.skipped:
+            print(f"decision-control: skipped corrupt decision {row['id']}: {row['error']}", file=sys.stderr)
+        return 1
+    if args.command == "execute" and result["status"] == "STALE":
+        return 1
     return 1 if args.command == "evaluate" and result["report"]["disposition"] == "FAIL" else 0

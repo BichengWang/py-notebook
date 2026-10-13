@@ -1,0 +1,229 @@
+"""Release regressions at SDK, persistence and CLI boundaries."""
+import contextlib
+import io
+import json
+import hashlib
+from copy import deepcopy
+from pathlib import Path
+import sqlite3
+import tempfile
+import unittest
+from unittest.mock import patch
+from decisioncontrol import DecisionError, Recommendation, RoutingPolicy, StateError, TicketStore, evaluate_cases, load_cases, write_evaluation, export_record, replay, __version__
+from decisioncontrol.cli import main
+from decisioncontrol.demo import run_demo
+
+class HardeningTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        self.db = self.root / 'queue.sqlite3'
+        self.store = TicketStore(self.db)
+        self.addCleanup(self.store.close)
+        self.store.create_ticket('t1', 'intake')
+        self.policy = RoutingPolicy('p1', ('support', 'legal'), ('legal',), ('alice', 'bob'))
+
+    def submit(self, destination='legal'):
+        return self.store.submit(Recommendation('reassign_ticket', 't1', destination, 0.95, 'fixture', 'q1'), self.policy, proposed_by='alice')
+
+    def call(self, *args):
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            code = main(['--db', str(self.db), *args])
+        return code, json.loads(stdout.getvalue()) if stdout.getvalue() else None, stderr.getvalue()
+
+    def test_proposer_cannot_approve_reject_or_cancel_review(self):
+        for action in ('approve', 'reject', 'cancel'):
+            with self.subTest(action=action):
+                record = self.submit()
+                with self.assertRaises(StateError):
+                    getattr(self.store, action)(record['id'], 'alice', 'checked')
+                self.assertEqual(self.store.get(record['id']), record)
+
+    def test_pending_skips_corruption_and_cli_reports_it(self):
+        bad, good = self.submit(), self.submit()
+        with sqlite3.connect(self.db) as connection:
+            connection.execute('UPDATE decisions SET record = ? WHERE id = ?', ('{broken', bad['id']))
+        pending = self.store.pending()
+        self.assertEqual([row['id'] for row in pending], [good['id']])
+        self.assertEqual(pending.skipped[0]['id'], bad['id'])
+        self.assertTrue(pending.skipped[0]['error'])
+        code, output, error = self.call('pending')
+        self.assertEqual(code, 1)
+        self.assertEqual([row['id'] for row in output], [good['id']])
+        self.assertIn(bad['id'], error)
+
+    def test_identical_rejection_is_idempotent_but_conflicts_error(self):
+        record = self.submit()
+        rejected = self.store.reject(record['id'], 'bob', 'unsafe')
+        self.assertEqual(self.store.reject(record['id'], 'bob', 'unsafe'), rejected)
+        for actor, note in (('alice', 'unsafe'), ('bob', 'different')):
+            with self.assertRaises(StateError):
+                self.store.reject(record['id'], actor, note)
+        self.assertEqual(self.store.get(record['id']), rejected)
+
+    def test_stale_execute_cli_exits_one_and_preserves_ticket(self):
+        old = self.submit('support')
+        self.store.execute(self.submit('support')['id'])
+        code, output, _ = self.call('execute', old['id'])
+        self.assertEqual(code, 1)
+        self.assertEqual(output['status'], 'STALE')
+        self.assertEqual(self.store.get_ticket('t1').revision, 1)
+
+    def test_demo_write_failure_leaves_retryable_output(self):
+        out = self.root / 'demo'
+        from decisioncontrol.demo import _save
+        count = 0
+        def fail_second(path, value):
+            nonlocal count
+            count += 1
+            if count == 2:
+                raise OSError('injected write failure')
+            return _save(path, value)
+        with patch('decisioncontrol.demo._save', side_effect=fail_second):
+            with self.assertRaises(OSError):
+                run_demo(out)
+        self.assertFalse(out.exists())
+        self.assertTrue(run_demo(out)['repeat_execution_same_record'])
+
+    def test_evaluation_write_failure_leaves_empty_target_retryable(self):
+        source = Path(__file__).resolve().parents[1] / 'examples'
+        report = evaluate_cases(load_cases(source / 'evaluation-cases.jsonl'), RoutingPolicy.from_dict(json.loads((source / 'policy.json').read_text())))
+        out = self.root / 'evaluation'
+        out.mkdir()
+        with patch('decisioncontrol.evaluation.render_evaluation', side_effect=OSError('injected')):
+            with self.assertRaises(OSError):
+                write_evaluation(report, out)
+        self.assertEqual(list(out.iterdir()), [])
+        self.assertTrue(write_evaluation(report, out)['sha256'])
+
+    def test_export_write_failure_leaves_retryable_file(self):
+        record = self.submit()
+        out = self.root / 'record.json'
+        def partial(value, stream, **kwargs):
+            stream.write('{partial')
+            raise OSError('injected')
+        with patch('decisioncontrol.cli.json.dump', side_effect=partial):
+            self.assertEqual(self.call('export', record['id'], '--out', str(out))[0], 2)
+        self.assertFalse(out.exists())
+        self.assertEqual(self.call('export', record['id'], '--out', str(out))[0], 0)
+
+    def test_store_stamps_schema_version(self):
+        with sqlite3.connect(self.db) as connection:
+            self.assertEqual(connection.execute('PRAGMA user_version').fetchone()[0], 1)
+
+    def test_newer_store_version_is_refused_without_modification(self):
+        future = self.root / 'future.sqlite3'
+        with sqlite3.connect(future) as connection:
+            connection.execute('PRAGMA user_version = 999')
+        with self.assertRaisesRegex(DecisionError, 'store schema.*999'):
+            TicketStore(future)
+        with sqlite3.connect(future) as connection:
+            self.assertEqual(connection.execute('PRAGMA user_version').fetchone()[0], 999)
+            self.assertEqual(connection.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall(), [])
+        with contextlib.redirect_stderr(io.StringIO()) as error:
+            self.assertEqual(main(['--db', str(future), 'pending']), 2)
+        self.assertIn('999', error.getvalue())
+
+    def test_submit_requires_a_valid_proposer_sdk_and_cli(self):
+        proposal = Recommendation('reassign_ticket', 't1', 'legal', 0.95, 'fixture', 'q1')
+        with self.assertRaises(TypeError):
+            self.store.submit(proposal, self.policy)
+        for label in ('', ' alice ', None, 42):
+            with self.subTest(label=label), self.assertRaises(DecisionError):
+                self.store.submit(proposal, self.policy, proposed_by=label)
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as error:
+            main(['--db', str(self.db), 'submit', '--proposal', 'unused', '--policy', 'unused'])
+        self.assertEqual(error.exception.code, 2)
+        self.assertEqual(self.store.pending(), [])
+
+    def test_schema_three_freezes_policy_digest_and_producer(self):
+        self.policy = RoutingPolicy('策略', ('support', 'legal'), ('legal',), ('alice', 'bob'))
+        record = self.submit()
+        self.assertEqual(record['schema_version'], 3)
+        self.assertEqual(record['proposed_by'], 'alice')
+        self.assertEqual(record['produced_by'], {'name': 'decisioncontrol', 'version': __version__})
+        digest = hashlib.sha256(json.dumps(record['policy'], sort_keys=True,
+            separators=(',', ':'), ensure_ascii=False).encode('utf-8')).hexdigest()
+        self.assertEqual(record['policy_sha256'], digest)
+        self.assertEqual(self.store.get(record['id']), record)
+        approved = self.store.approve(record['id'], 'bob', 'checked')
+        self.assertEqual(approved['policy_sha256'], digest)
+        self.assertTrue(replay(export_record(approved))['valid'])
+
+    def test_replay_rejects_self_review_and_policy_digest_even_after_rehash(self):
+        record = self.submit()
+        approved = self.store.approve(record['id'], 'bob', 'checked')
+        cancelled = self.store.cancel(record['id'], 'bob', 'withdraw')
+        for original, field, value in ((approved, 'review', 'alice'),
+                                       (cancelled, 'events', 'alice'),
+                                       (record, 'policy_sha256', '0' * 64),
+                                       (record, 'proposed_by', ''),
+                                       (record, 'produced_by', {'name': 'other', 'version': '0.1.0'})):
+            forged = deepcopy(original)
+            if field == 'review':
+                forged[field]['reviewer'] = value
+            elif field == 'events':
+                forged[field][-1]['reviewer'] = value
+            else:
+                forged[field] = value
+            envelope = {'record': forged, 'sha256': hashlib.sha256(json.dumps(forged,
+                sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode()).hexdigest()}
+            with self.subTest(field=field), self.assertRaises(DecisionError):
+                replay(envelope)
+
+    def test_schema_three_cancellation_retains_schema_and_blocks_proposer_after_approval(self):
+        record = self.submit()
+        approved = self.store.approve(record['id'], 'bob', 'checked')
+        self.assertEqual(self.call('cancel', record['id'], '--reviewer', 'alice', '--note', 'stop')[0], 1)
+        self.assertEqual(self.store.get(record['id']), approved)
+        cancelled = self.store.cancel(record['id'], 'bob', 'stop')
+        self.assertEqual(cancelled['schema_version'], 3)
+        self.assertEqual(cancelled['policy_sha256'], record['policy_sha256'])
+        self.assertEqual(replay(export_record(cancelled))['status'], 'CANCELLED')
+
+    def test_cli_self_review_is_exit_one(self):
+        for action in ('approve', 'reject', 'cancel'):
+            record = self.submit()
+            self.assertEqual(self.call(action, record['id'], '--reviewer', 'alice', '--note', 'checked')[0], 1)
+            self.assertEqual(self.store.get(record['id']), record)
+
+    def test_legacy_unversioned_store_is_opened_and_stamped(self):
+        record = self.submit()
+        self.store.close()
+        with sqlite3.connect(self.db) as connection:
+            connection.execute('PRAGMA user_version = 0')
+        with TicketStore(self.db) as reopened:
+            self.assertEqual(reopened.get(record['id']), record)
+        with sqlite3.connect(self.db) as connection:
+            self.assertEqual(connection.execute('PRAGMA user_version').fetchone()[0], 1)
+
+    def test_replay_checksum_mismatch_exits_one_and_malformed_input_exits_two(self):
+        record = self.submit()
+        envelope = export_record(record)
+        envelope['record']['proposed_by'] = 'changed'
+        out = self.root / 'changed.json'
+        out.write_text(json.dumps(envelope), encoding='utf-8')
+        self.assertEqual(self.call('replay', '--record', str(out))[0], 1)
+        out.write_text('{broken', encoding='utf-8')
+        self.assertEqual(self.call('replay', '--record', str(out))[0], 2)
+
+    def test_replay_evaluation_mismatch_exits_one(self):
+        source = Path(__file__).resolve().parents[1] / 'examples'
+        report = evaluate_cases(load_cases(source / 'evaluation-cases.jsonl'),
+                                RoutingPolicy.from_dict(json.loads((source / 'policy.json').read_text())))
+        envelope = write_evaluation(report, self.root / 'evaluation')
+        envelope['report']['metrics']['unsafe_auto_allow_rate']['value'] = 0.123
+        out = self.root / 'changed-evaluation.json'
+        out.write_text(json.dumps(envelope), encoding='utf-8')
+        self.assertEqual(self.call('replay-evaluation', '--record', str(out))[0], 1)
+
+    def test_pending_skips_invalid_utf8_blob_and_still_lists_valid_records(self):
+        bad, good = self.submit(), self.submit()
+        with sqlite3.connect(self.db) as connection:
+            connection.execute('UPDATE decisions SET record = ? WHERE id = ?', (b'\xff', bad['id']))
+        pending = self.store.pending()
+        self.assertEqual([record['id'] for record in pending], [good['id']])
+        self.assertEqual(pending.skipped[0]['id'], bad['id'])
+        self.assertEqual(self.call('pending')[0], 1)

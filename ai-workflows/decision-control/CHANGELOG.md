@@ -1,34 +1,41 @@
 # Changelog
 
-## 0.1.0 — Unreleased
+All notable changes to this project are documented here.
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-- Independent standard-library Python SDK, installable CLI and module entry point.
-- Strict recommendation/policy inputs and ALLOW, REVIEW, DENY, ABSTAIN evaluation.
-- SQLite ticket queue with frozen decision snapshots, durable approval/rejection,
-  revision conflict detection and atomic idempotent local reassignment.
-- Exported SHA-256 evidence envelopes and non-executing lifecycle/policy replay.
-- Credential-free demo with hand-authored inference inputs and actual local queue
-  changes, reopened review, duplicate execution and replayed records.
-- Explicit trusted-local-process limitations; no authentication, provider API,
-  external executor, signed attestation or RELIA integration.
-- Workspace registration and Python 3.11/3.13 CI with an installed-package demo
-  and evidence replay smoke run.
-- Local verification of restart-safe approval, concurrent/idempotent execution,
-  transaction rollback, stale decisions and evidence corruption rejection.
-- Independently labeled policy evaluation with exposure-specific safety/routing,
-  review, abstention and observed approval metrics and 95% Wilson intervals.
-- Explicit metric/statistic/sample-support gates; missing exposure cannot pass,
-  and ungated reports do not imply approval.
-- Frozen evaluation envelopes, semantic replay, JSON/Markdown reports and CLI
-  gate exit codes that preserve failing evidence.
-- Adverse hand-authored evaluation cases and requirements; installed evaluation
-  and rejection/replay scenarios in CI, without model-quality claims.
-- Authorized withdrawal of pending reviews and READY decisions, including prior
-  approvals; cancellation requires a reason, preserves review provenance, and
-  blocks execution across restarts without pretending to undo completed actions.
-- Cancellation retries retain immutable actor/reason evidence; cancellation and
-  execution share the existing SQLite transaction and rollback boundary.
-- Decision evidence schema v2 with authorized cancellation events; historical v1
-  replay remains valid, and cancelling a stored v1 decision promotes it to v2.
-- Installed CLI verification of approval withdrawal, export/replay and conflicting
-  processes; regressions cover no-undo behavior and cancellation save rollback.
+## [0.1.0] - Unreleased
+
+### Added
+- Independent standard-library SDK, console CLI and module entry point for local
+  ticket reassignment; strict policy/recommendation inputs and ALLOW/REVIEW/DENY/ABSTAIN.
+- SQLite frozen decisions, durable review, revision conflicts, atomic idempotent
+  local execution, and authorized pre-execution cancellation preserving approvals.
+- Checksummed decision export and non-executing semantic replay; credential-free
+  demo with hand-authored inputs, reopened approval and real local queue changes.
+- Independently labeled policy evaluation, exposure-specific metrics, Wilson
+  intervals, explicit sample/metric gates, frozen JSON/Markdown evidence and replay.
+  Missing exposure cannot pass; ungated reports are not approvals.
+- Adverse synthetic evaluation fixtures, concurrency/rollback regressions and
+  Python 3.11/3.13 CI with installed-wheel lifecycle and evaluation smoke checks.
+- Release metadata, dynamic package version, MIT SPDX license and project links.
+- SQLite store schema 1 stamp and refusal of newer unknown database versions.
+
+### Changed
+- New decision records use schema 3 with required proposer identity, producer
+  metadata and canonical policy digest. V1/v2 replay retains historical rules;
+  cancelling a stored v1 decision promotes it to v2, preserving prior approval.
+- Replay mismatches exit 1; malformed input and unsupported schemas exit 2.
+- Demo, evaluation and file export publish complete staged outputs atomically.
+
+### Fixed
+- Corrupt pending rows no longer block valid queue entries; SDK diagnostics and
+  CLI warnings expose skipped rows (exit 1).
+- Identical rejection retries return the immutable recorded rejection.
+- CLI execution of a stale decision exits 1 because no action was performed.
+
+### Security
+- Schema 3 REVIEW proposers cannot approve, reject or cancel their own decisions.
+  Identities remain caller-asserted labels, not authentication; hashes detect
+  change, not forgery. Local atomicity does not cover external actions.
+- No provider calls, external executor, signed attestation or RELIA integration.

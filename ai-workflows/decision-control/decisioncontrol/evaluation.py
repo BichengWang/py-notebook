@@ -10,7 +10,8 @@ import json
 import math
 from pathlib import Path
 
-from .evidence import _canonical
+from ._outputs import staged_output
+from .evidence import RecordMismatch, _canonical
 from .models import DecisionError, Recommendation, RoutingPolicy, Ticket, Verdict, _fields, _probability, _text
 from .policy import evaluate
 
@@ -216,8 +217,12 @@ def replay_evaluation(envelope: dict) -> dict:
     """Check the complete report and independently recompute metrics/gates from frozen cases."""
     raw = _fields(envelope, {"report", "sha256"})
     report = raw["report"]
-    if not isinstance(raw["sha256"], str) or hashlib.sha256(_canonical(report)).hexdigest() != raw["sha256"]:
-        raise DecisionError("evaluation checksum mismatch")
+    digest = raw["sha256"]
+    if (not isinstance(digest, str) or len(digest) != 64
+            or any(character not in "0123456789abcdef" for character in digest)):
+        raise DecisionError("sha256 must be a lowercase hexadecimal SHA-256 digest")
+    if hashlib.sha256(_canonical(report)).hexdigest() != digest:
+        raise RecordMismatch("evaluation checksum mismatch")
     report = _fields(report, {"schema_version", "kind", "source", "cases", "confidence_level", "policy",
                               "requirements", "metrics", "gates", "disposition", "case_results"})
     if type(report["schema_version"]) is not int or report["schema_version"] != 1:
@@ -230,7 +235,7 @@ def replay_evaluation(envelope: dict) -> dict:
         cases.append(EvaluationCase.from_dict(row["case"]))
     recomputed = evaluate_cases(cases, RoutingPolicy.from_dict(report["policy"]), report["requirements"])
     if _canonical(recomputed) != _canonical(report):
-        raise DecisionError("evaluation report disagrees with its frozen cases, policy, or requirements")
+        raise RecordMismatch("evaluation report disagrees with its frozen cases, policy, or requirements")
     return {"valid": True, "cases": recomputed["cases"], "disposition": recomputed["disposition"]}
 
 
@@ -267,15 +272,10 @@ def write_evaluation(report: dict, out) -> dict:
     digest = hashlib.sha256(_canonical(report)).hexdigest()
     envelope = {"report": report, "sha256": digest}
     replay_evaluation(envelope)
-    directory = Path(out)
-    if directory.exists():
-        if not directory.is_dir() or any(directory.iterdir()):
-            raise DecisionError("evaluation output must be a new or empty directory")
-    else:
-        directory.mkdir(parents=True)
-    with (directory / "evaluation.json").open("x", encoding="utf-8") as stream:
-        json.dump(envelope, stream, indent=2, ensure_ascii=False, allow_nan=False)
-        stream.write("\n")
-    with (directory / "EVALUATION.md").open("x", encoding="utf-8") as stream:
-        stream.write(render_evaluation(report, digest))
+    with staged_output(out) as directory:
+        with (directory / "evaluation.json").open("x", encoding="utf-8") as stream:
+            json.dump(envelope, stream, indent=2, ensure_ascii=False, allow_nan=False)
+            stream.write("\n")
+        with (directory / "EVALUATION.md").open("x", encoding="utf-8") as stream:
+            stream.write(render_evaluation(report, digest))
     return envelope

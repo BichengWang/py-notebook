@@ -1,15 +1,21 @@
 # decision-control
 
-An independent Python 3.11+ standard-library SDK and JSON CLI for policy-constrained
-**local ticket reassignment**. It evaluates a supplied recommendation, stores frozen
-evidence in SQLite, persists human review, and atomically changes the local ticket
+Replayable decision records for AI-assisted go/no-go decisions, demonstrated by
+**local ticket reassignment**. An independent Python 3.11+ standard-library SDK and
+JSON CLI. It evaluates a supplied recommendation, stores frozen evidence in SQLite, persists human review, and atomically changes the local ticket
 queue. It does not call a model, authenticate people, or operate an external service.
 This original MIT-licensed project is separate from RELIA: no RELIA imports, copied
 implementation, integration, benchmark changes, or provider-quality claims.
 
 ## Install and run
 
-From this directory:
+Install the PyPI distribution (the 0.1.0 release is prepared but not yet published):
+
+```bash
+pip install decisioncontrol
+```
+
+For a source installation, run from this directory:
 
 ```bash
 uv venv --python 3.11 .venv
@@ -20,7 +26,9 @@ python -m decisioncontrol replay --record /tmp/decision-control-demo/record-revi
 ```
 
 Choose a new or empty demo directory; existing output is never overwritten. The demo
-creates `tickets.sqlite3`, policy/proposal JSON, four exported records, and
+publishes a complete directory using staging and `os.replace`, so failed writes
+leave the target new or empty and retryable. It creates `tickets.sqlite3`,
+policy/proposal JSON, four exported records, and
 `summary.json`. It exercises ALLOW, REVIEW, DENY and ABSTAIN; closes/reopens the store
 before approval; executes the approved reassignment twice safely; and replays all
 serialized records. ALLOW and approved REVIEW tickets have revision 1 and new
@@ -34,7 +42,7 @@ directory after installation (use a fresh database for the initial ticket):
 
 ```bash
 decision-control --db queue.sqlite3 ticket-create --ticket-id T-100 --department intake
-decision-control --db queue.sqlite3 submit --proposal examples/proposal.json --policy examples/policy.json
+decision-control --db queue.sqlite3 submit --proposal examples/proposal.json --policy examples/policy.json --proposed-by local-proposer
 decision-control --db queue.sqlite3 pending
 ```
 
@@ -77,26 +85,41 @@ it is not an undo operation. Both operations use the same SQLite writer
 transaction, so overlapping callers cannot both commit their conflicting actions.
 
 Alternatively `reject ID --reviewer local-reviewer --note TEXT` permanently rejects
-a pending review. `export ID` without `--out` prints the envelope; file export
+a pending review. Identical repeated approvals, rejections and cancellations return
+the recorded result; conflicting retries fail. For new REVIEW decisions, the
+proposer cannot approve, reject or cancel, even if listed as a policy reviewer.
+`export ID` without `--out` prints the envelope; file export
 refuses overwrite. All successful command results are JSON. `--db` is a global
 option placed **before** storage commands. `demo` and `replay` need no database
-option. Invalid input/IO errors exit 2, prohibited lifecycle actions or unauthorized
-review exit 1, and success exits 0. Errors go to stderr; argparse help is ordinary
+option. Exit codes are:
+
+- **0**: command succeeded, gate passed, or evidence replayed successfully. Valid
+  replay succeeds even for a recorded FAIL; ungated evaluation also exits 0.
+- **1**: gate failed, replay checksum/semantic mismatch, prohibited lifecycle action,
+  unauthorized/self review, execution returned STALE (no action performed), or
+  `pending` skipped corrupt rows.
+- **2**: invalid input/usage, unreadable file, unsupported record/store schema, or IO error.
+
+`pending()` returns a list-compatible result whose `.skipped` contains `{id, error}`
+diagnostics. The CLI still prints valid pending records as JSON, warns on stderr
+and exits 1 if it skipped any rows. It does not repair corrupt rows. Each submitted
+record (including DENY/ABSTAIN) is persisted successfully; submission exit 0 means
+recorded, and execution is a separate command.
+
+Errors go to stderr; argparse help is ordinary
 human-readable help. See `decision-control --help` and command `--help`.
 
 ## SDK
 
 ```python
-from decisioncontrol.models import Recommendation, RoutingPolicy
-from decisioncontrol.store import TicketStore
-from decisioncontrol.evidence import export_record, replay
+from decisioncontrol import Recommendation, RoutingPolicy, TicketStore, export_record, replay
 
 policy = RoutingPolicy('sdk-1', ('support',), (), ('local-reviewer',), 0.8)
 proposal = Recommendation('reassign_ticket', 'SDK-1', 'support', 0.95,
                           'hand-authored-example', 'routing-question-1')
 with TicketStore('sdk-queue.sqlite3') as store:
     store.create_ticket('SDK-1', 'intake')
-    submitted = store.submit(proposal, policy)
+    submitted = store.submit(proposal, policy, proposed_by="local-proposer")
     executed = store.execute(submitted['id'])
     assert store.execute(submitted['id']) == executed
     envelope = export_record(executed)
@@ -126,7 +149,10 @@ decision-control evaluate --cases examples/evaluation-cases.jsonl \
 decision-control replay-evaluation --record /tmp/decision-control-gated/evaluation.json
 ```
 
-Each output directory must be new or empty. `evaluation.json` retains the full
+Each output directory must be new or empty. Evaluation and demo directories, and
+file exports, are built beside the target and published with `os.replace`; failed
+writes leave no partial target. Existing nonempty outputs are refused.
+`evaluation.json` retains the full
 cases, labels, policy, requirements, per-case verdicts, metrics and gate outcomes
 in a checksummed envelope. `EVALUATION.md` is the human-readable report. A failed
 gate still writes evidence and exits 1; invalid input exits 2 without excluding
@@ -196,11 +222,13 @@ SDK entry points are `EvaluationCase`, `load_cases(path)`,
 and `replay_evaluation(envelope)`. Evaluation evidence is distinct from the
 executed-decision records below. Both checksums detect corruption, not forgery.
 
-## Record schema v2 (v1 readable)
+## Record schema v3 (v1/v2 readable)
 
 An export contains `record` and `sha256`. The record includes:
 
-- `schema_version`, decision `id`, and UTC `created_at`;
+- integer `schema_version`, `produced_by` distribution name/version, decision `id`,
+  and UTC `created_at`;
+- caller-asserted `proposed_by` and lowercase `policy_sha256` over canonical policy JSON;
 - the supplied `recommendation` with model/question identifiers, probability and refusal;
 - the trusted `ticket` snapshot (identifier, department and revision);
 - the frozen `policy`, evaluated verdict and machine-readable reason codes;
@@ -208,12 +236,14 @@ An export contains `record` and `sha256`. The record includes:
 
 The full record is checksummed, including review and execution history. Replay
 rejects inconsistent verdicts, illegal transitions, unauthorized recorded reviewers
-and results that disagree with the frozen action. New decisions use
-`schema_version: 2`; a CANCELLED event has `event`, `at`, `reviewer` and `note`
-fields. Other event shapes remain unchanged.
+and results that disagree with the frozen action. Schema 3 additionally validates
+the policy digest and forbids proposer review/cancellation of REVIEW decisions.
+New decisions use `schema_version: 3`; a CANCELLED event has `event`, `at`,
+`reviewer` and `note` fields. Other event shapes remain unchanged.
 
-Archived v1 evidence and stored v1 decisions remain valid under their original
-lifecycle rules. Cancelling a stored v1 decision explicitly promotes that record
+Archived v1/v2 evidence and stored decisions remain valid under their original
+rules, which have no proposer separation check. They do not gain invented identity
+provenance on replay. Cancelling a stored v1 decision explicitly promotes that record
 to v2, preserving its inputs and prior approval. Unknown schema versions are
 rejected rather than silently reinterpreted. Policy-evaluation reports use their
 own unchanged schema.
@@ -225,25 +255,35 @@ or turn model recommendations into trusted permissions.
 
 ## Evidence and trust boundary
 
-* Reviewer identifiers are labels supplied by a **trusted local host/operator**,
-  not authenticated identities. There is no login, server, RBAC service or network
-  boundary. A malicious process with file access can modify the database/evidence.
+* Proposer and reviewer identifiers are caller-asserted labels supplied by a
+  **trusted local host/operator**, not authenticated identities. There is no login, server, RBAC service or network
+  boundary. Separation of duties compares labels, so a caller can bypass it by
+  claiming another identity. The host must authenticate people, bind labels to
+  principals and control who supplies the policy/reviewer list. A policy digest
+  freezes the supplied content; it does not establish that policy as trusted.
+  A malicious process with file access can modify the database/evidence.
 * Policies and ticket snapshots are frozen at submission. Updating a policy file
   does not retroactively revoke existing decisions or approvals. Use `cancel` for
   explicit pre-execution withdrawal, not an assumed current-policy check.
 * Execution checks the frozen ticket department/revision against current state.
   A competing reassignment makes the decision STALE without changing the ticket.
-  SQLite commits queue mutation, revision increment, result and event together.
+  The SDK returns STALE; the CLI exits 1. SQLite commits queue mutation, revision
+  increment, result and event together.
   Repeating execution of the same executed decision returns its stored result.
   This is **local atomicity**, not exactly-once execution of external actions.
 * Exported envelopes contain SHA-256 over canonical JSON. Replay checks corruption,
-  recomputes the frozen policy evaluation and validates lifecycle evidence. It
-  neither calls a model nor executes an action. Checksums are not signatures:
+  recomputes the frozen policy evaluation and validates lifecycle evidence. Canonical
+  JSON uses sorted keys, `separators=(",", ":")`, `ensure_ascii=False`, UTF-8, and
+  lowercase hexadecimal SHA-256. Replay neither calls a model nor executes an action. Checksums are not signatures:
   attackers can recompute them. Records are not provider attestations, identity
   proof, calibrated model evidence or proof of outside-world execution.
 * Protect database files, exports and notes using operating-system permissions;
   they can contain sensitive ticket metadata. Avoid untrusted database/JSON files
   and unbounded inputs. See [SECURITY.md](SECURITY.md).
+
+SQLite store schema 1 is stamped in `PRAGMA user_version`. Legacy unversioned
+stores are accepted and stamped without changing their records; newer unknown
+store versions are refused before creating tables. Journal mode is unchanged.
 
 ## Development
 
@@ -259,23 +299,10 @@ an installation/build dependency. Repository CI uses the registered
 
 ## Verification status
 
-Local development verification on 2026-10-11 exercised the behavioral suite on
-Python 3.11.17 and 3.13.7, fresh standalone installations, console/module demo and
-replay outside the source directory, and separate-process approval/execution.
-Regression coverage includes competing SQLite writers, stale approvals, duplicate
-execution and rollback when decision persistence fails. This is local development
-evidence, not a published package release, outside adoption or provider validation.
-
-The policy-evaluation extension was also exercised through installed console
-commands on both interpreters: PASS, FAIL, UNGATED and unmeasured-exposure gates;
-failed report preservation; and replay retaining the failed disposition.
-The adverse hand-authored fixture remains a failed evaluation, not a retuned
-success or a provider benchmark.
-
-Cancellation was exercised through fresh installed CLIs on both interpreters:
-independent-process approval and withdrawal, blocked execution/re-approval,
-unchanged ticket revision, idempotent cancellation, export/replay, and historical
-v1 replay. Overlapping cancellation/execution processes committed one operation;
-execution-winning races refused cancellation without inventing an undo.
-Behavioral regression coverage also includes cancellation persistence rollback
-and promotion of a historical v1 approval while preserving its review evidence.
+Behavioral tests cover restart-safe review, concurrent local execution, rollback,
+stale decisions, separation of duties, corrupt queue rows, idempotent rejection,
+retryable output failures, and v1/v2/v3 replay. CI builds and validates the wheel,
+installs it into a fresh environment, then runs demo, decision replay, an adverse
+fixture evaluation, evaluation replay, and a rejected self-approval outside the
+source tree. These are software checks on hand-authored fixtures, not live-model,
+calibration, adoption or production evidence. PyPI publication is a separate step.

@@ -1,0 +1,4 @@
+include CHANGELOG.md SECURITY.md CONTRIBUTING.md
+recursive-include examples *.json *.jsonl
+recursive-include tests/fixtures *.json
+include scripts/smoke-wheel.sh
