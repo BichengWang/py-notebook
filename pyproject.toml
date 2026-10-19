@@ -91,7 +91,7 @@ dev-dependencies = [
 # advisory, so the floor is the first release above the vulnerable range.
 constraint-dependencies = [
     "accelerate>1.14.0",
-    "aiohttp>=3.14.3",
+    "aiohttp>=3.14.4",
     "anyio>=4.14.2",
     "bleach>=6.4.0",
     "filelock>=3.20.3",
