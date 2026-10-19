@@ -1,0 +1,3 @@
+{"id":"t01","questions":{"department":{"correct":true,"expected":"technical","predicted":"technical","probability":0.85},"frustration":{"correct":true,"expected":"Frustrated","predicted":"Frustrated","score":1.05},"refund":{"correct":true,"expected":false,"predicted":false,"probability":0.08}}}
+{"error":"HTTP 500 from provider","id":"t02"}
+{"error":"answers['refund']: probability 4.0 is outside [0, 1]","id":"t03"}

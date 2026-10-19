@@ -385,6 +385,35 @@ report says nothing about any model's quality.
 
 From the repository root, `make jev-eval` runs the example into a temporary directory.
 
+## JSON Schemas and conformance vectors
+
+Every record version the readers accept has a JSON Schema (draft 2020-12), shipped in the wheel as
+package data under `jevdecision/schema/`: `answer.v1.json`, `answer.v2.json`, `evaluation.v2.json` and
+`provenance.v2.json`. Each `$id` is
+`https://github.com/BichengWang/ai-decision-system/schema/jevdecision/<file>` (a stable name, not a URL
+that must resolve) and its `$comment` states the canonicalization and what each digest covers: RFC 8785
+for `record_sha256` in answer schema 2; none for provenance, whose digests are SHA-256 of exact file
+bytes; `evaluation.json` is written as compact sorted-key JSON and carries no digest of its own. Schemas
+check shape only; semantic checks are `jev-decision-verify`'s job.
+
+`conformance/` holds vectors other implementations can run against: `valid/`, `tampered/` and `invalid/`
+records and evaluation directories, and `manifest.json` listing for each one the command to run
+(`jev-decision-verify {path}` or `--evaluation {path}`), the expected exit code (0, 1 or 2), the schema
+each document must (or must not) validate against, and every digest it carries: the JCS canonical bytes
+for `record_sha256` (`*.canonical`) and `bytes` digests of the retained files for provenance. All vectors
+are produced by `python3 conformance/generate.py` from the bundled examples and hand-written responses
+(synthetic, not provider output); the unit tests assert that the committed tree equals a fresh generation. For evaluation directories only
+the platform difference of metric floats is allowed: `evaluation.json` is compared with the verifier's 1e-9
+tolerance (the vectors were generated on macOS and CI on Linux produced a different `evaluation.json`),
+on valid vectors `EVALUATION.md` must equal the fresh rendering apart from its digest line and exactly the
+rendering of the committed report and cases; on tampered and invalid vectors it must equal the committed
+source vector's Markdown plus the named edit, byte for byte; and the two hashes in `provenance.json` that follow from
+`evaluation.json` and `EVALUATION.md` are checked against the committed files' bytes. Everything else is
+byte-exact. The tests also run the verifier over every vector and recompute every digest. After changing a record format or the
+package version, rerun the generator and commit the result. With the test-only `jsonschema` pin from
+`requirements-dev.txt` installed (CI does), the tests also validate every manifest document and the
+records the commands produce against the schemas; without it those tests skip.
+
 ## Limitations
 
 - Both provider APIs are new. The Jev request and response shapes follow

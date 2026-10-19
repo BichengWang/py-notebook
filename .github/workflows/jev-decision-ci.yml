@@ -38,6 +38,8 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Install test-only dependencies (JSON Schema validation)
+        run: python -m pip install -r requirements-dev.txt
       - name: Unit tests
         run: python -m unittest discover -s tests -v
       - name: Build example requests for both backends

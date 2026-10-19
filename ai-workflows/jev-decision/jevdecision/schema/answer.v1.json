@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/BichengWang/ai-decision-system/schema/jevdecision/answer.v1.json",
+  "title": "jevdecision answer record, schema 1",
+  "$comment": "Answer record schema 1 as written by jevdecision 0.1.0. It embeds neither the question definitions nor the raw response and carries no digest, so jev-decision-verify exits 2 (unverifiable) for every schema 1 record. Canonicalization: none; there is no digest.",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "produced_by": {
+      "$ref": "#/$defs/producedBy"
+    },
+    "backend": {
+      "enum": [
+        "jev",
+        "openai"
+      ]
+    },
+    "model": {
+      "description": "The response's own model field when it has one, otherwise the requested model; any JSON value is passed through."
+    },
+    "id": {
+      "description": "The response's own id field (any JSON value), or null."
+    },
+    "usage": {
+      "type": "object"
+    },
+    "answers": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/answer"
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "produced_by",
+    "backend",
+    "model",
+    "id",
+    "usage",
+    "answers"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "probability": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "nullableProbability": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "answer": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "refusal"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "noul"
+            },
+            "probability": {
+              "$ref": "#/$defs/probability"
+            }
+          },
+          "required": [
+            "type",
+            "probability"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "choice"
+            },
+            "choice": {
+              "type": "string"
+            },
+            "probabilities": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/probability"
+              }
+            },
+            "confidence": {
+              "$ref": "#/$defs/nullableProbability"
+            }
+          },
+          "required": [
+            "type",
+            "choice",
+            "probabilities",
+            "confidence"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "score"
+            },
+            "score": {
+              "type": "number",
+              "minimum": 0
+            },
+            "level": {
+              "type": "string"
+            },
+            "levels": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 2,
+              "maxItems": 10
+            },
+            "probabilities": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/nullableProbability"
+              }
+            },
+            "confidence": {
+              "$ref": "#/$defs/nullableProbability"
+            }
+          },
+          "required": [
+            "type",
+            "score",
+            "level",
+            "levels",
+            "probabilities",
+            "confidence"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "producedBy": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "const": "jevdecision"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

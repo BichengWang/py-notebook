@@ -1,0 +1,8 @@
+# Test-only dependencies for the schema checks in tests/test_conformance.py (the package itself has none).
+# The test skips when jsonschema is not installed; CI installs these pins.
+attrs==25.3.0
+jsonschema==4.23.0
+jsonschema-specifications==2024.10.1
+referencing==0.36.2
+rpds-py==0.24.0
+typing-extensions==4.16.0
