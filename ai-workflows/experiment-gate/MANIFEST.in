@@ -1,2 +1,7 @@
 include CHANGELOG.md
 recursive-include examples *.json
+recursive-include conformance *
+recursive-include tests *.json
+global-exclude *.py[cod]
+prune conformance/__pycache__
+prune tests/__pycache__

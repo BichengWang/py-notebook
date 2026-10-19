@@ -1,13 +1,102 @@
-"""Re-evaluate schema-2 decision records offline with the running version."""
+"""Re-evaluate schema-2 and schema-3 decision records offline with the running version.
+
+Schema 2 keeps its ``python-json-v1`` digest, the 0.1.0 tail formulas and the lenient parsing of the
+original release. Schema 3 uses an RFC 8785 digest and rejects duplicate object keys, non-finite numbers,
+unsafe integers and lone surrogates anywhere in the document. Both compare computed statistics with the
+same relative tolerance and everything else exactly (see :func:`_agree`).
+"""
 from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 from pathlib import Path
 
 from .decision import evaluate
-from .records import canonical_json, input_digest
+from .jcs import canonicalize
+from .records import REPLAY_RELATIVE_TOLERANCE, REPLAY_ZERO_FLOOR, SUPPORTED_SCHEMAS, input_digest
+
+
+def _reject_duplicate_keys(pairs):
+    record = {}
+    for key, value in pairs:
+        if key in record:
+            raise ValueError(f"duplicate object key {key!r}")
+        record[key] = value
+    return record
+
+
+def _reject_constant(name):
+    raise ValueError(f"non-finite number {name} is not valid JSON")
+
+
+def load_record(text: str):
+    """Parse a decision record. Schema 3 is parsed strictly; other documents keep Python's defaults."""
+    record = json.loads(text)
+    if isinstance(record, dict) and type(record.get("schema_version")) is int and record["schema_version"] == 3:
+        record = json.loads(text, object_pairs_hook=_reject_duplicate_keys, parse_constant=_reject_constant)
+    return record
+
+
+# Replayed values that are computed with libm functions or long arithmetic chains and may differ in the last
+# digits between platforms. Paths use dict keys and "[]" for any list index. Everything else a record replays
+# (copied input and policy values, counts, units, expected shares, margins, strings, booleans,
+# dispositions, structure) compares exactly.
+_DERIVED = frozenset({
+    ("sample_ratio", "p_value"),
+    ("metrics", "[]", "diff"),
+    ("metrics", "[]", "se"),
+    ("metrics", "[]", "improvement"),
+    ("metrics", "[]", "improvement_bounds", "[]"),
+    ("metrics", "[]", "z"),
+    ("metrics", "[]", "mde"),
+    ("metrics", "[]", "adjustment", "theta"),
+    ("metrics", "[]", "adjustment", "raw_diff"),
+    ("metrics", "[]", "adjustment", "raw_se"),
+    ("metrics", "[]", "adjustment", "variance_reduction"),
+})
+
+
+def _number(value) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _close(recorded, replayed) -> bool:
+    """Computed statistic: identical when either is non-finite, else within the replay tolerance."""
+    if not (math.isfinite(recorded) and math.isfinite(replayed)):
+        if math.isnan(recorded) or math.isnan(replayed):
+            return math.isnan(recorded) and math.isnan(replayed)
+        return recorded == replayed  # same infinity; a finite/non-finite pair is unequal
+    if replayed == 0:
+        return abs(recorded) <= REPLAY_ZERO_FLOOR
+    return abs(recorded - replayed) <= REPLAY_RELATIVE_TOLERANCE * abs(replayed)
+
+
+def _agree(recorded, replayed, path: tuple = ()) -> bool:
+    """Replay comparison, shared by schemas 2 and 3.
+
+    Only the computed statistics listed in ``_DERIVED`` agree within a relative 1e-9 (an absolute 1e-12
+    where the replayed value is exactly 0), because ``log``, ``exp``, ``erf`` and the normal quantile come
+    from the platform libm and differ in the last digits between machines; non-finite values must be
+    identical. Everything else compares exactly: numbers by value whatever their int/float spelling,
+    booleans, strings and structure. Digests are never compared here.
+    """
+    if isinstance(recorded, bool) or isinstance(replayed, bool):
+        return recorded is replayed
+    if _number(recorded) and _number(replayed):
+        return _close(recorded, replayed) if path in _DERIVED else recorded == replayed
+    if isinstance(recorded, dict) and isinstance(replayed, dict):
+        return recorded.keys() == replayed.keys() and all(
+            _agree(recorded[k], replayed[k], path + (k,)) for k in replayed)
+    if isinstance(recorded, list) and isinstance(replayed, list):
+        return len(recorded) == len(replayed) and all(
+            _agree(a, b, path + ("[]",)) for a, b in zip(recorded, replayed))
+    return type(recorded) is type(replayed) and recorded == replayed
+
+
+def _same(recorded, replayed, field: str) -> bool:
+    return _agree(recorded, replayed, (field,))
 
 
 def verify_record(record: dict) -> list[str]:
@@ -17,8 +106,10 @@ def verify_record(record: dict) -> list[str]:
     schema = record.get("schema_version", 1)
     if schema == 1:
         raise ValueError("schema 1 cannot be verified: no embedded input")
-    if type(schema) is not int or schema != 2:
-        raise ValueError("unsupported schema_version; expected 2")
+    if type(schema) is not int or schema not in SUPPORTED_SCHEMAS:
+        raise ValueError("unsupported schema_version; expected 2 or 3")
+    if schema == 3:
+        canonicalize(record)  # ValueError (exit 2): unsafe integers, infinities, lone surrogates anywhere
     producer = record.get("produced_by")
     if (not isinstance(producer, dict) or producer.get("name") != "expgate"
             or not isinstance(producer.get("version"), str)):
@@ -29,16 +120,16 @@ def verify_record(record: dict) -> list[str]:
         if field not in record:
             raise ValueError(f"record missing {field}")
     mismatches = []
-    if record["input_sha256"] != input_digest(record["input"]):
+    if record["input_sha256"] != input_digest(record["input"], schema):
         mismatches.append("input_sha256")
     try:
-        replay = evaluate(record["input"])
+        replay = evaluate(record["input"], schema_version=schema)
     except (ValueError, TypeError, KeyError, OverflowError) as exc:
         if mismatches:
             return mismatches + ["input (cannot replay)"]
         raise ValueError(f"invalid embedded input: {exc}") from exc
     for field in ("decision", "reasons", "metrics", "experiment", "policy", "sample_ratio", "sequential"):
-        if canonical_json(record.get(field)) != canonical_json(replay.get(field)):
+        if not _same(record.get(field), replay.get(field), field):
             mismatches.append(field)
     return mismatches
 
@@ -50,7 +141,7 @@ def main(argv=None) -> int:
     result = 0
     for path in args.records:
         try:
-            mismatches = verify_record(json.loads(path.read_text(encoding="utf-8")))
+            mismatches = verify_record(load_record(path.read_text(encoding="utf-8")))
         except (OSError, ValueError, TypeError, OverflowError) as exc:
             print(f"{path}: cannot verify: {exc}", file=sys.stderr)
             result = 2

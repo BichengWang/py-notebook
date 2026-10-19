@@ -114,32 +114,94 @@ primary or guardrail therefore prevents SHIP.
 
 ## Decision records and offline verification
 
-`decision.json` preserves the existing decision, reasons, policy, sample-ratio,
-metrics, and `expgate_version` fields. New records have integer `schema_version: 2`,
-`produced_by: {"name": "expgate", "version": "0.1.0"}`, the full parsed `input`, and
-`input_sha256`. The input digest is lowercase SHA-256 of canonical JSON:
-`json.dumps(input, sort_keys=True, separators=(",", ":"), ensure_ascii=False)`
-encoded as UTF-8. `DECISION.md` shows the SHA-256 of the actual `decision.json`
-bytes (including formatting), which is a different digest.
+`decision.json` carries the decision, reasons, policy, sample-ratio, metrics, and
+`expgate_version`, plus integer `schema_version`, `produced_by:
+{"name": "expgate", "version": "0.1.0"}`, the full parsed `input`, and `input_sha256`.
+New records use **schema 3**: `input_sha256` is the lowercase SHA-256 of the
+[RFC 8785](https://www.rfc-editor.org/rfc/rfc8785) (JCS) canonical form of `input`, so
+other languages can reproduce it byte for byte (`expgate/jcs.py`; integral floats
+such as `2.0` become `2`, so the int/float distinction is not part of the digest).
+**Schema 2** records (python-json-v1: `json.dumps(input, sort_keys=True,
+separators=(",", ":"), ensure_ascii=False)` as UTF-8) remain verifiable under their
+original rules. `DECISION.md` shows the SHA-256 of the actual `decision.json` bytes
+(including formatting), which is a different digest.
 
 ```bash
 python -m expgate.verify review-run/decision.json
 experiment-gate-verify review-run/*/decision.json
 ```
 
-Verification recomputes the input digest and calls `evaluate` with the running
-version. It names mismatches in the decision, reasons, metrics, experiment,
-policy, sample-ratio, and sequential fields using canonical JSON comparison
-(including value types). It needs no network access. Missing
-`schema_version` means schema 1: existing JSON remains readable, but lacks the
-embedded input needed for verification and exits 2 with an explanation. Future
-versions may produce different replay results; a mismatch is reported, not hidden.
-Hashes detect changes, not forgery or authenticity: someone who rewrites the input
-and recomputes the report can produce a consistent record.
+Verification recomputes the input digest under the record's schema and calls
+`evaluate` with the running version and the record's schema. It names mismatches in
+the decision, reasons, metrics, experiment, policy, sample-ratio, and sequential
+fields. It needs no network access. Missing `schema_version` means schema 1: existing
+JSON remains readable, but lacks the embedded input needed for verification and
+exits 2 with an explanation, as does any schema other than 2 or 3. Future versions may
+produce different replay results; a mismatch is reported, not hidden. Hashes detect
+changes, not forgery or authenticity: someone who rewrites the input and recomputes
+the report can produce a consistent record.
+
+| | Schema 2 (0.1.0) | Schema 3 |
+|---|---|---|
+| Input digest | SHA-256 of python-json-v1 | SHA-256 of RFC 8785 |
+| Tail formulas | `2 * (1 - cdf)`, `inv_cdf(1 - alpha)` (the sample-ratio p-value is exactly 0.0 beyond about 8.3 standard deviations) | `erfc`, `-inv_cdf(alpha)` (`exact_tail=True`; one mapping, `records.EXACT_TAIL`) |
+| Parsing | lenient (a repeated key keeps its last value; `NaN` accepted) | duplicate keys, `NaN`/`Infinity`, integers beyond 2^53-1 and lone surrogates exit 2 |
+
+Both schemas share one replay comparison. Only computed statistics agree within a relative 1e-9
+(absolute 1e-12 where the replayed value is exactly 0): `sample_ratio.p_value` and, per metric row, `diff`,
+`se`, `improvement`, `improvement_bounds`, `z`, `mde` and the CUPED `adjustment` numbers. Everything else
+compares exactly: inputs, copied policy values and margins, expected shares, counts and units (by value,
+whatever their `2` or `2.0` spelling), strings, booleans, dispositions and structure, and the input
+digest stays a byte comparison. A non-finite statistic must be identical (same infinity, or NaN on
+both sides); a finite/non-finite pair never agrees. Schema 3 also checks the whole document with RFC 8785
+canonicalization, so an ignored member holding `1e999`, an integer beyond 2^53-1 or a lone surrogate exits 2,
+and `evaluate` refuses (exit 2 in `experiment-gate`) a schema-3 input whose statistics overflow to infinity.
+The tolerance exists because `log`, `exp`, `erf` and the normal quantile come
+from the platform libm, so a bit-exact replay fails across platforms. Strings that embed floats
+(`reasons`) are compared exactly and print four significant digits (`:.4g`) or three (`:.2e`),
+far coarser than 1e-9, so they differ across platforms only if a value sits within about 1e-9 of
+a rounding boundary. A sequential record is the most exposed case (the mixing variance comes from
+a search on a flat optimum; one-ulp differences move it by about 1e-9 relative); the vectors for
+both schemas include one.
 
 The public API exports `evaluate`, `verify_record`, and `__version__` from
-`expgate`. `verify_record(record)` returns a list of mismatched field names and
-raises `ValueError` for invalid/unsupported records.
+`expgate`. `evaluate(summary)` returns a schema-3 report; `schema_version=2` produces
+the 0.1.0 form (digest and tail formulas). `verify_record(record)` returns a list of mismatched field names and
+raises `ValueError` for invalid/unsupported records; it cannot see duplicate keys,
+which only the file parser (`expgate.verify.load_record`) rejects.
+
+### JSON Schemas and conformance vectors
+
+`expgate/schema/decision.v2.json` and `decision.v3.json` (JSON Schema 2020-12) ship
+as package data; each `$comment` states the canonicalization and the digested
+fields (`/input` only). They are as strict as the verifier: objects that the
+verifier rejects for unknown keys (`input` and its nested settings, metric specs and
+statistics, `policy`, `sample_ratio`, metric rows) are closed, top-level members
+the verifier ignores are allowed. Rules relating several fields (one primary metric,
+`successes <= units`, every derived field equal to the replay) are the verifier's
+job. There is no schema 1 file: a schema-1 record is any JSON without
+`schema_version`, which cannot be pinned down, and the verifier exits 2 for it anyway.
+
+`conformance/` holds the vectors other implementations can test against:
+`valid/` (exit 0; each with the exact canonical bytes of its input in
+`*.input.canonical`), `tampered/` (exit 1: input edited with a stale digest, input
+edited and re-digested, decision edited, metric edited, digest computed with the
+other schema's canonicalization) and `invalid/` (exit 2: truncated JSON, unknown
+schema, missing input, `NaN`, schema 1, and for schema 3 duplicate keys and an
+out-of-range integer, including one in an ignored member). `manifest.json` lists every vector with its expected verifier
+exit code, schema validity and digests. Schema 2 has no duplicate-key vector because
+its reader accepts them. The `jcs-edge` vectors use one input under both schemas
+(`40.0`-style floats, `1e-7`, escapes, members whose UTF-16 order differs from code point
+order), so the two digests differ. `python conformance/generate.py` regenerates the
+tree deterministically (`--check` compares); a unit test fails if it drifts, for
+example after a version bump (it tolerates last-digit differences in computed statistics, so a tree
+generated on macOS passes on Linux). The vectors are committed from macOS and verified by Linux CI.
+The vectors are synthetic and demonstrate the format,
+not adoption.
+
+Development checks use `pip install jsonschema==4.26.0` (never a runtime dependency):
+`python tests/schema_validation.py review-run/*/decision.json` validates records, and the
+unit tests skip the schema checks when it is absent.
 
 ## Bundled examples
 
@@ -333,13 +395,13 @@ a tail through `1 - x`.
 
 Accurate versions exist: `stats.sample_ratio_p_value(..., exact_tail=True)` uses `erfc` and
 `stats.z_for(alpha, exact_tail=True)` uses `-inv_cdf(alpha)`; the golden vectors hold both to
-1e-9 relative. They are not the default. A schema-2 record must replay with the formulas that
+1e-9 relative. Schema 3 uses them; the functions default to the old rules. A schema-2 record must replay with the formulas that
 produced it, and the default changing would make the 0.1.0 `srm` record fail `expgate.verify`
 (a regression test verifies every scenario record written by 0.1.0, committed under
 `tests/fixtures/records-0.1.0`). Producers and the verifier therefore keep the 0.1.0 rules for
 schema 2, and the vectors test those too, against the limits above (2.3e-16 absolute for the
-p-value). The accurate tails are meant to become the default with the next decision schema,
-which is a new record format and so may change its numerics.
+p-value). Schema 3, the next decision schema and a new record format, uses the accurate tails
+(a schema-3 `srm` record carries `p_value` 6.7e-49 and still verifies).
 
 **Deliberate differences from the references.** These are method choices, not defects. The
 vectors record the other side where it helps (the `informational` blocks are not asserted).
@@ -391,15 +453,15 @@ performance or calibration on live-model outcomes.
   bounds do. The guarantee is exact for normal estimates with known variance and holds only
   approximately at small samples. The sample-ratio check is not sequential: re-running it at
   every look raises its false alarm rate above `srm_alpha`.
-- `expgate.verify` compares canonical JSON, so a replay is byte for byte only when the float
-  arithmetic matches the producer's. The last digits of `exp`, `log` and the normal quantile differ
-  between platforms: records the 0.1.0 scenarios wrote on macOS arm64 with Python 3.11 verify
-  there, but on Linux five of the seven report a `metrics` mismatch (last-digit differences, 1e-9
-  relative or less). Records with `policy.sequential` are more exposed: the mixing variance comes
-  from a search over an objective that is flat at its minimum, so one-ulp differences move it by
-  about 1e-9. On macOS Python 3.11 and 3.13 agree, 3.15 differs by 1.3e-11 in the multiplier.
-  Verify a record on the platform that produced it, or compare values with a tolerance as
-  `tests/test_expgate.py` does for the committed 0.1.0 fixtures.
+- Replay is not bit-portable, and the verifier does not require it. The last digits of `exp`, `log` and the
+  normal quantile differ between platforms: before this was fixed, the 0.1.0 scenario records written on
+  macOS arm64 with Python 3.11 verified there but five of the seven reported a last-digit `metrics`
+  mismatch on Linux (1e-9 relative or less). `expgate.verify` now compares computed statistics within a
+  relative 1e-9 for schemas 2 and 3, so those records verify on Linux; `tests/test_expgate.py` runs the real
+  verifier over the committed 0.1.0 records, and CI verifies the committed vectors on Linux. A sequential
+  record's multiplier moves by about 1e-9 between builds (macOS Python 3.11 and 3.13 agree, 3.15 differs by
+  1.3e-11), which stays inside the tolerance. An edit to a computed statistic smaller than 1e-9 relative is therefore
+  not detected by replay (the input digest and every non-float field still are).
 - CUPED is supported for one covariate per proportion or mean metric. There is no CUPED for
   ratio metrics, no multi-covariate adjustment, and no heterogeneous-effect analysis.
 - The delta method is a first-order approximation. It needs enough units that the

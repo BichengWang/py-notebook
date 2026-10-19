@@ -72,7 +72,9 @@
       "packages": [
         "expgate"
       ],
-      "third_party_imports": [],
+      "third_party_imports": [
+        "jsonschema"
+      ],
       "paths": [
         "ai-workflows/experiment-gate/**",
         ".github/workflows/expgate-ci.yml"

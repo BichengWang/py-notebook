@@ -37,8 +37,12 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Unit tests
+      - name: Install the JSON Schema validator (development and CI only)
+        run: python -m pip install jsonschema==4.26.0
+      - name: Unit tests, including conformance vectors and schema validation
         run: python -m unittest discover -s tests -v
+      - name: Confirm the committed conformance vectors are a fresh generation
+        run: python conformance/generate.py --check
       - name: Evaluate scenarios and every example
         run: |
           python -m expgate.run --all-scenarios --out "$RUNNER_TEMP/expgate/scenarios"
@@ -47,12 +51,15 @@ jobs:
           python -m expgate --input examples/*.json --out "$RUNNER_TEMP/expgate/examples"
           python -m expgate.verify "$RUNNER_TEMP/expgate/scenarios"/*/decision.json \
             "$RUNNER_TEMP/expgate/examples"/*/decision.json "$RUNNER_TEMP/expgate/example/decision.json"
+          python tests/schema_validation.py "$RUNNER_TEMP/expgate/scenarios"/*/decision.json \
+            "$RUNNER_TEMP/expgate/examples"/*/decision.json "$RUNNER_TEMP/expgate/example/decision.json"
           cat "$RUNNER_TEMP/expgate/example/DECISION.md" >> "$GITHUB_STEP_SUMMARY"
       - name: Build and check distributions
         run: |
           python -m pip install build twine
           python -m build
           twine check --strict dist/*
+          unzip -l dist/*.whl | grep -E "expgate/schema/decision\.v[23]\.json"
       - name: Smoke test installed wheel outside source tree
         run: |
           python -m venv "$RUNNER_TEMP/expgate-venv"
@@ -62,6 +69,8 @@ jobs:
           cd "$RUNNER_TEMP/expgate-smoke"
           "$RUNNER_TEMP/expgate-venv/bin/experiment-gate" --input examples/*.json --out records
           "$RUNNER_TEMP/expgate-venv/bin/experiment-gate-verify" records/*/decision.json
+          "$RUNNER_TEMP/expgate-venv/bin/python" -c "import importlib.resources as r; [r.files('expgate').joinpath('schema', f'decision.v{n}.json').read_text() for n in (2, 3)]"
+          "$RUNNER_TEMP/expgate-venv/bin/experiment-gate-verify" "$GITHUB_WORKSPACE"/ai-workflows/experiment-gate/conformance/valid/*.json
       - name: Retain decision records
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

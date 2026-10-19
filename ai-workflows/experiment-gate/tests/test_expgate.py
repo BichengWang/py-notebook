@@ -787,9 +787,21 @@ class RecordsFromEarlierVersionsTest(unittest.TestCase):
         for name, record in self.records().items():
             with self.subTest(record=name):
                 self.assertEqual(record["produced_by"], {"name": "expgate", "version": "0.1.0"})
-                replay = evaluate(record["input"])
+                replay = evaluate(record["input"], schema_version=2)
                 for field in self.FIELDS:
                     self.assert_same(replay.get(field), record.get(field), field)
+
+    def test_committed_0_1_0_records_pass_the_real_verifier(self):
+        """macOS-written records, two guardrails and sequential included, verify here (Linux CI) as they did there."""
+        paths = sorted(self.FIXTURES.glob("*.json"))
+        self.assertEqual(len(paths), len(SCENARIOS))
+        out, err = io.StringIO(), io.StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            code = verify_main([str(p) for p in paths])
+        self.assertEqual((code, err.getvalue(), out.getvalue().count(": verified")), (0, "", len(paths)))
+        guardrails = [n for n, r in self.records().items()
+                      if sum(m["role"] == "guardrail" for m in r["metrics"]) >= 2]
+        self.assertTrue(guardrails)
 
     def test_srm_record_keeps_the_schema_2_tail(self):
         sample_ratio = self.records()["srm"]["sample_ratio"]

@@ -1,0 +1,147 @@
+{
+  "decision": "HOLD",
+  "experiment": "flat",
+  "expgate_version": "0.1.0",
+  "input": {
+    "arms": {
+      "control": {
+        "metrics": {
+          "conversion": {
+            "successes": 194
+          },
+          "latency_ms": {
+            "mean": 40.377845,
+            "sd": 11.911152
+          },
+          "refund_rate": {
+            "successes": 45
+          }
+        },
+        "units": 2000
+      },
+      "treatment": {
+        "metrics": {
+          "conversion": {
+            "successes": 209
+          },
+          "latency_ms": {
+            "mean": 40.36774,
+            "sd": 12.097675
+          },
+          "refund_rate": {
+            "successes": 51
+          }
+        },
+        "units": 2000
+      }
+    },
+    "assignment": {
+      "expected_treatment_share": 0.5
+    },
+    "description": "Candidate is indistinguishable from control",
+    "experiment": "flat",
+    "metrics": {
+      "conversion": {
+        "direction": "increase",
+        "role": "primary",
+        "type": "proportion"
+      },
+      "latency_ms": {
+        "direction": "decrease",
+        "margin": 2.0,
+        "role": "guardrail",
+        "type": "mean"
+      },
+      "refund_rate": {
+        "direction": "decrease",
+        "margin": 0.003,
+        "role": "guardrail",
+        "type": "proportion"
+      }
+    },
+    "seed": 20260924
+  },
+  "input_sha256": "f5ea9ce9637374dc600d28219e113e597b6c4776121797f7ca0c0cf0996bc596",
+  "metrics": [
+    {
+      "control": 0.097,
+      "diff": 0.007499999999999993,
+      "direction": "increase",
+      "improvement": 0.007499999999999993,
+      "improvement_bounds": [
+        -0.00815511636392488,
+        0.023155116363924866
+      ],
+      "mde": 0.023665360029407386,
+      "mde_basis": "fixed_horizon_normal_approximation",
+      "metric": "conversion",
+      "role": "primary",
+      "se": 0.00951763494782186,
+      "status": "INCONCLUSIVE",
+      "treatment": 0.1045,
+      "type": "proportion",
+      "z": 1.6448536269514722
+    },
+    {
+      "control": 40.377845,
+      "diff": -0.010105000000002917,
+      "direction": "decrease",
+      "improvement": 0.010105000000002917,
+      "improvement_bounds": [
+        -0.7339450383553007,
+        0.7541550383553065
+      ],
+      "margin": 2.0,
+      "mde": 1.0635499455270763,
+      "mde_basis": "fixed_horizon_normal_approximation",
+      "metric": "latency_ms",
+      "role": "guardrail",
+      "se": 0.37962434219418084,
+      "status": "NON_INFERIOR",
+      "treatment": 40.36774,
+      "type": "mean",
+      "z": 1.9599639845400538
+    },
+    {
+      "control": 0.0225,
+      "diff": 0.002999999999999999,
+      "direction": "decrease",
+      "improvement": -0.002999999999999999,
+      "improvement_bounds": [
+        -0.012485446122012005,
+        0.006485446122012007
+      ],
+      "margin": 0.003,
+      "mde": 0.013558558143032421,
+      "mde_basis": "fixed_horizon_normal_approximation",
+      "metric": "refund_rate",
+      "role": "guardrail",
+      "se": 0.004839602256384299,
+      "status": "INCONCLUSIVE",
+      "treatment": 0.0255,
+      "type": "proportion",
+      "z": 1.9599639845400538
+    }
+  ],
+  "policy": {
+    "alpha": 0.05,
+    "power": 0.8,
+    "srm_alpha": 0.001
+  },
+  "produced_by": {
+    "name": "expgate",
+    "version": "0.1.0"
+  },
+  "reasons": [
+    "primary metric is inconclusive (detectable improvement at 80% power: 0.02367)",
+    "guardrail refund_rate is inconclusive"
+  ],
+  "sample_ratio": {
+    "control_units": 2000,
+    "expected_treatment_share": 0.5,
+    "p_value": 1.0,
+    "pass": true,
+    "treatment_units": 2000
+  },
+  "schema_version": 3
+}
