@@ -81,3 +81,5 @@ fairness, legal compliance or consumer benefit.
 
 Next: [P-011 and P-012](../.plan/phase-1-records-spec.md) cover JSON Schemas with
 conformance vectors and optional authenticated records, respectively.
+
+Regulatory provisions: a draft [mapping of these records to EU AI Act logging and retention duties, ISO/IEC 42001 A.6.2.8 and NIST AI RMF MANAGE 4.1](REGULATORY_MAPPING.md) makes no compliance claim and is not legal advice.
