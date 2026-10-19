@@ -11,12 +11,14 @@ absl-py==2.2.2
     #   tensorflow-recommenders
 accelerate==1.15.0
     # via
+    #   -c (workspace)
     #   -r requirements.in
     #   airllm
 aiohappyeyeballs==2.6.1
     # via aiohttp
-aiohttp==3.14.3
+aiohttp==3.14.4
     # via
+    #   -c (workspace)
     #   bilibili-api
     #   fsspec
 aiosignal==1.4.0
@@ -31,15 +33,14 @@ annotated-types==0.7.0
     # via pydantic
 anyio==4.14.2
     # via
+    #   -c (workspace)
     #   httpx
     #   jupyter-server
     #   openai
     #   starlette
     #   streamlit
 argon2-cffi==23.1.0
-    # via
-    #   jupyter-server
-    #   notebook
+    # via jupyter-server
 argon2-cffi-bindings==21.2.0
     # via argon2-cffi
 array-record==0.5.1
@@ -73,6 +74,7 @@ bilibili-api==4.1.0
     # via -r requirements.in
 bleach==6.4.0
     # via
+    #   -c (workspace)
     #   -r requirements.in
     #   nbconvert
 blinker==1.9.0
@@ -165,6 +167,7 @@ fbgemm-gpu==1.9.0
     # via torchrec
 filelock==4.0.4
     # via
+    #   -c (workspace)
     #   datasets
     #   gdown
     #   huggingface-hub
@@ -186,6 +189,7 @@ flatbuffers==25.12.19
     # via tensorflow
 fonttools==4.67.0
     # via
+    #   -c (workspace)
     #   -r requirements.in
     #   matplotlib
 fqdn==1.5.1
@@ -198,6 +202,7 @@ frozenlist==1.5.0
     #   aiosignal
 fsspec==2026.6.0
     # via
+    #   -c (workspace)
     #   datasets
     #   etils
     #   huggingface-hub
@@ -253,6 +258,7 @@ httpcore==1.0.9
     # via httpx
 httplib2==0.32.0
     # via
+    #   -c (workspace)
     #   -r requirements.in
     #   google-api-python-client
     #   google-auth-httplib2
@@ -274,6 +280,7 @@ huggingface-hub==1.33.0
     #   transformers
 idna==3.20
     # via
+    #   -c (workspace)
     #   -r requirements.in
     #   anyio
     #   httpx
@@ -292,14 +299,11 @@ ipykernel==7.3.0
     #   jupyter
     #   jupyter-console
     #   jupyterlab
-    #   notebook
 ipython==8.10.0
     # via
     #   ipykernel
     #   ipywidgets
     #   jupyter-console
-ipython-genutils==0.2.0
-    # via notebook
 ipywidgets==8.1.5
     # via jupyter
 isoduration==20.11.0
@@ -319,7 +323,6 @@ jinja2==3.1.6
     #   jupyterlab-server
     #   mkdocs
     #   nbconvert
-    #   notebook
     #   pydeck
     #   torch
 jiter==0.9.0
@@ -340,18 +343,22 @@ jsonschema-specifications==2024.10.1
     # via jsonschema
 jupyter==1.1.1
     # via -r requirements.in
+jupyter-builder==1.2.3
+    # via
+    #   jupyterlab
+    #   notebook
 jupyter-client==8.10.0
     # via
     #   ipykernel
     #   jupyter-console
     #   jupyter-server
     #   nbclient
-    #   notebook
 jupyter-console==6.6.3
     # via jupyter
 jupyter-core==5.7.2
     # via
     #   ipykernel
+    #   jupyter-builder
     #   jupyter-client
     #   jupyter-console
     #   jupyter-server
@@ -359,30 +366,37 @@ jupyter-core==5.7.2
     #   nbclient
     #   nbconvert
     #   nbformat
-    #   notebook
 jupyter-events==0.12.0
     # via jupyter-server
 jupyter-lsp==2.2.5
     # via jupyterlab
 jupyter-server==2.21.1
     # via
+    #   -c (workspace)
     #   -r requirements.in
     #   jupyter-lsp
     #   jupyterlab
     #   jupyterlab-server
+    #   notebook
     #   notebook-shim
 jupyter-server-terminals==0.5.3
     # via jupyter-server
-jupyterlab==4.5.11
-    # via jupyter
+jupyterlab==4.6.4
+    # via
+    #   -c (workspace)
+    #   jupyter
+    #   notebook
 jupyterlab-pygments==0.3.0
     # via nbconvert
 jupyterlab-server==2.28.1
-    # via jupyterlab
+    # via
+    #   jupyterlab
+    #   notebook
 jupyterlab-widgets==3.0.13
     # via ipywidgets
 keras==3.15.1
     # via
+    #   -c (workspace)
     #   -r requirements.in
     #   deepface
     #   mtcnn
@@ -426,6 +440,7 @@ mergedeep==1.3.4
     #   mkdocs-get-deps
 mistune==3.4.0
     # via
+    #   -c (workspace)
     #   -r requirements.in
     #   nbconvert
 mkdocs==1.6.1
@@ -462,26 +477,27 @@ nbclient==0.10.2
     # via nbconvert
 nbconvert==7.17.2
     # via
+    #   -c (workspace)
     #   -r requirements.in
     #   jupyter
     #   jupyter-server
-    #   notebook
 nbformat==5.10.4
     # via
     #   jupyter-server
     #   nbclient
     #   nbconvert
-    #   notebook
-nest-asyncio==1.6.0
-    # via notebook
 nest-asyncio2==1.7.4
     # via ipykernel
 networkx==3.2.1
     # via torch
-notebook==6.4.12
-    # via jupyter
+notebook==7.6.3
+    # via
+    #   -c (workspace)
+    #   jupyter
 notebook-shim==0.2.4
-    # via jupyterlab
+    # via
+    #   jupyterlab
+    #   notebook
 numpy==1.26.4
     # via
     #   -r requirements.in
@@ -644,6 +660,7 @@ pickleshare==0.7.5
     # via ipython
 pillow==12.3.0
     # via
+    #   -c (workspace)
     #   -r requirements.in
     #   deepface
     #   face-recognition
@@ -662,9 +679,7 @@ pluggy==1.5.0
 portalocker==3.1.1
     # via iopath
 prometheus-client==0.21.1
-    # via
-    #   jupyter-server
-    #   notebook
+    # via jupyter-server
 promise==2.3
     # via tensorflow-datasets
 prompt-toolkit==3.0.50
@@ -679,6 +694,7 @@ proto-plus==1.28.4
     # via google-api-core
 protobuf==7.36.2
     # via
+    #   -c (workspace)
     #   google-api-core
     #   googleapis-common-protos
     #   opentelemetry-proto
@@ -701,10 +717,12 @@ pure-eval==0.2.3
     # via stack-data
 pyarrow==25.0.1
     # via
+    #   -c (workspace)
     #   datasets
     #   streamlit
 pyasn1==0.6.4
     # via
+    #   -c (workspace)
     #   -r requirements.in
     #   pyasn1-modules
     #   rsa
@@ -729,6 +747,7 @@ pyflakes==3.3.2
     # via flake8
 pygments==2.21.0
     # via
+    #   -c (workspace)
     #   -r requirements.in
     #   ipython
     #   jupyter-console
@@ -761,7 +780,9 @@ python-dateutil==2.9.0.post0
     #   matplotlib
     #   pandas
 python-dotenv==1.2.4
-    # via -r requirements.in
+    # via
+    #   -c (workspace)
+    #   -r requirements.in
 python-json-logger==3.3.0
     # via jupyter-events
 python-multipart==0.0.32
@@ -789,7 +810,6 @@ pyzmq==26.4.0
     #   jupyter-client
     #   jupyter-console
     #   jupyter-server
-    #   notebook
 referencing==0.36.2
     # via
     #   jsonschema
@@ -801,6 +821,7 @@ regex==2026.9.10
     #   transformers
 requests==2.34.2
     # via
+    #   -c (workspace)
     #   -r requirements.in
     #   bilibili-api
     #   datasets
@@ -850,14 +871,12 @@ scipy==1.13.1
 seaborn==0.13.2
     # via -r requirements.in
 send2trash==1.8.3
-    # via
-    #   jupyter-server
-    #   notebook
+    # via jupyter-server
 sentencepiece==0.2.2
     # via airllm
 setuptools==84.0.0
     # via
-    #   jupyterlab
+    #   -c (workspace)
     #   lightning-utilities
     #   tensorflow
     #   torch
@@ -874,13 +893,17 @@ six==1.17.0
 sniffio==1.3.1
     # via openai
 soupsieve==2.9
-    # via beautifulsoup4
+    # via
+    #   -c (workspace)
+    #   beautifulsoup4
 stack-data==0.6.3
     # via ipython
 starlette==1.7.0
     # via streamlit
 streamlit==1.64.0
-    # via -r requirements.in
+    # via
+    #   -c (workspace)
+    #   -r requirements.in
 sympy==1.14.0
     # via torch
 tabulate==0.9.0
@@ -911,7 +934,6 @@ terminado==0.18.1
     # via
     #   jupyter-server
     #   jupyter-server-terminals
-    #   notebook
 threadpoolctl==3.6.0
     # via scikit-learn
 tiktoken==0.9.0
@@ -943,6 +965,7 @@ torchvision==0.29.0
     # via -r requirements.in
 tornado==6.5.10
     # via
+    #   -c (workspace)
     #   ipykernel
     #   jupyter-client
     #   jupyter-server
@@ -969,6 +992,7 @@ traitlets==5.14.3
     #   ipykernel
     #   ipython
     #   ipywidgets
+    #   jupyter-builder
     #   jupyter-client
     #   jupyter-console
     #   jupyter-core
@@ -979,7 +1003,6 @@ traitlets==5.14.3
     #   nbclient
     #   nbconvert
     #   nbformat
-    #   notebook
 transformers==5.19.0
     # via
     #   -r requirements.in
@@ -1035,6 +1058,7 @@ uritemplate==4.1.1
     # via google-api-python-client
 urllib3==2.8.0
     # via
+    #   -c (workspace)
     #   gdown
     #   opentelemetry-exporter-http-transport
     #   requests
@@ -1063,10 +1087,12 @@ websockets==15.0.1
     #   streamlit
 werkzeug==3.1.9
     # via
+    #   -c (workspace)
     #   flask
     #   flask-cors
 wheel==0.48.0
     # via
+    #   -c (workspace)
     #   -r requirements.in
     #   astunparse
 widgetsnbextension==4.0.13
@@ -1079,7 +1105,7 @@ xxhash==3.5.0
     # via
     #   datasets
     #   wandb
-yarl==1.19.0
+yarl==1.25.1
     # via aiohttp
 yfinance==0.2.55
     # via -r requirements.in
