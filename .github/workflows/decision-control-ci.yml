@@ -38,8 +38,41 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Unit tests
+      - name: Unit tests (standard library only; schema validation tests skip)
         run: python -m unittest discover -s tests -v
+      - name: Install pinned dev-only schema validator
+        run: |
+          python -m pip install jsonschema==4.23.0 jsonschema-specifications==2024.10.1 \
+            referencing==0.36.2 rpds-py==0.24.0 attrs==25.3.0
+      - name: Schema and conformance tests with jsonschema
+        run: |
+          python -m unittest discover -s tests -p 'test_schema.py' -v
+          python -m unittest discover -s tests -p 'test_conformance.py' -v
+      - name: Validate demo and evaluation output against the shipped schemas
+        run: |
+          python -m decisioncontrol demo --out "$RUNNER_TEMP/dc-demo" > /dev/null
+          python -m decisioncontrol evaluate --cases examples/evaluation-cases.jsonl \
+            --policy examples/policy.json --out "$RUNNER_TEMP/dc-evaluation" > /dev/null
+          python - "$RUNNER_TEMP" <<'PY'
+          import json, pathlib, sys
+          from importlib import resources
+          import jsonschema
+
+          def validator(name):
+              schema = json.loads((resources.files("decisioncontrol") / "schema" / name).read_text(encoding="utf-8"))
+              jsonschema.Draft202012Validator.check_schema(schema)
+              return jsonschema.Draft202012Validator(schema)
+
+          root = pathlib.Path(sys.argv[1])
+          records = sorted((root / "dc-demo").glob("record-*.json"))
+          assert len(records) == 4, records
+          check = validator("record.v4.json")
+          for path in records:
+              check.validate(json.loads(path.read_text(encoding="utf-8")))
+          validator("evaluation.v2.json").validate(
+              json.loads((root / "dc-evaluation" / "evaluation.json").read_text(encoding="utf-8")))
+          print(f"validated {len(records)} demo records and 1 evaluation report")
+          PY
       - name: Build and validate distributions
         run: |
           python -m pip install build twine
@@ -52,4 +85,4 @@ jobs:
       - name: Exercise installed wheel outside source tree
         run: |
           bash scripts/smoke-wheel.sh "$RUNNER_TEMP/decision-control-venv" \
-            "$RUNNER_TEMP/decision-control-smoke" "$PWD/examples"
+            "$RUNNER_TEMP/decision-control-smoke" "$PWD/examples" "$PWD/conformance"

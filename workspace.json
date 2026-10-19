@@ -148,7 +148,10 @@
       "packages": [
         "decisioncontrol"
       ],
-      "third_party_imports": [],
+      "third_party_imports": [
+        "dc_support",
+        "jsonschema"
+      ],
       "paths": [
         "ai-workflows/decision-control/**",
         ".github/workflows/decision-control-ci.yml"

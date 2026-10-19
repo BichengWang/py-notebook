@@ -10,7 +10,7 @@ exploit details before giving the maintainer an opportunity to respond.
 ## Trusted-local-process boundary
 
 Proposer and reviewer names are caller-asserted trusted-host labels, not
-authenticated principals. Schema 3 prohibits a REVIEW proposer from approving,
+authenticated principals. Schemas 3 and 4 prohibit a REVIEW proposer from approving,
 rejecting or cancelling under the same label. A caller claiming a different
 identity can bypass this comparison: hosts must authenticate people, bind labels
 to principals and control policy/reviewer configuration. Historical v1/v2 records

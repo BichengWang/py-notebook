@@ -1,0 +1,1 @@
+{"allowed_destinations":["support","engineering"],"min_probability":1.0,"review_destinations":["engineering"],"reviewers":["alice","bob"],"version":"routing-policy-1"}

@@ -5,7 +5,6 @@ from __future__ import annotations
 from contextlib import contextmanager
 from datetime import datetime, timezone
 import json
-import hashlib
 from pathlib import Path
 import sqlite3
 from threading import RLock
@@ -13,7 +12,7 @@ from typing import Iterator
 from uuid import uuid4
 
 from . import __version__
-from .evidence import _canonical, _validate_record
+from .evidence import JCS_SCHEMA, _validate_record, digest, parse_record
 from .models import (
     DecisionError,
     Recommendation,
@@ -149,10 +148,10 @@ class TicketStore:
             evaluation = evaluate(recommendation, ticket, policy)
             created_at = _now()
             record = {
-                "schema_version": 3,
+                "schema_version": JCS_SCHEMA,
                 "produced_by": {"name": "decisioncontrol", "version": __version__},
                 "proposed_by": proposed_by,
-                "policy_sha256": hashlib.sha256(_canonical(policy.to_dict())).hexdigest(),
+                "policy_sha256": digest(policy.to_dict(), jcs=True),
                 "id": str(uuid4()),
                 "created_at": created_at,
                 "recommendation": recommendation.to_dict(),
@@ -177,7 +176,7 @@ class TicketStore:
     @staticmethod
     def _decode(row: sqlite3.Row) -> dict:
         try:
-            record = json.loads(row["record"])
+            record = parse_record(row["record"])
         except (json.JSONDecodeError, TypeError, UnicodeError) as exc:
             raise DecisionError("Stored decision is not valid JSON") from exc
         _validate_record(record)
@@ -233,7 +232,7 @@ class TicketStore:
             raise DecisionError("Reviewer must be a nonempty, stripped identifier")
         if not isinstance(note, str):
             raise DecisionError("Review note must be a string")
-        if (record["schema_version"] == 3 and record["evaluation"]["verdict"] == "REVIEW"
+        if (record["schema_version"] >= 3 and record["evaluation"]["verdict"] == "REVIEW"
                 and reviewer == record["proposed_by"]):
             raise StateError("The proposer cannot review or cancel their own REVIEW decision")
         # The frozen policy has already been validated by _get.

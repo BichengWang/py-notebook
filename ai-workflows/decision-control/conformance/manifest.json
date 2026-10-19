@@ -1,0 +1,1560 @@
+{
+  "format": 1,
+  "package": "decisioncontrol",
+  "vectors": [
+    {
+      "path": "valid/evaluation-v1-gate-fail.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay-evaluation",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/evaluation.v1.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/sha256",
+          "covers": "/report",
+          "exclude": [],
+          "canonicalization": "python-json-v1",
+          "canonical_file": "valid/evaluation-v1-gate-fail.report.canonical"
+        }
+      ],
+      "note": "Schema 1 report with a failed gate under the original python-json-v1 rules"
+    },
+    {
+      "path": "valid/evaluation-v1-ungated.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay-evaluation",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/evaluation.v1.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/sha256",
+          "covers": "/report",
+          "exclude": [],
+          "canonicalization": "python-json-v1",
+          "canonical_file": "valid/evaluation-v1-ungated.report.canonical"
+        }
+      ],
+      "note": "Schema 1 report; python-json-v1 keeps 0.0 and 1.0 where RFC 8785 writes 0 and 1"
+    },
+    {
+      "path": "valid/evaluation-v2-gate-fail.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay-evaluation",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/evaluation.v2.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/sha256",
+          "covers": "/report",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/evaluation-v2-gate-fail.report.canonical"
+        }
+      ],
+      "note": "Schema 2 report whose unsafe-auto-allow gate fails; replay still verifies the report (exit 0), the FAIL disposition is evidence, not a replay error"
+    },
+    {
+      "path": "valid/evaluation-v2-gate-pass.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay-evaluation",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/evaluation.v2.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/sha256",
+          "covers": "/report",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/evaluation-v2-gate-pass.report.canonical"
+        }
+      ],
+      "note": "Schema 2 report whose gates pass on 8 synthetic cases; not evidence of deployed safety"
+    },
+    {
+      "path": "valid/evaluation-v2-ungated.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay-evaluation",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/evaluation.v2.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/sha256",
+          "covers": "/report",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/evaluation-v2-ungated.report.canonical"
+        }
+      ],
+      "note": "Schema 2 report without requirements; Wilson bounds that are exactly 0 or 1 are written as 0 and 1 in RFC 8785 form"
+    },
+    {
+      "path": "valid/record-v1-allow-executed.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v1.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/sha256",
+          "covers": "/record",
+          "exclude": [],
+          "canonicalization": "python-json-v1",
+          "canonical_file": "valid/record-v1-allow-executed.record.canonical"
+        }
+      ],
+      "note": "Schema 1 ALLOW decision executed; no producer, proposer or policy digest fields"
+    },
+    {
+      "path": "valid/record-v1-review-approved-executed.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v1.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/sha256",
+          "covers": "/record",
+          "exclude": [],
+          "canonicalization": "python-json-v1",
+          "canonical_file": "valid/record-v1-review-approved-executed.record.canonical"
+        }
+      ],
+      "note": "Schema 1 approved REVIEW decision under the original schema 1 rules"
+    },
+    {
+      "path": "valid/record-v2-review-approved-by-proposer.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v2.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/sha256",
+          "covers": "/record",
+          "exclude": [],
+          "canonicalization": "python-json-v1",
+          "canonical_file": "valid/record-v2-review-approved-by-proposer.record.canonical"
+        }
+      ],
+      "note": "Schema 2 approval by the proposer is valid under the original schema 2 rules; the same edit on schema 3 or 4 is tampered"
+    },
+    {
+      "path": "valid/record-v2-review-cancelled.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v2.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/sha256",
+          "covers": "/record",
+          "exclude": [],
+          "canonicalization": "python-json-v1",
+          "canonical_file": "valid/record-v2-review-cancelled.record.canonical"
+        }
+      ],
+      "note": "Schema 2 cancellation of a REVIEW decision; schema 1 has no cancellation event"
+    },
+    {
+      "path": "valid/record-v3-allow-executed.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v3.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/sha256",
+          "covers": "/record",
+          "exclude": [],
+          "canonicalization": "python-json-v1",
+          "canonical_file": "valid/record-v3-allow-executed.record.canonical"
+        },
+        {
+          "document": ".",
+          "value": "/record/policy_sha256",
+          "covers": "/record/policy",
+          "exclude": [],
+          "canonicalization": "python-json-v1",
+          "canonical_file": "valid/record-v3-allow-executed.policy.canonical"
+        }
+      ],
+      "note": "Schema 3 ALLOW decision; python-json-v1 checksum and policy_sha256"
+    },
+    {
+      "path": "valid/record-v3-review-approved-executed.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v3.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/sha256",
+          "covers": "/record",
+          "exclude": [],
+          "canonicalization": "python-json-v1",
+          "canonical_file": "valid/record-v3-review-approved-executed.record.canonical"
+        },
+        {
+          "document": ".",
+          "value": "/record/policy_sha256",
+          "covers": "/record/policy",
+          "exclude": [],
+          "canonicalization": "python-json-v1",
+          "canonical_file": "valid/record-v3-review-approved-executed.policy.canonical"
+        }
+      ],
+      "note": "Schema 3 REVIEW decision approved by a non-proposer; python-json-v1 keeps non-ASCII text unescaped"
+    },
+    {
+      "path": "valid/record-v3-whole-number-float-executed.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v3.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/sha256",
+          "covers": "/record",
+          "exclude": [],
+          "canonicalization": "python-json-v1",
+          "canonical_file": "valid/record-v3-whole-number-float-executed.record.canonical"
+        },
+        {
+          "document": ".",
+          "value": "/record/policy_sha256",
+          "covers": "/record/policy",
+          "exclude": [],
+          "canonicalization": "python-json-v1",
+          "canonical_file": "valid/record-v3-whole-number-float-executed.policy.canonical"
+        }
+      ],
+      "note": "Schema 3 with whole-number floats; python-json-v1 keeps 1.0, which RFC 8785 would write as 1"
+    },
+    {
+      "path": "valid/record-v4-allow-executed.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v4.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/sha256",
+          "covers": "/record",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v4-allow-executed.record.canonical"
+        },
+        {
+          "document": ".",
+          "value": "/record/policy_sha256",
+          "covers": "/record/policy",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v4-allow-executed.policy.canonical"
+        }
+      ],
+      "note": "Schema 4 ALLOW decision executed without review; checksum and policy_sha256 are RFC 8785 digests"
+    },
+    {
+      "path": "valid/record-v4-deny-denied.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v4.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/sha256",
+          "covers": "/record",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v4-deny-denied.record.canonical"
+        },
+        {
+          "document": ".",
+          "value": "/record/policy_sha256",
+          "covers": "/record/policy",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v4-deny-denied.policy.canonical"
+        }
+      ],
+      "note": "Schema 4 DENY decision for a destination outside the frozen policy"
+    },
+    {
+      "path": "valid/record-v4-review-approved-executed.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v4.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/sha256",
+          "covers": "/record",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v4-review-approved-executed.record.canonical"
+        },
+        {
+          "document": ".",
+          "value": "/record/policy_sha256",
+          "covers": "/record/policy",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v4-review-approved-executed.policy.canonical"
+        }
+      ],
+      "note": "Schema 4 REVIEW decision approved by a reviewer other than the proposer; review note has a newline, a BMP symbol and a non-BMP character"
+    },
+    {
+      "path": "valid/record-v4-review-cancelled.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v4.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/sha256",
+          "covers": "/record",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v4-review-cancelled.record.canonical"
+        },
+        {
+          "document": ".",
+          "value": "/record/policy_sha256",
+          "covers": "/record/policy",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v4-review-cancelled.policy.canonical"
+        }
+      ],
+      "note": "Schema 4 REVIEW decision cancelled by an authorized reviewer who is not the proposer"
+    },
+    {
+      "path": "valid/record-v4-review-pending.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v4.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/sha256",
+          "covers": "/record",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v4-review-pending.record.canonical"
+        },
+        {
+          "document": ".",
+          "value": "/record/policy_sha256",
+          "covers": "/record/policy",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v4-review-pending.policy.canonical"
+        }
+      ],
+      "note": "Schema 4 REVIEW decision still pending, no review and no result"
+    },
+    {
+      "path": "valid/record-v4-whole-number-float-executed.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v4.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/sha256",
+          "covers": "/record",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v4-whole-number-float-executed.record.canonical"
+        },
+        {
+          "document": ".",
+          "value": "/record/policy_sha256",
+          "covers": "/record/policy",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v4-whole-number-float-executed.policy.canonical"
+        }
+      ],
+      "note": "Schema 4 with whole-number floats (1.0) canonicalized as 1 by RFC 8785, non-ASCII policy version"
+    },
+    {
+      "path": "tampered/evaluation-v1-label-flip-recomputed.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay-evaluation",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/evaluation.v1.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Flip a frozen case safety label and recompute the python-json-v1 checksum; recomputed metrics disagree"
+    },
+    {
+      "path": "tampered/evaluation-v1-metric-edit-stale-checksum.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay-evaluation",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/evaluation.v1.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Zero the unsafe auto-allow rate after writing; the original checksum is left in place"
+    },
+    {
+      "path": "tampered/evaluation-v1-rfc8785-checksum.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay-evaluation",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/evaluation.v1.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Checksum computed with RFC 8785 on a schema 1 report; schema 1 is digested as python-json-v1, so replay reports a mismatch"
+    },
+    {
+      "path": "tampered/evaluation-v2-disposition-edit-recomputed.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay-evaluation",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/evaluation.v2.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Change disposition FAIL to PASS and recompute the checksum; replay recomputes the gates"
+    },
+    {
+      "path": "tampered/evaluation-v2-label-flip-recomputed.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay-evaluation",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/evaluation.v2.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Flip a frozen case safety label to hide an unsafe automatic allow and recompute the checksum; recomputed metrics disagree"
+    },
+    {
+      "path": "tampered/evaluation-v2-metric-edit-recomputed.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay-evaluation",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/evaluation.v2.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Zero the unsafe auto-allow rate and recompute the RFC 8785 checksum; replay recomputes the metrics from the frozen cases"
+    },
+    {
+      "path": "tampered/evaluation-v2-metric-edit-stale-checksum.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay-evaluation",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/evaluation.v2.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Zero the unsafe auto-allow rate after writing; the original checksum is left in place"
+    },
+    {
+      "path": "tampered/evaluation-v2-python-json-checksum.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay-evaluation",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/evaluation.v2.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Checksum computed with python-json-v1 on a schema 2 report; it differs from the RFC 8785 digest because 0.0 is written as 0"
+    },
+    {
+      "path": "tampered/record-v1-self-label-edit-recomputed.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v1.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Set review.reviewer to a name outside the frozen policy reviewers and recompute the checksum"
+    },
+    {
+      "path": "tampered/record-v1-status-edit-stale-checksum.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v1.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Change status from EXECUTED to READY after exporting; the original checksum is left in place"
+    },
+    {
+      "path": "tampered/record-v2-status-edit-stale-checksum.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v2.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Change status from CANCELLED to READY after exporting; the original checksum is left in place"
+    },
+    {
+      "path": "tampered/record-v2-unauthorized-reviewer-recomputed.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v2.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Set review.reviewer to a name outside the frozen policy reviewers and recompute the checksum"
+    },
+    {
+      "path": "tampered/record-v3-frozen-policy-edit-recomputed.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v3.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Raise policy.min_probability and recompute the checksum but not policy_sha256; replay detects the frozen policy digest mismatch"
+    },
+    {
+      "path": "tampered/record-v3-review-note-edit-stale-checksum.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v3.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Edit review.note after exporting; the original checksum is left in place"
+    },
+    {
+      "path": "tampered/record-v3-rfc8785-checksum.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v3.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Checksum computed with RFC 8785 on a schema 3 record; schema 3 is digested as python-json-v1, so replay reports a mismatch"
+    },
+    {
+      "path": "tampered/record-v3-self-approval-recomputed.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v3.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Set review.reviewer to the proposer and recompute the python-json-v1 checksum; schema 3 replay rejects proposer self-approval"
+    },
+    {
+      "path": "tampered/record-v4-approval-erased-recomputed.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v4.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Erase the review object and the APPROVED event and recompute the checksum; the decision can no longer reach EXECUTED without approval"
+    },
+    {
+      "path": "tampered/record-v4-execution-without-approval-recomputed.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v4.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Append an EXECUTED event and result to a pending REVIEW decision and recompute the checksum; the transition is prohibited"
+    },
+    {
+      "path": "tampered/record-v4-forged-execution-result-recomputed.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v4.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Change result.revision and recompute the checksum; the execution result no longer matches the approved action"
+    },
+    {
+      "path": "tampered/record-v4-frozen-policy-and-digest-recomputed.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v4.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Raise policy.min_probability, recompute policy_sha256 and the checksum; replay recomputes the verdict from the edited policy and finds ABSTAIN, not ALLOW"
+    },
+    {
+      "path": "tampered/record-v4-frozen-policy-edit-recomputed.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v4.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Raise policy.min_probability and recompute the checksum but not policy_sha256; replay detects the frozen policy digest mismatch"
+    },
+    {
+      "path": "tampered/record-v4-python-json-checksum.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v4.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Checksum computed with python-json-v1 on a schema 4 record; it differs from the RFC 8785 digest because 1.0 is written as 1"
+    },
+    {
+      "path": "tampered/record-v4-review-note-edit-stale-checksum.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v4.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Edit review.note after exporting; the original checksum is left in place"
+    },
+    {
+      "path": "tampered/record-v4-self-approval-recomputed.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v4.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Set review.reviewer to the proposer and recompute the RFC 8785 checksum; replay rejects proposer self-approval"
+    },
+    {
+      "path": "tampered/record-v4-self-cancellation-recomputed.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v4.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Set the cancelling reviewer to the proposer and recompute the checksum; replay rejects proposer self-cancellation of a REVIEW decision"
+    },
+    {
+      "path": "tampered/record-v4-unauthorized-reviewer-recomputed.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v4.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Set review.reviewer to a name outside the frozen policy reviewers and recompute the checksum"
+    },
+    {
+      "path": "invalid/evaluation-v2-duplicate-keys.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay-evaluation",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "Valid schema 2 document with the kind member repeated; schema 2 readers reject duplicate keys"
+    },
+    {
+      "path": "invalid/evaluation-v2-integer-outside-safe-range.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay-evaluation",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "First case ticket.revision replaced by 9007199254740993, an integer beyond 2^53-1 that RFC 8785 cannot represent exactly",
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/evaluation.v2.json",
+          "schema_valid": false
+        }
+      ]
+    },
+    {
+      "path": "invalid/evaluation-v2-lone-surrogate.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay-evaluation",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "First case ticket.department replaced by the unpaired surrogate \\ud800, which has no UTF-8 encoding",
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/evaluation.v2.json",
+          "schema_valid": false
+        }
+      ]
+    },
+    {
+      "path": "invalid/evaluation-v2-missing-checksum.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay-evaluation",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "Envelope without the sha256 member",
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/evaluation.v2.json",
+          "schema_valid": false
+        }
+      ]
+    },
+    {
+      "path": "invalid/evaluation-v2-no-cases.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay-evaluation",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "Report with no case results and the checksum recomputed; an evaluation requires at least one labeled case",
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/evaluation.v2.json",
+          "schema_valid": false
+        }
+      ]
+    },
+    {
+      "path": "invalid/evaluation-v2-non-finite-number.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay-evaluation",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "confidence_level replaced by the non-JSON literal NaN"
+    },
+    {
+      "path": "invalid/evaluation-v2-not-json.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay-evaluation",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "Valid schema 2 document truncated in the middle"
+    },
+    {
+      "path": "invalid/evaluation-v2-unknown-field.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay-evaluation",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "Unknown report member added and the checksum recomputed; readers reject unknown fields",
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/evaluation.v2.json",
+          "schema_valid": false
+        }
+      ]
+    },
+    {
+      "path": "invalid/evaluation-v2-unsupported-schema-version.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay-evaluation",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "schema_version set to 3 and the checksum recomputed; unknown schemas are rejected",
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/evaluation.v2.json",
+          "schema_valid": false
+        }
+      ]
+    },
+    {
+      "path": "invalid/record-v3-missing-producer.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "Schema 3 record without produced_by and the checksum recomputed",
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v3.json",
+          "schema_valid": false
+        }
+      ]
+    },
+    {
+      "path": "invalid/record-v4-duplicate-keys.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "Valid schema 4 document with a second status member inside record; schema 4 readers reject duplicate keys"
+    },
+    {
+      "path": "invalid/record-v4-integer-outside-safe-range.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "result.revision replaced by 9007199254740993, an integer beyond 2^53-1 that RFC 8785 cannot represent exactly",
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v4.json",
+          "schema_valid": false
+        }
+      ]
+    },
+    {
+      "path": "invalid/record-v4-lone-surrogate.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "ticket.department replaced by the unpaired surrogate \\ud800, which has no UTF-8 encoding",
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v4.json",
+          "schema_valid": false
+        }
+      ]
+    },
+    {
+      "path": "invalid/record-v4-missing-checksum.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "Envelope without the sha256 member",
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v4.json",
+          "schema_valid": false
+        }
+      ]
+    },
+    {
+      "path": "invalid/record-v4-non-finite-number.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "probability replaced by the non-JSON literal NaN; schema 4 canonicalization rejects non-finite numbers"
+    },
+    {
+      "path": "invalid/record-v4-not-json.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "Valid schema 4 document truncated in the middle"
+    },
+    {
+      "path": "invalid/record-v4-schema-version-string.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "schema_version written as the string \"4\" and the checksum recomputed",
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v4.json",
+          "schema_valid": false
+        }
+      ]
+    },
+    {
+      "path": "invalid/record-v4-unknown-field.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "Unknown record member added and the checksum recomputed; readers reject unknown fields",
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v4.json",
+          "schema_valid": false
+        }
+      ]
+    },
+    {
+      "path": "invalid/record-v4-unsupported-schema-version.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "schema_version set to 5 and the checksum recomputed; unknown schemas are rejected, not reinterpreted",
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v4.json",
+          "schema_valid": false
+        }
+      ]
+    },
+    {
+      "path": "invalid/record-v4-uppercase-checksum.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "Checksum written in uppercase hexadecimal; digests are lowercase",
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v4.json",
+          "schema_valid": false
+        }
+      ]
+    }
+  ]
+}

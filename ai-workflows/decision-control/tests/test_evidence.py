@@ -1,6 +1,5 @@
 from contextlib import closing
 from copy import deepcopy
-import hashlib
 import json
 from pathlib import Path
 import sqlite3
@@ -8,6 +7,7 @@ import tempfile
 import unittest
 
 from decisioncontrol import DecisionError, Recommendation, RoutingPolicy, TicketStore, export_record, replay
+from dc_support import rehash_record
 
 
 class EvidenceTests(unittest.TestCase):
@@ -23,10 +23,7 @@ class EvidenceTests(unittest.TestCase):
         return Recommendation("reassign_ticket", "t1", destination, probability, "recorded/v1", "route/v1")
 
     def rehash(self, envelope):
-        blob = json.dumps(envelope["record"], sort_keys=True, separators=(",", ":"),
-                          ensure_ascii=False, allow_nan=False).encode()
-        envelope["sha256"] = hashlib.sha256(blob).hexdigest()
-        return envelope
+        return rehash_record(envelope)
 
     def test_completed_replay_reproduces_verdict_without_reexecuting(self):
         submitted = self.store.submit(self.proposal(), self.policy, proposed_by="proposer")

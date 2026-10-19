@@ -6,8 +6,8 @@ import sys
 from pathlib import Path
 
 from ._outputs import staged_output
-from .evidence import RecordMismatch, export_record, replay
-from .evaluation import evaluate_cases, load_cases, replay_evaluation, write_evaluation
+from .evidence import RecordMismatch, export_record, parse_record, replay
+from .evaluation import evaluate_cases, load_cases, parse_envelope, replay_evaluation, write_evaluation
 from .models import DecisionError, Recommendation, RoutingPolicy, StateError
 from .store import TicketStore
 
@@ -15,6 +15,10 @@ from .store import TicketStore
 def _json_file(path):
     with Path(path).open(encoding="utf-8") as stream:
         return json.load(stream)
+
+
+def _text_file(path):
+    return Path(path).read_text(encoding="utf-8")
 
 
 def _parser():
@@ -52,7 +56,7 @@ def _parser():
 
 def _run(args):
     if args.command == "replay":
-        return replay(_json_file(args.record))
+        return replay(parse_record(_text_file(args.record)))
     if args.command == "demo":
         from .demo import run_demo
         return run_demo(args.out)
@@ -61,7 +65,7 @@ def _run(args):
         report = evaluate_cases(load_cases(args.cases), RoutingPolicy.from_dict(_json_file(args.policy)), requirements)
         return write_evaluation(report, args.out)
     if args.command == "replay-evaluation":
-        return replay_evaluation(_json_file(args.record))
+        return replay_evaluation(parse_envelope(_text_file(args.record)))
     if not args.db:
         raise DecisionError("--db is required for storage commands")
     with TicketStore(args.db) as store:

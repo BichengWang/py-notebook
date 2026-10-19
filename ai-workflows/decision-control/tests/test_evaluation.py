@@ -1,6 +1,6 @@
 from copy import deepcopy
-from dataclasses import replace
 import hashlib
+from dataclasses import replace
 import json
 from pathlib import Path
 import tempfile
@@ -8,6 +8,10 @@ import unittest
 
 from decisioncontrol import (DecisionError, EvaluationCase, Recommendation, RoutingPolicy, Ticket,
                              evaluate_cases, load_cases, replay_evaluation, write_evaluation)
+from decisioncontrol.evaluation import parse_envelope
+from decisioncontrol.evidence import RecordMismatch
+from decisioncontrol.jcs import canonicalize
+from dc_support import python_json_v1, rehash_report
 
 
 class PolicyEvaluationTests(unittest.TestCase):
@@ -22,9 +26,7 @@ class PolicyEvaluationTests(unittest.TestCase):
                               safe, required, correct or destination, outcome)
 
     def envelope(self, report):
-        return {"report": report, "sha256": hashlib.sha256(json.dumps(
-            report, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
-            allow_nan=False).encode()).hexdigest()}
+        return rehash_report({"report": report, "sha256": ""})
 
     def test_metrics_use_their_own_exposure_denominators(self):
         cases = [
@@ -179,11 +181,120 @@ class PolicyEvaluationTests(unittest.TestCase):
         with self.assertRaises(DecisionError):
             replay_evaluation(self.envelope(changed))
 
+    def test_schema_two_digest_is_rfc8785_and_schema_one_keeps_python_json(self):
+        cases = [self.case("one"), self.case("two", "engineering", outcome="APPROVED")]
+        current = evaluate_cases(cases, self.policy)
+        legacy = evaluate_cases(cases, self.policy, schema_version=1)
+        self.assertEqual((current["schema_version"], legacy["schema_version"]), (2, 1))
+        self.assertEqual({**current, "schema_version": 1}, legacy)
+        self.assertNotEqual(canonicalize(current), python_json_v1(current))
+        for report, form in ((current, canonicalize), (legacy, python_json_v1)):
+            envelope = {"report": report, "sha256": hashlib.sha256(form(report)).hexdigest()}
+            self.assertEqual(replay_evaluation(envelope)["cases"], 2)
+            with tempfile.TemporaryDirectory() as tmp:
+                self.assertEqual(write_evaluation(report, Path(tmp) / "out")["sha256"], envelope["sha256"])
+        wrong = {"report": current, "sha256": hashlib.sha256(python_json_v1(current)).hexdigest()}
+        with self.assertRaises(RecordMismatch):
+            replay_evaluation(wrong)
+        wrong = {"report": legacy, "sha256": hashlib.sha256(canonicalize(legacy)).hexdigest()}
+        with self.assertRaises(RecordMismatch):
+            replay_evaluation(wrong)
+
+    def test_unsupported_schema_is_rejected_for_producer_and_replay(self):
+        with self.assertRaises(DecisionError):
+            evaluate_cases([self.case("one")], self.policy, schema_version=3)
+        report = evaluate_cases([self.case("one")], self.policy)
+        report["schema_version"] = 3
+        with self.assertRaises(DecisionError) as raised:
+            replay_evaluation(self.envelope(report))
+        self.assertNotIsInstance(raised.exception, RecordMismatch)
+
+    def test_schema_two_parse_rejects_duplicate_keys_but_schema_one_does_not(self):
+        for schema, rejected in ((2, True), (1, False)):
+            report = evaluate_cases([self.case("one")], self.policy, schema_version=schema)
+            text = json.dumps(self.envelope(report))
+            duplicate = text.replace('"kind": "policy_evaluation"', '"kind": "x", "kind": "policy_evaluation"', 1)
+            self.assertNotEqual(text, duplicate)
+            if rejected:
+                with self.assertRaisesRegex(DecisionError, "duplicate"):
+                    parse_envelope(duplicate)
+            else:
+                self.assertEqual(replay_evaluation(parse_envelope(duplicate))["cases"], 1)
+
     def test_future_evaluation_schema_is_not_silently_reinterpreted(self):
         report = evaluate_cases([self.case("one")], self.policy)
-        report["schema_version"] = 2
+        report["schema_version"] = 3
         with self.assertRaises(DecisionError):
             replay_evaluation(self.envelope(report))
+
+
+class FloatingPointPortabilityGuard(unittest.TestCase):
+    """Replay compares recomputed metrics exactly; that is only portable without libm functions.
+
+    Wilson bounds use integer counts, + - * / (correctly rounded IEEE 754) and math.sqrt
+    (correctly rounded); ``denominator ** 2`` is exact integer arithmetic (denominator is a
+    count). log, exp, erf, pow on floats or an inverse CDF come from the platform libm and may
+    differ in the last digits. The guard resolves ``import math as m`` and ``from math import``,
+    and allows ``**`` only as ``denominator ** 2``; it cannot prove types, so a float
+    ``denominator`` would not be caught.
+    """
+    BANNED_MODULES = {"statistics", "numpy", "scipy", "cmath", "random", "decimal", "fractions"}
+    ALLOWED_MATH = {"sqrt"}
+
+    def tree(self):
+        import ast
+        source = Path(__file__).resolve().parents[1] / "decisioncontrol" / "evaluation.py"
+        return ast.parse(source.read_text(encoding="utf-8"))
+
+    def test_evaluation_module_only_uses_correctly_rounded_math(self):
+        import ast
+        tree = self.tree()
+        aliases, imported = set(), set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    root = alias.name.split(".")[0]
+                    self.assertNotIn(root, self.BANNED_MODULES)
+                    self.assertNotEqual(root, "importlib")
+                    if root == "math":
+                        aliases.add(alias.asname or "math")
+            elif isinstance(node, ast.ImportFrom):
+                root = (node.module or "").split(".")[0]
+                self.assertNotIn(root, self.BANNED_MODULES)
+                self.assertNotEqual(root, "importlib")
+                if root == "math":
+                    imported.update(alias.name for alias in node.names)
+                    self.assertTrue(all(alias.name in self.ALLOWED_MATH for alias in node.names),
+                                    "only math.sqrt may be imported by name")
+        self.assertTrue(aliases, "expected the math module to be imported")
+        used = set(imported)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.value.id in aliases:
+                used.add(node.attr)
+            if isinstance(node, ast.Name) and node.id in aliases:
+                # Any use of the module object other than attribute access (e.g. getattr(m, ...)) is rejected.
+                parents = [p for p in ast.walk(tree) if any(child is node for child in ast.iter_child_nodes(p))]
+                self.assertTrue(all(isinstance(p, (ast.Attribute, ast.Import)) for p in parents),
+                                "math may only be used through attribute access")
+        self.assertIn("sqrt", used, "expected math.sqrt in the Wilson interval")
+        self.assertLessEqual(used, self.ALLOWED_MATH, "evaluation replay must stay bit-portable")
+
+    def test_evaluation_module_has_no_float_power_or_dynamic_calls(self):
+        import ast
+        for node in ast.walk(self.tree()):
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+                self.assertNotIn(node.func.id, {"pow", "getattr", "eval", "exec", "__import__"})
+            powers = []
+            if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Pow):
+                powers.append((node.left, node.right))
+            if isinstance(node, ast.AugAssign) and isinstance(node.op, ast.Pow):
+                powers.append((node.target, node.value))
+            for left, right in powers:
+                # The one exact case is the integer count squared (int ** 2 is integer arithmetic).
+                self.assertTrue(isinstance(left, ast.Name) and left.id == "denominator"
+                                and isinstance(right, ast.Constant) and right.value == 2
+                                and type(right.value) is int,
+                                f"line {node.lineno}: ** is only allowed as `denominator ** 2` on an integer count")
 
 
 if __name__ == "__main__":
