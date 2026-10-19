@@ -155,7 +155,7 @@ jobs:
           cosign-release: v3.1.3
       - name: Produce a fresh answer record and an evaluation directory
         run: |
-          python scripts/example-answer.py "$RUNNER_TEMP/answer.json"
+          PYTHONPATH=. python scripts/example-answer.py "$RUNNER_TEMP/answer.json"
           python -m jevdecision.evaluation --questions examples/support-ticket.json \
             --cases examples/support-ticket-cases.jsonl \
             --responses examples/support-ticket-responses.jsonl \

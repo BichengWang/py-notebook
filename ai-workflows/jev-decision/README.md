@@ -286,7 +286,12 @@ jev-decision-verify answer.json --require-signature --sigstore-bundle answer.jso
 ```
 
 Verification shells out to `cosign verify-blob-attestation`; the package never signs with Sigstore and has no
-dependency on it. CI exercises this keylessly in a `sigstore` job (skipped for fork and Dependabot pull
+dependency on it. Each signed
+file is read once: the signature (HMAC or Sigstore), parsing and every later check use those bytes, and `cosign`
+is given private 0600 copies of the file and bundle in a temporary directory rather than the original paths, so
+swapping a file while it is being verified cannot make one file's signature vouch for another's content. The
+certificate identity includes the signing ref (`https://github.com/OWNER/REPO/.github/workflows/WORKFLOW.yml@refs/heads/main`),
+so verifying a record signed on another ref or workflow needs that exact identity. CI exercises this keylessly in a `sigstore` job (skipped for fork and Dependabot pull
 requests, which get no OIDC token).
 
 **Key handling.** Generate with `--generate-key` (mode 0600, no overwrite); keep keys outside the

@@ -492,8 +492,108 @@ class EvaluationSigningTests(Workspace):
         self.assertEqual([p.name for p in self.root.iterdir() if p.name.startswith(".never-")], [])
 
 
+class ReadOnceTests(Workspace):
+    """Each signed file is read once; the signature, parsing and every later check use those bytes."""
+
+    def swap_after_first_read(self, path, replacement):
+        """Patch Path.read_bytes so that `path` is replaced on disk right after it is first read."""
+        original = Path.read_bytes
+        reads = {}
+
+        def read_bytes(candidate):
+            data = original(candidate)
+            reads[str(candidate)] = reads.get(str(candidate), 0) + 1
+            if candidate == path and reads[str(candidate)] == 1:
+                path.write_bytes(replacement)
+            return data
+
+        patch = unittest.mock.patch.object(Path, "read_bytes", read_bytes)
+        patch.start()
+        self.addCleanup(patch.stop)
+        return reads
+
+    def tampered_signed_answer(self):
+        """A signed answer whose content fails normal verification, and a pristine record to swap in."""
+        pristine = dumps_record(make_record()) + "\n"
+        record = make_record()
+        record["answers"]["refund"]["probability"] = 0.99  # edited, digest left
+        out = self.root / "answer.json"
+        out.write_text(dumps_record(record) + "\n")
+        envelope = attestation.sign_bytes(out.read_bytes(), out.name, "answer", 2, self.key)
+        Path(str(out) + ".dsse.json").write_text(attestation.render_envelope(envelope))
+        return out, pristine.encode()
+
+    def test_hmac_answer_is_verified_from_the_bytes_that_were_signed_even_if_the_file_is_swapped(self):
+        out, pristine = self.tampered_signed_answer()
+        reads = self.swap_after_first_read(out, pristine)
+        code, stdout, _ = self.verify(out, "--require-signature", "--key", self.key_file)
+        self.assertEqual(code, 1)  # the signed bytes are the tampered ones
+        self.assertIn("mismatch", stdout)
+        self.assertEqual(reads[str(out)], 1)
+
+    def test_sigstore_answer_is_verified_from_the_bytes_cosign_saw_even_if_the_file_is_swapped(self):
+        out, pristine = self.tampered_signed_answer()
+        bin_dir = self.root / "bin"
+        bin_dir.mkdir()
+        cosign = bin_dir / "cosign"
+        cosign.write_text(FAKE_COSIGN + 'cp "$last" "$COSIGN_SEEN"\n')
+        cosign.chmod(0o755)
+        bundle = self.root / "bundle.sigstore.json"
+        bundle.write_text("{}")
+        env = {"PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}", "COSIGN_ARGS": str(self.root / "args"),
+               "COSIGN_BLOB": str(self.root / "blob"), "COSIGN_MODE": str(self.root / "mode"),
+               "COSIGN_BUNDLE": str(self.root / "bundle-copy"), "COSIGN_SEEN": str(self.root / "seen")}
+        signed = out.read_bytes()
+        reads = self.swap_after_first_read(out, pristine)
+        with unittest.mock.patch.dict(os.environ, env):
+            code, stdout, _ = self.verify(out, "--require-signature", "--sigstore-bundle", bundle,
+                                          "--certificate-identity", "i", "--certificate-oidc-issuer", "u")
+        self.assertEqual(code, 1)
+        self.assertIn("mismatch", stdout)
+        self.assertEqual((self.root / "seen").read_bytes(), signed)  # cosign checked the bytes that were parsed
+        self.assertEqual(reads[str(out)], 1)
+
+    def test_evaluation_directory_files_are_read_once_and_rescored_from_the_hashed_bytes(self):
+        directory = self.root / "run"
+        run(eval_main, "--questions", QUESTIONS_FILE, "--cases", CASES_FILE, "--responses", RESPONSES_FILE,
+            "--require", REQUIRE_FILE, "--out", directory, "--sign-key", self.key_file)
+        responses = directory / "responses.jsonl"
+        genuine = responses.read_bytes()
+        responses.write_text(genuine.decode().replace("0.08", "0.8", 1))
+        provenance = json.loads((directory / "provenance.json").read_text())
+        provenance["outputs"]["responses.jsonl"]["sha256"] = hashlib.sha256(responses.read_bytes()).hexdigest()
+        (directory / "provenance.json").write_text(
+            json.dumps(provenance, sort_keys=True, separators=(",", ":")))
+        envelope = attestation.sign_bytes((directory / "provenance.json").read_bytes(), "provenance.json",
+                                          "provenance", 2, self.key)
+        (directory / "provenance.json.dsse.json").write_text(attestation.render_envelope(envelope))
+        reads = self.swap_after_first_read(responses, genuine)
+        code, stdout, _ = self.verify("--evaluation", directory, "--require-signature", "--key", self.key_file)
+        self.assertEqual(code, 1)  # hashed and re-scored as signed, not as swapped in afterwards
+        self.assertIn("mismatch", stdout)
+        for name in ("provenance.json", "responses.jsonl", "cases.jsonl", "evaluation.json", "EVALUATION.md",
+                     "questions.json", "requirements.json"):
+            self.assertEqual(reads.get(str(directory / name)), 1, name)
+
+    def test_provenance_is_read_once_for_the_signature_and_the_checks(self):
+        directory = self.root / "run"
+        run(eval_main, "--questions", QUESTIONS_FILE, "--cases", CASES_FILE, "--responses", RESPONSES_FILE,
+            "--out", directory, "--sign-key", self.key_file)
+        provenance = directory / "provenance.json"
+        reads = self.swap_after_first_read(provenance, b"{}")
+        code, stdout, _ = self.verify("--evaluation", directory, "--require-signature", "--key", self.key_file)
+        self.assertEqual((code, stdout), (0, f"{directory}: verified\n"))
+        self.assertEqual(reads[str(provenance)], 1)
+
+
 FAKE_COSIGN = """#!/bin/sh
 printf '%s\\n' "$@" > "$COSIGN_ARGS"
+for last; do :; done
+cp "$last" "$COSIGN_BLOB"
+[ -n "$(find "$last" -perm 0600 -print)" ] && echo 600 > "$COSIGN_MODE"
+bundle=""; while [ $# -gt 0 ]; do [ "$1" = --bundle ] && bundle="$2"; shift; done
+cp "$bundle" "$COSIGN_BUNDLE"
+[ -z "$COSIGN_HOOK" ] || sh -c "$COSIGN_HOOK"
 [ "${COSIGN_EXIT:-0}" = 0 ] || { echo "no matching attestations" >&2; exit "$COSIGN_EXIT"; }
 """
 
@@ -511,7 +611,9 @@ class SigstoreTests(Workspace):
         cosign.chmod(0o755)
         self.args_file = self.root / "cosign-args"
         patch = unittest.mock.patch.dict(os.environ, {
-            "PATH": f"{self.bin}{os.pathsep}{os.environ['PATH']}", "COSIGN_ARGS": str(self.args_file)})
+            "PATH": f"{self.bin}{os.pathsep}{os.environ['PATH']}", "COSIGN_ARGS": str(self.args_file),
+            "COSIGN_BLOB": str(self.root / "cosign-blob"), "COSIGN_MODE": str(self.root / "cosign-mode"),
+            "COSIGN_BUNDLE": str(self.root / "cosign-bundle")})
         patch.start()
         self.addCleanup(patch.stop)
         self.bundle = self.root / "bundle.sigstore.json"
@@ -527,10 +629,16 @@ class SigstoreTests(Workspace):
         args = self.args_file.read_text().split("\n")
         self.assertEqual(args[0], "verify-blob-attestation")
         self.assertEqual(args[args.index("--type") + 1], PREDICATE_BASE + "answer/v2")
-        self.assertEqual(args[args.index("--bundle") + 1], str(self.bundle))
+        # cosign gets private copies of the bytes that were read, not the original paths.
+        self.assertNotEqual(args[args.index("--bundle") + 1], str(self.bundle))
+        self.assertEqual((self.root / "cosign-bundle").read_bytes(), self.bundle.read_bytes())
         self.assertEqual(args[args.index("--certificate-identity") + 1], self.identity_args[1])
         self.assertEqual(args[args.index("--certificate-oidc-issuer") + 1], self.identity_args[3])
-        self.assertEqual(args[-2], str(out))
+        self.assertNotEqual(args[-2], str(out))
+        self.assertEqual(Path(args[-2]).name, out.name)
+        self.assertEqual((self.root / "cosign-blob").read_bytes(), out.read_bytes())
+        self.assertEqual((self.root / "cosign-mode").read_text().strip(), "600")
+        self.assertFalse(Path(args[-2]).exists())  # the private copy is removed afterwards
 
     def test_evaluation_bundle_verifies_provenance_json(self):
         directory = self.root / "run"
@@ -541,7 +649,9 @@ class SigstoreTests(Workspace):
         self.assertEqual(code, 0)
         args = self.args_file.read_text().split("\n")
         self.assertEqual(args[args.index("--type") + 1], PREDICATE_BASE + "provenance/v2")
-        self.assertEqual(args[-2], str(directory / "provenance.json"))
+        self.assertEqual(Path(args[-2]).name, "provenance.json")
+        self.assertNotEqual(args[-2], str(directory / "provenance.json"))
+        self.assertEqual((self.root / "cosign-blob").read_bytes(), (directory / "provenance.json").read_bytes())
 
     def test_rejection_missing_bundle_and_absent_cosign(self):
         out = self.root / "answer.json"
