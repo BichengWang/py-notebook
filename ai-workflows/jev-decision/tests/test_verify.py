@@ -359,6 +359,32 @@ class EvaluationDirectoryTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("evaluation.json:requirements", out)
 
+    def test_derived_floats_compare_with_relative_tolerance_everything_else_exactly(self):
+        def with_report(edit):
+            directory = self.copy(f"tol-{len(list(self.root.iterdir()))}")
+            path = directory / "evaluation.json"
+            report = json.loads(path.read_text())
+            edit(report)
+            path.write_text(json.dumps(report, sort_keys=True, separators=(",", ":"), ensure_ascii=False))
+            write_provenance(directory)
+            return self.verify(directory)
+
+        def nudge(factor):
+            def edit(report):
+                metrics = report["questions"]["refund"]
+                metrics["brier"] *= factor
+                metrics["accuracy_lower"] *= factor
+            return edit
+
+        self.assertEqual(with_report(nudge(1 + 1e-11))[0], 0)
+        self.assertEqual(with_report(nudge(1 - 1e-11))[0], 0)
+        self.assertEqual(with_report(nudge(1 + 1e-6))[0], 1)
+        self.assertEqual(with_report(lambda r: r["requirements"][0].update(value=5e-13))[0], 0)  # expected exactly 0
+        self.assertEqual(with_report(lambda r: r["requirements"][0].update(value=1e-6))[0], 1)
+        self.assertEqual(with_report(lambda r: r["requirements"][1].update(limit=r["requirements"][1]["limit"] * (1 + 1e-11)))[0], 1)
+        self.assertEqual(with_report(lambda r: r["questions"]["refund"].update(n=r["questions"]["refund"]["n"] + 1))[0], 1)
+        self.assertEqual(with_report(lambda r: r["questions"]["refund"].update(refusals=0.0))[0], 1)
+
     def test_response_mode_must_match_report_source(self):
         directory = self.copy()
         write_provenance(directory, lambda p: p.update(response_mode="live"))

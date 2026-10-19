@@ -208,6 +208,16 @@ same parser the SDK uses), compares the typed answers and refusals, the response
    equal `cases.jsonl`. Nothing is sent to a provider;
 3. the `questions.json` and `requirements.json` copies must match the input hashes in `provenance.json`.
 
+Metrics use `math.log` and `NormalDist.inv_cdf`, whose last digits can differ between platform math
+libraries, so the re-scored metric floats (including each requirement's `value`) match `evaluation.json`
+within a relative 1e-9 (absolute 1e-12 where the recomputed value is exactly 0). Everything else is exact:
+requirement bounds, counts, strings, booleans, statuses, the rows of `cases.jsonl`, and every file hash.
+Answer record verification is exact: the only arithmetic on recorded floats is addition,
+multiplication and division, which are bit-portable. The committed conformance vectors are generated on one
+platform and verified on others in CI. `jev-decision-eval` itself is unchanged: it writes whatever the
+local math library computes, and its byte-for-byte reproducibility claim holds for the Python versions
+named under Limitations, not across platforms.
+
 Runs from 0.1.0 did not retain `questions.json` and `requirements.json`; pass the original files with
 `--questions FILE` and `--requirements FILE` (their hashes must match `provenance.json`). A failed
 live request has no response to re-derive its error message from, so that message is taken from

@@ -10,8 +10,10 @@ response id, model and usage with the recorded ones, and recomputing
 
 An evaluation directory is checked by hashing every retained file listed in
 `provenance.json` and then re-scoring the retained `responses.jsonl` against the
-retained `questions.json` and the labels and bounds recorded in `cases.jsonl` and
-`evaluation.json`. Nothing is sent to a provider. Hashes detect change; they do not
+retained `questions.json`, the retained `requirements.json` and the expected answers recorded in
+`cases.jsonl`. Nothing is sent to a provider. Recomputed metric floats must agree with
+`evaluation.json` within a relative 1e-9 (math.log and NormalDist.inv_cdf differ in the last digits
+between platform math libraries); everything else compares exactly. Hashes detect change; they do not
 authenticate who wrote a record, and a record edited together with its digests
 cannot be told from the original except through the re-derived content.
 
@@ -185,9 +187,34 @@ def _cases_from_rows(rows: list[dict], questions: tuple) -> list[Case]:
     return cases
 
 
-def _same(left: Any, right: Any) -> bool:
+FLOAT_TOLERANCE = 1e-9
+FLOAT_FLOOR = 1e-12  # absolute bound, used only where the expected value is exactly 0
+
+
+def _exact(left: Any, right: Any) -> bool:
     dump = lambda value: json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)  # noqa: E731
     return dump(left) == dump(right)
+
+
+def _close(expected: Any, recorded: Any, exact_keys: frozenset = frozenset()) -> bool:
+    """Structural equality where derived floats match within a relative 1e-9.
+
+    Metrics use math.log and NormalDist.inv_cdf, whose last digits differ between platform math
+    libraries, so a recomputed float is compared with a tolerance. Strings, integers, booleans,
+    null, structure and the members named in `exact_keys` (inputs such as bounds) compare exactly.
+    """
+    if isinstance(expected, dict):
+        return (isinstance(recorded, dict) and set(expected) == set(recorded)
+                and all(_exact(expected[key], recorded[key]) if key in exact_keys
+                        else _close(expected[key], recorded[key], exact_keys) for key in expected))
+    if isinstance(expected, list):
+        return (isinstance(recorded, list) and len(expected) == len(recorded)
+                and all(_close(left, right, exact_keys) for left, right in zip(expected, recorded)))
+    if isinstance(expected, float) and type(recorded) in (int, float):
+        if expected == 0:
+            return abs(recorded) <= FLOAT_FLOOR
+        return abs(recorded - expected) <= FLOAT_TOLERANCE * abs(expected)
+    return type(expected) is type(recorded) and expected == recorded
 
 
 def _input_bytes(name: str, contents: dict[str, bytes], recorded: dict | None, supplied: Path | None,
@@ -275,8 +302,9 @@ def verify_evaluation_dir(directory: Path, questions_file: Path | None = None,
                 "jevdecision_version": report["jevdecision_version"], "backend": report["backend"],
                 "model": ", ".join(models) or report["model"], "source": report["source"],
                 **evaluate(questions, cases, answers, errors, requirements)}
-    mismatches += [f"evaluation.json:{key}" for key, value in expected.items() if not _same(value, report[key])]
-    if not _same(case_results(questions, cases, answers, errors), case_rows):
+    mismatches += [f"evaluation.json:{key}" for key, value in expected.items()
+                   if not _close(value, report[key], frozenset({"limit"}))]
+    if not _exact(case_results(questions, cases, answers, errors), case_rows):
         mismatches.append("cases.jsonl")
     if provenance["response_mode"] != report["source"]:
         mismatches.append("provenance.json:response_mode")
