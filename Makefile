@@ -90,9 +90,13 @@ bootstrap:
 	pip3 install --no-deps -r requirements.txt --no-cache-dir
 	pip3 install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu123
 
+# requirements.txt is the CI constraint file for the baseline. It is compiled for Linux and
+# Python 3.11 so it resolves the same on every machine (torchrec needs fbgemm-gpu, which has
+# no macOS wheel, so pip-compile fails on a Mac). Existing pins are kept unless a floor in
+# requirements.in forces a bump; pass `-P <pkg>` through UV_COMPILE_ARGS to upgrade one.
 .PHONY: compile
 compile:
-	pip-compile requirements.in
+	uv pip compile requirements.in -o requirements.txt --no-config --python-version 3.11 --python-platform x86_64-manylinux_2_28 $(UV_COMPILE_ARGS)
 
 .PHONY: env
 env:
