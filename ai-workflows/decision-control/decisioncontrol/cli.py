@@ -5,6 +5,7 @@ import sqlite3
 import sys
 from pathlib import Path
 
+from . import attestation, signing
 from ._outputs import staged_output
 from .evidence import RecordMismatch, export_record, parse_record, replay
 from .evaluation import evaluate_cases, load_cases, parse_envelope, replay_evaluation, write_evaluation
@@ -19,6 +20,47 @@ def _json_file(path):
 
 def _text_file(path):
     return Path(path).read_text(encoding="utf-8")
+
+
+def _verify_options(parser):
+    parser.add_argument("--record", required=True)
+    parser.add_argument("--require-signature", action="store_true",
+                        help="also require a signature over the exact record file")
+    parser.add_argument("--key", help="HMAC key file (with --require-signature)")
+    parser.add_argument("--signature", help="DSSE envelope (default: RECORD.dsse.json)")
+    parser.add_argument("--sigstore-bundle", help="Sigstore bundle verified with an external cosign")
+    parser.add_argument("--certificate-identity", help="signer identity expected in the Sigstore certificate")
+    parser.add_argument("--certificate-oidc-issuer", help="OIDC issuer expected in the Sigstore certificate")
+
+
+def _check_verify_options(args):
+    given = {"--key": args.key, "--signature": args.signature, "--sigstore-bundle": args.sigstore_bundle,
+             "--certificate-identity": args.certificate_identity,
+             "--certificate-oidc-issuer": args.certificate_oidc_issuer}
+    used = [flag for flag, value in given.items() if value is not None]
+    if not args.require_signature:
+        if used:
+            raise DecisionError(f"{', '.join(used)} need --require-signature")
+        return
+    if (args.key is None) == (args.sigstore_bundle is None):
+        raise DecisionError("--require-signature needs exactly one of --key or --sigstore-bundle")
+    if args.key is not None:
+        if args.certificate_identity is not None or args.certificate_oidc_issuer is not None:
+            raise DecisionError("--certificate-identity and --certificate-oidc-issuer go with --sigstore-bundle")
+    elif args.signature is not None:
+        raise DecisionError("--signature goes with --key")
+    elif args.certificate_identity is None or args.certificate_oidc_issuer is None:
+        raise DecisionError("--sigstore-bundle needs --certificate-identity and --certificate-oidc-issuer")
+
+
+def _verified_document(args, kind, parse):
+    """Read the file once, apply any signature requirement to its exact bytes, return the parsed document."""
+    _check_verify_options(args)
+    data = Path(args.record).read_bytes()
+    document = parse(data.decode("utf-8"))
+    if args.require_signature:
+        attestation.require_signature(Path(args.record), data, document, kind, args)
+    return document
 
 
 def _parser():
@@ -43,29 +85,52 @@ def _parser():
     export = commands.add_parser("export")
     export.add_argument("id")
     export.add_argument("--out")
-    commands.add_parser("replay").add_argument("--record", required=True)
-    commands.add_parser("demo").add_argument("--out", required=True)
+    export.add_argument("--sign-key", help="HMAC key file; writes OUT.dsse.json (needs --out)")
+    _verify_options(commands.add_parser("replay"))
+    demo = commands.add_parser("demo")
+    demo.add_argument("--out", required=True)
+    demo.add_argument("--sign-key", help="HMAC key file; signs each exported record")
+    keygen = commands.add_parser("keygen", help="write a new random HMAC signing key (mode 0600)")
+    keygen.add_argument("out", help="new key file; an existing file is never overwritten")
+    predicate = commands.add_parser("predicate", help="write the in-toto predicate for cosign attest-blob")
+    predicate.add_argument("--record", required=True)
+    predicate.add_argument("--out", required=True)
     evaluation = commands.add_parser("evaluate", help="score supplied labeled recommendations; execute nothing")
     evaluation.add_argument("--cases", required=True, help="labeled JSON Lines cases")
     evaluation.add_argument("--policy", required=True)
     evaluation.add_argument("--require", help="metric/support gates; omitted means UNGATED")
     evaluation.add_argument("--out", required=True, help="new or empty output directory")
-    commands.add_parser("replay-evaluation").add_argument("--record", required=True)
+    evaluation.add_argument("--sign-key", help="HMAC key file; writes evaluation.json.dsse.json")
+    _verify_options(commands.add_parser("replay-evaluation"))
     return parser
+
+
+def _sign_key(args):
+    return signing.load_key(args.sign_key) if args.sign_key else None
 
 
 def _run(args):
     if args.command == "replay":
-        return replay(parse_record(_text_file(args.record)))
+        return replay(_verified_document(args, "record", parse_record))
+    if args.command == "keygen":
+        return {"key_file": args.out, "key_id": signing.generate_key(Path(args.out))}
+    if args.command == "predicate":
+        kind, version = attestation.describe(parse_record(_text_file(args.record)))
+        with staged_output(args.out, directory=False) as staging:
+            with staging.open("x", encoding="utf-8") as stream:
+                json.dump(attestation.predicate(kind, version), stream, indent=2)
+                stream.write("\n")
+        return {"predicate_type": attestation.predicate_type(kind, version), "predicate_file": args.out}
     if args.command == "demo":
         from .demo import run_demo
-        return run_demo(args.out)
+        return run_demo(args.out, _sign_key(args))
     if args.command == "evaluate":
+        key = _sign_key(args)
         requirements = _json_file(args.require) if args.require else None
         report = evaluate_cases(load_cases(args.cases), RoutingPolicy.from_dict(_json_file(args.policy)), requirements)
-        return write_evaluation(report, args.out)
+        return write_evaluation(report, args.out, key)
     if args.command == "replay-evaluation":
-        return replay_evaluation(parse_envelope(_text_file(args.record)))
+        return replay_evaluation(_verified_document(args, "evaluation", parse_envelope))
     if not args.db:
         raise DecisionError("--db is required for storage commands")
     with TicketStore(args.db) as store:
@@ -85,14 +150,34 @@ def _run(args):
         if args.command == "execute":
             return store.execute(args.id)
         if args.command == "export":
+            key = _sign_key(args)
+            if key is not None and not args.out:
+                raise DecisionError("--sign-key needs --out: the signature covers the exported file bytes")
             envelope = export_record(store.get(args.id))
             if args.out:
-                with staged_output(args.out, directory=False) as staging:
-                    with staging.open("x", encoding="utf-8") as stream:
-                        json.dump(envelope, stream, indent=2, allow_nan=False)
-                        stream.write("\n")
+                _write_export(args.out, envelope, key)
             return envelope
     raise DecisionError("unknown command")
+
+
+def _write_export(out, envelope, key):
+    """Publish the record file and, when signing, its envelope; neither is left without the other."""
+    signature = attestation.envelope_path(Path(out))
+    if key is not None and (signature.exists() or signature.is_symlink()):
+        raise DecisionError("output must be a new file or a new or empty directory")
+    with staged_output(out, directory=False) as staging:
+        with staging.open("x", encoding="utf-8") as stream:
+            json.dump(envelope, stream, indent=2, allow_nan=False)
+            stream.write("\n")
+    if key is None:
+        return
+    try:
+        signed = attestation.sign_bytes(Path(out).read_bytes(), Path(out).name, envelope, key, "record")
+        with staged_output(signature, directory=False) as staging:
+            staging.write_text(attestation.render_envelope(signed), encoding="utf-8")
+    except BaseException:
+        Path(out).unlink(missing_ok=True)
+        raise
 
 
 def main(argv=None):
@@ -104,10 +189,13 @@ def main(argv=None):
     except RecordMismatch as error:
         print(f"decision-control: {error}", file=sys.stderr)
         return 1 if args.command in ("replay", "replay-evaluation") else 2
+    except signing.SignatureError as error:
+        print(f"decision-control: signature: {error}", file=sys.stderr)
+        return 1
     except StateError as error:
         print(f"decision-control: {error}", file=sys.stderr)
         return 1
-    except (DecisionError, OSError, UnicodeError, json.JSONDecodeError, sqlite3.Error) as error:
+    except (DecisionError, signing.KeyFileError, OSError, UnicodeError, json.JSONDecodeError, sqlite3.Error) as error:
         print(f"decision-control: {error}", file=sys.stderr)
         return 2
     print(json.dumps(result, indent=2, allow_nan=False))

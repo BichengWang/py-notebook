@@ -295,14 +295,23 @@ def render_evaluation(report, digest):
     return "\n".join(lines)
 
 
-def write_evaluation(report: dict, out) -> dict:
-    """Preserve a complete, replayable report in a new or empty output directory."""
+def write_evaluation(report: dict, out, sign_key: bytes | None = None) -> dict:
+    """Preserve a complete, replayable report in a new or empty output directory.
+
+    With ``sign_key`` (raw HMAC key bytes) the directory also holds ``evaluation.json.dsse.json``,
+    a DSSE envelope over the exact bytes of ``evaluation.json``.
+    """
     envelope = {"report": report, "sha256": digest(report, jcs=_report_schema(report) >= REPORT_SCHEMA)}
     replay_evaluation(envelope)
     with staged_output(out) as directory:
         with (directory / "evaluation.json").open("x", encoding="utf-8") as stream:
             json.dump(envelope, stream, indent=2, ensure_ascii=False, allow_nan=False)
             stream.write("\n")
+        if sign_key is not None:
+            from . import attestation
+            signed = attestation.sign_bytes((directory / "evaluation.json").read_bytes(), "evaluation.json",
+                                            envelope, sign_key, "evaluation")
+            (directory / "evaluation.json.dsse.json").write_text(attestation.render_envelope(signed), encoding="utf-8")
         with (directory / "EVALUATION.md").open("x", encoding="utf-8") as stream:
             stream.write(render_evaluation(report, envelope["sha256"]))
     return envelope
