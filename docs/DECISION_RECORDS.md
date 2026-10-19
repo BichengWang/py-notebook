@@ -64,9 +64,6 @@ version as package data, and a vector tree under
 `ai-workflows/<project>/conformance/`. Python verifiers and the independent Node
 checker both run over every vector (see [Conformance vectors](#conformance-vectors)).
 
-A row's files exist once that package's P-011 change has merged; until then the
-row names where they will be placed.
-
 | Record | Schema versions and canonical form | Schema files | Vectors | Verify |
 | --- | --- | --- | --- | --- |
 | experiment-gate `decision.json` | 2: `python-json-v1`; 3: `rfc8785`. Digest `input_sha256` covers `/input`. Schema 1 has no input and no schema | `ai-workflows/experiment-gate/expgate/schema/decision.v2.json`, `decision.v3.json` | `ai-workflows/experiment-gate/conformance/` | `experiment-gate-verify <vector>` |
@@ -75,7 +72,8 @@ row names where they will be placed.
 | Jev typed answer record | 1: no digest, no canonical form; 2: `rfc8785`. `record_sha256` covers the whole record without that member | `ai-workflows/jev-decision/jevdecision/schema/answer.v1.json`, `answer.v2.json` | `ai-workflows/jev-decision/conformance/` | `jev-decision-verify <vector>` |
 | Jev evaluation output directory | `evaluation.json` and `provenance.json` 2: no canonical form. `provenance.json` records the SHA-256 of exact input and output file bytes (`bytes`) | `ai-workflows/jev-decision/jevdecision/schema/evaluation.v2.json`, `provenance.v2.json` | `ai-workflows/jev-decision/conformance/` | `jev-decision-verify --evaluation <vector directory>` |
 
-All vectors, in every language: `cd scripts/conformance && npm ci && node verify.mjs`.
+All vectors, in every language: `cd scripts/conformance && npm ci && node verify.mjs`
+(3 manifests and 130 vectors at the time of writing).
 Each project's own tests run its verifier over its vectors.
 
 ## Conformance vectors
