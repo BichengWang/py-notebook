@@ -51,6 +51,18 @@ def rounded(value: float, digits: int = SIGNIFICANT_DIGITS) -> float:
     return float(f"{float(value):.{digits}g}")
 
 
+def snapped(value: float) -> float:
+    """Round, and store 0.0 for a value that is only floating-point noise (about 1e-17, and
+    different on each platform). Only the CUPED slope and variance reduction, which are exactly 0
+    when the covariate is uncorrelated with the outcome, go through here; real values are at
+    least 1e-3 in the vectors and the generator checks that."""
+    if abs(value) < 1e-12:
+        return 0.0
+    if abs(value) < 1e-3:
+        raise AssertionError(f"{value!r} is neither zero nor a value the vectors can store reliably")
+    return rounded(value)
+
+
 def agree(label: str, a: float, b: float, rel: float = 1e-10, floor: float = 1e-13) -> None:
     """Two references that disagree mean the vector is not a reference at all; refuse to write it."""
     if abs(a - b) > max(rel * max(abs(a), abs(b)), floor):
@@ -286,16 +298,19 @@ def cuped_vectors() -> list[dict]:
         yc, xc = arms["control"]
         yt, xt = arms["treatment"]
         # Regression on raw data with one slope for both arms: y ~ 1 + treated + x.
-        design = sm.add_constant(np.column_stack([np.r_[np.zeros(len(yc)), np.ones(len(yt))], np.r_[xc, xt]]))
-        fit = sm.OLS(np.r_[yc, yt], design).fit()
+        # Centered so the solve is well conditioned (the treatment and slope coefficients do not
+        # depend on the centering), which keeps platform noise out of the stored digits.
+        x_all = np.r_[xc, xt]
+        design = sm.add_constant(np.column_stack([np.r_[np.zeros(len(yc)), np.ones(len(yt))], x_all - x_all.mean()]))
+        fit = sm.OLS(np.r_[yc, yt] - np.r_[yc, yt].mean(), design).fit()
         theta, diff = float(fit.params[2]), float(fit.params[1])
         adjusted_var = [float(np.var(y - theta * x, ddof=1)) for y, x in ((yc, xc), (yt, xt))]
         se = sqrt(adjusted_var[0] / len(yc) + adjusted_var[1] / len(yt))
         raw_diff = float(yt.mean() - yc.mean())
         raw_se = sqrt(float(np.var(yc, ddof=1)) / len(yc) + float(np.var(yt, ddof=1)) / len(yt))
         expected = {"statsmodels_ols_numpy": {
-            "theta": rounded(theta), "diff": rounded(diff), "se": rounded(se), "raw_diff": rounded(raw_diff),
-            "raw_se": rounded(raw_se), "variance_reduction": rounded(1 - se ** 2 / raw_se ** 2)}}
+            "theta": snapped(theta), "diff": rounded(diff), "se": rounded(se), "raw_diff": rounded(raw_diff),
+            "raw_se": rounded(raw_se), "variance_reduction": snapped(1 - se ** 2 / raw_se ** 2)}}
 
         def gb_arm(label):
             e = inputs[label]

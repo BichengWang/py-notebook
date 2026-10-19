@@ -15,17 +15,14 @@ GOLDEN = Path(__file__).resolve().parent / "golden"
 # Closed-form estimators. The references and expgate evaluate the same formulas, so they should
 # agree to rounding: 1e-9 relative leaves room for the eleven significant digits the vectors store
 # (a relative quantization error of at most 5e-11) and for libm and summation-order differences.
-# The comparison is purely relative, so tail probabilities (down to 1e-138 in the vectors) and
-# critical values for tiny alpha are held to the same standard as everything else.
+# The comparison is relative, so tail probabilities (down to 1e-138 in the vectors) and critical
+# values for tiny alpha are held to the same standard as everything else. The one exception is a
+# reference value of exactly 0 (the CUPED slope when the covariate is uncorrelated with the outcome,
+# z at alpha = 0.5), where a relative test would demand bit equality: there an absolute difference
+# below 1e-12 passes. The generator stores 0.0 rather than platform noise of about 1e-17, and no
+# other stored value is within 1e-6 of zero except tail probabilities, which keep the relative test.
 REL_TOL = 1e-9
-
-# The one exception: a relative test cannot compare a quantity that is exactly 0 in expgate and
-# rounding noise in a reference. With a covariate correlation of 0, expgate's slope is exactly 0
-# while the regression on raw data returns 2e-17, and the variance reduction, 0 here, could come out
-# as +-1e-16 on another platform. For those two fields values within 1e-12 of each other also
-# pass. No other field gets a floor: they are either comfortably non-zero (at least 1e-6, or a tail
-# probability compared relatively) or exactly 0 in both implementations (z at alpha = 0.5).
-ABS_TOL_FOR_ZERO_NOISE = {"theta": 1e-12, "variance_reduction": 1e-12}
+ZERO_REFERENCE_ABS_TOL = 1e-12
 
 # The sequential boundary is the one quantity the references compute by iteration rather than
 # a formula. confseq finds the boundary by numerical root finding and the mixing variance comes
@@ -44,8 +41,8 @@ def load(name):
 
 
 class GoldenTestCase(unittest.TestCase):
-    def close(self, actual, expected, rel=REL_TOL, floor=0.0, msg=None):
-        tolerance = max(rel * max(abs(actual), abs(expected)), floor)
+    def close(self, actual, expected, rel=REL_TOL, msg=None):
+        tolerance = rel * max(abs(actual), abs(expected)) if expected != 0 else ZERO_REFERENCE_ABS_TOL
         self.assertLessEqual(abs(actual - expected), tolerance,
                              msg or f"{actual!r} != {expected!r} (tolerance {tolerance:.3g})")
 
@@ -53,7 +50,7 @@ class GoldenTestCase(unittest.TestCase):
         """Every field a reference supplies must match what expgate computed."""
         for field, value in expected.items():
             with self.subTest(field=field):
-                self.close(actual[field], value, rel=rel, floor=ABS_TOL_FOR_ZERO_NOISE.get(field, 0.0))
+                self.close(actual[field], value, rel=rel)
 
 
 class ProportionEffectGolden(GoldenTestCase):

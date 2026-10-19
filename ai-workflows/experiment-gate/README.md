@@ -307,16 +307,16 @@ mismatches from mild to a p-value of 1e-138. They are stored to eleven significa
 for the sequential boundary), so last-bit differences between platforms cannot change the
 committed bytes.
 
-**Tolerances.** Closed-form results must agree to 1e-9 relative, with no absolute floor except
-for the two CUPED fields that are exactly 0 in expgate and rounding noise (about 1e-17) in a
-regression on raw data: `theta` and `variance_reduction` also pass within 1e-12. Observed
-agreement was within 1e-10 everywhere (the largest, in CUPED, is cancellation in the raw-data
-reference). The sequential boundary is compared at 1e-6 relative because both sides iterate:
-confseq solves for the boundary numerically and the mixing variance comes from a
-one-dimensional minimizer on an objective that is flat at its minimum. The two agreed to 2.6e-7
-at worst across 35 combinations of `alpha` (0.001 to 0.2) and planned-to-current information
-ratio (0.1 to 10); a wrong boundary would be off by far more (the fixed-horizon value at
-`alpha = 0.05` is 40% lower).
+**Tolerances.** Closed-form results must agree to 1e-9 relative. The one absolute floor applies
+where the reference is exactly 0 (the CUPED slope and variance reduction when the covariate is
+uncorrelated with the outcome, `z` at `alpha = 0.5`): there a difference below 1e-12 passes. The
+generator stores 0.0 for the regression's rounding noise of about 1e-17, which differs between
+platforms. Observed agreement was 7e-11 at worst, the size of the stored-digit quantization. The
+sequential boundary is compared at 1e-6 relative because both sides iterate: confseq solves for
+the boundary numerically and the mixing variance comes from a one-dimensional minimizer on an
+objective that is flat at its minimum. The two agreed to 2.6e-7 at worst across 35 combinations
+of `alpha` (0.001 to 0.2) and planned-to-current information ratio (0.1 to 10); a wrong boundary
+would be off by far more (the fixed-horizon value at `alpha = 0.05` is 40% lower).
 
 **Disagreements found, and fixed.**
 
