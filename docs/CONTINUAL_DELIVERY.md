@@ -1,6 +1,6 @@
 # Local continual delivery task
 
-The recurring Codex task attached to this repository wakes every 30 minutes. It uses [PROJECT_PLAN.md](PROJECT_PLAN.md) as the initial cross-repository plan and GitHub issues labeled `continual-ready` as the shared execution queue. RELIA's roadmap and release record remain separate authorities. The task targets 15–20 merged PRs per America/Los_Angeles day, caps automatic merges at 20, and reports a shortfall without creating filler work.
+The recurring Codex task attached to this repository wakes every 30 minutes. It uses the active phase of [`.plan/`](../.plan/README.md) as the cross-repository plan and GitHub issues labeled `continual-ready` as the shared execution queue. RELIA's roadmap and release record remain separate authorities. The task targets 15–20 merged PRs per America/Los_Angeles day, caps automatic merges at 20, and reports a shortfall without creating filler work.
 
 ## First-run prerequisites
 

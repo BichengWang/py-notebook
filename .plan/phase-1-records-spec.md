@@ -1,0 +1,20 @@
+# Phase 1: records as a specification (2026-11-02 → 2026-12-13)
+
+Goal: a third party can validate and verify every record type without our
+Python packages; a forged record that was re-hashed fails when a signature is
+required; expgate's statistics agree with reference implementations; all of it
+ships as 0.2.0 on PyPI.
+
+| ID | Task | Owner | Depends on | Acceptance |
+| --- | --- | --- | --- | --- |
+| P-011 | **JSON Schemas and conformance vectors per record type.** JSON Schema 2020-12 files shipped as package data (`<package>/schema/<record>.v<N>.json`) for every current schema: expgate `decision.json`, Jev answer, evaluation and provenance, decision-control exported record and `evaluation.json`. Vectors under `ai-workflows/<project>/conformance/{valid,tampered,invalid}/`; each valid vector carries its exact canonical bytes and digest so other languages can test their canonicalizer. If RFC 8785 is adopted, the new schema versions are introduced here with old readers kept. [DECISION_RECORDS.md](../docs/DECISION_RECORDS.md) becomes the index: schema, canonical form and vectors per record | agent | P-017; RFC 8785 decision | Each project's CI validates the records it produces against the committed schema (dev-only `jsonschema`) and runs its verifier over the vectors: valid exits 0, tampered 1, invalid 2, at least one tampered vector per type. A separate non-Python CI job validates every vector with a pinned `ajv-cli` and recomputes every valid vector's digest |
+| P-013 | **Cross-check expgate statistics against reference implementations** (dev-only, pinned; runtime stays standard library). Methods in [`stats.py`](../ai-workflows/experiment-gate/expgate/stats.py): proportion effect with unpooled Wald standard error, Welch mean effect, delta-method ratio, CUPED, normal-mixture confidence sequence, sample-ratio test, minimum detectable effect. References: scipy and statsmodels (note `proportions_ztest` pools variance by default; compare against the unpooled form), gbstats for ratio and CUPED after checking its license, confseq for the mixture boundary | agent | – | Golden vectors committed as JSON under `tests/golden/` so default tests run without the reference libraries; a dev job regenerates them and fails on any diff. Closed-form results agree to 1e-9 relative; the sequential boundary agrees to a tolerance stated in the test; every disagreement found is either fixed with a regression test or documented as a deliberate method difference in the README |
+| P-012 | **Signed records** (proposed envelope in [decisions.md](decisions.md)): an in-toto Statement v1 per record whose subject is the record digest, one predicate type per record schema, in a DSSE envelope. In-package keyed HMAC-SHA256 signing and verification (standard library); Sigstore via external `cosign` documented and exercised. Every verifier gains `--require-signature` with a key file or trusted identity | agent; owner approves key handling | P-011 | Tests: a record edited and re-hashed passes today's digest check but exits 1 under `--require-signature`; a wrong key or identity exits 1; an unsigned record under `--require-signature` exits 1. One CI job signs a record keylessly with GitHub OIDC and verifies it with `cosign`. `SECURITY.md` and DECISION_RECORDS.md document key generation, storage, rotation and the public-log trade-off |
+| P-023 | **Release 0.2.0 of all three packages** with schemas, vectors, Jev verifier and signing; dated changelogs; tags through the existing [release workflow](../docs/RELEASING.md) | agent prepares; owner approves the `pypi` deployment | P-011, P-012, P-013, P-016, P-020 | `pip install expgate==0.2.0 jevdecision==0.2.0 decisioncontrol==0.2.0` in a clean venv verifies the conformance vectors from a clone; PyPI shows attestations; Zenodo mints a version DOI that resolves. Target **2026-12-10** |
+
+## Exit criteria
+
+- A non-Python job validates and digest-checks every conformance vector.
+- A re-hashed forgery fails every verifier under `--require-signature`.
+- expgate golden vectors agree with the references at stated tolerances.
+- 0.2.0 is on PyPI with a citable DOI.

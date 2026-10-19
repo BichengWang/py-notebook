@@ -149,7 +149,7 @@ class EvaluationTests(unittest.TestCase):
                             delivery.evaluate(changed, [receipt()], [])))
 
     def test_unrelated_changes_do_not_require_research_baseline(self):
-        for path in ("docs/PROJECT_PLAN.md", "scripts/continual_delivery.py",
+        for path in (".plan/README.md", "scripts/continual_delivery.py",
                      "ai-workflows/ai-decision-reliability/pyproject.toml"):
             with self.subTest(path=path):
                 changed = pr(files=[{"path": path}], statusCheckRollup=[
