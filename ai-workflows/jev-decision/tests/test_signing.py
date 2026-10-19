@@ -3,23 +3,53 @@
 import base64
 import copy
 import hashlib
+import io
 import json
 import os
 import stat
 import tempfile
 import unittest
 import unittest.mock
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
-from jevdecision import JevBackend, attestation, signing
+from jevdecision import JevBackend, attestation, questions_from_spec, signing
 from jevdecision.__main__ import main as decide_main
 from jevdecision.evaluation import main as eval_main
 from jevdecision.jcs import canonicalize
-from jevdecision.records import DIGEST_FIELD, dumps_record, record_digest
+from jevdecision.records import DIGEST_FIELD, answer_record, dumps_record, record_digest
 from jevdecision.verify import main as verify_main
 
-from test_verify import (CASES_FILE, QUESTIONS_FILE, REQUIRE_FILE, RESPONSE, RESPONSES_FILE, STATE, make_record,
-                         run, write_provenance)
+EXAMPLES = Path(__file__).resolve().parents[1] / "examples"
+QUESTIONS_FILE = EXAMPLES / "support-ticket.json"
+CASES_FILE = EXAMPLES / "support-ticket-cases.jsonl"
+RESPONSES_FILE = EXAMPLES / "support-ticket-responses.jsonl"
+REQUIRE_FILE = EXAMPLES / "support-ticket-requirements.json"
+QUESTIONS = questions_from_spec(json.loads(QUESTIONS_FILE.read_text()))
+RESPONSE = json.loads(RESPONSES_FILE.read_text().splitlines()[0])["response"]
+STATE = "Help! My payouts have been failing for 3 days."
+
+
+def run(main, *args):
+    out, err = io.StringIO(), io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err):
+        code = main([str(arg) for arg in args])
+    return code, out.getvalue(), err.getvalue()
+
+
+def make_record():
+    backend = JevBackend(api_key="k", transport=lambda *a: copy.deepcopy(RESPONSE), env={})
+    return answer_record(backend.decide(STATE, QUESTIONS), QUESTIONS)
+
+
+def write_provenance(directory):
+    """Rewrite provenance.json so every listed output hash matches the files in the directory."""
+    provenance = json.loads((directory / "provenance.json").read_text())
+    for name in provenance["outputs"]:
+        provenance["outputs"][name]["sha256"] = hashlib.sha256((directory / name).read_bytes()).hexdigest()
+    (directory / "provenance.json").write_text(
+        json.dumps(provenance, sort_keys=True, separators=(",", ":"), ensure_ascii=False))
+
 
 PREDICATE_BASE = "https://github.com/BichengWang/ai-decision-system/predicate/jevdecision/"
 
