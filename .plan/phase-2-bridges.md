@@ -1,0 +1,23 @@
+# Phase 2: bridges to where decisions already happen (2026-12-14 → 2027-02-28)
+
+Goal: someone already using GrowthBook, OPA, Cedar or LangGraph turns an existing
+output into a verifiable record with one command; the project is launched; one
+outside team has agreed to a pilot.
+
+Every bridge is offline: it reads an exported file or a recorded response and
+writes a record. No network clients, no services ([non-goals](README.md#non-goals)).
+
+| ID | Task | Owner | Depends on | Acceptance |
+| --- | --- | --- | --- | --- |
+| P-025 | **GrowthBook results → expgate.** `experiment-gate --from growthbook results.json` converts a GrowthBook experiment-results export (per-variation units and metric aggregates) into expgate input and keeps the export's digest in the record. Confirm the export's field names against GrowthBook's documentation and a self-hosted open-source instance before implementing | agent | P-023 | A fixture captured from a self-hosted GrowthBook converts into a record that `experiment-gate-verify` accepts; a test pins the case where GrowthBook's verdict and expgate's differ and the record's reasons name the policy difference; malformed exports exit 2 |
+| P-015 | **decision-control policy adapters and action registry.** Today the action type is hard-coded (`policy.py` denies anything but `reassign_ticket`). Add a registry for action types, then adapters that freeze an OPA decision (`decision_id`, bundle revision, input, result) or a Cedar authorization (policies, entities, request, decision) into the same evidence record. Replay re-evaluates when `opa` or `cedar` is available and otherwise reports digest-only verification with a distinct message | agent | P-023 | A second action type ships only through the registry; existing v1–v3 replay fixtures still pass; recorded OPA and Cedar fixtures replay with exit 0, and editing the frozen input or result exits 1; the digest-only path is tested and documented |
+| P-026 | **LangGraph approvals → decision-control.** An example and a small helper that maps a LangGraph `interrupt()` approval and its `Command(resume=…)` onto decision-control submit and approve, then exports a replayable record. LangGraph is a dev-only dependency of the example | agent | P-015 registry | The example's test runs a two-node graph, approves as a different reviewer, exports, and `decision-control replay` exits 0; the same approval by the proposer exits 1 |
+| P-014 | **Jev live provider fixtures.** Record refusal, 429 with `Retry-After`, and usage responses from the Jev and OpenAI backends once; add an opt-in, key-gated live smoke test | owner supplies `TYPESAFE_API_KEY`, `OPENAI_API_KEY` and a spend cap; agent records | – | Fixture replay passes in default CI; the live test is skipped unless keys are set and never runs in default CI; recorded spend is under the cap |
+| P-024 | **Launch.** Posts with one install line, one verify line and a signed-record demo (Show HN, relevant subreddits, LinkedIn); PRs to [kelvins/awesome-mlops](https://github.com/kelvins/awesome-mlops) and responsible-AI lists. [awesome-production-machine-learning](https://github.com/EthicalML/awesome-production-machine-learning) requires 500 stars and is not a target | owner posts; agent drafts the launch kit | P-023, P-025 | Posts live **2027-01-12**; list PRs opened; every response (accepted, declined, silent) logged with its date |
+| P-027 | **First pilot agreement.** One outside team agrees to run one package on its own decisions under a protocol frozen before results: decision point, inputs, policy and thresholds, what may be published | owner recruits; agent drafts the protocol template | P-023 | A written agreement and frozen protocol dated by **2027-02-28**, or a dated "no pilot" note with the outreach log |
+
+## Exit criteria
+
+- GrowthBook, OPA, Cedar and LangGraph each have a tested path to a verifiable record.
+- Launch done; at least one issue or PR from someone other than the owner, or a dated note that none arrived.
+- A pilot protocol is frozen, or the outreach log says why not.

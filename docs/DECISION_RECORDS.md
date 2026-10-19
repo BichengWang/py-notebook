@@ -79,5 +79,5 @@ calibration, adoption or production safety. RELIA gates are proposed engineering
 thresholds, not industry/government standards or evidence of commercial performance,
 fairness, legal compliance or consumer benefit.
 
-Next: [P-011 and P-012](PROJECT_PLAN.md#next-after-01) cover JSON Schemas with
+Next: [P-011 and P-012](../.plan/phase-1-records-spec.md) cover JSON Schemas with
 conformance vectors and optional authenticated records, respectively.
