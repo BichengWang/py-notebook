@@ -32,7 +32,9 @@ Installed console commands are `experiment-gate` / `experiment-gate-verify`,
 `replay-evaluation`). Examples and complete invocations live in the project
 READMEs. Module entry points remain supported. RELIA uses `python -m relia.compare`
 in its own environment. See [record conventions](../docs/DECISION_RECORDS.md) and
-the [maintainer release guide](../docs/RELEASING.md).
+the [maintainer release guide](../docs/RELEASING.md). An outside team that wants to try a
+package on its own decision signs the [pilot protocol template](../docs/PILOT_PROTOCOL.md)
+before any results exist.
 
 ```sh
 make release-status                    # Python 3.11+ candidate metadata
