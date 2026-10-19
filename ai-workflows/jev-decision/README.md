@@ -219,9 +219,14 @@ local math library computes, and its byte-for-byte reproducibility claim holds f
 named under Limitations, not across platforms.
 
 Runs from 0.1.0 did not retain `questions.json` and `requirements.json`; pass the original files with
-`--questions FILE` and `--requirements FILE` (their hashes must match `provenance.json`). A failed
+`--questions FILE` and `--requirements FILE` (their hashes must match `provenance.json`); the same
+float tolerance applies to those directories. A failed
 live request has no response to re-derive its error message from, so that message is taken from
 `evaluation.json`. Case states and the supplied responses file are not retained and are not re-checked.
+
+Output directories contain the question and requirement text verbatim (`questions.json`,
+`requirements.json`), and `responses.jsonl` holds raw provider responses, so treat them as sensitive as
+the inputs. `cases.jsonl` holds case ids, expected and predicted answers, not the case states.
 
 | Exit | Meaning |
 |---|---|
