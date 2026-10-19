@@ -22,7 +22,7 @@ and source distribution under `examples/`; they are not installed in the wheel.
 pip install jevdecision
 ```
 
-The distribution includes `jev-decision`, `jev-decision-eval` and `jev-decision-verify`; existing
+The distribution includes `jev-decision`, `jev-decision-eval` and `jev-decision-verify` (signing and verification of records: see Signed records); existing
 `python -m jevdecision`, `python -m jevdecision.evaluation` and `python -m jevdecision.verify` commands remain supported.
 Use the `examples/` directory in a clone or unpacked source distribution.
 
@@ -241,6 +241,62 @@ questions nor the response, so there is nothing to re-derive ("schema 1 cannot b
 Verification checks that a record is internally consistent under this implementation; it does not
 authenticate who produced the response or prove that a provider sent it, and a record whose content and
 digest are rewritten consistently passes whenever its response still parses to its answers.
+
+## Signed records
+
+A digest is recomputable by anyone who edits a record. A signature binds the record file to a secret
+key (HMAC) or to a signer identity (Sigstore), so a record edited and re-hashed fails
+`--require-signature`. The signed subject is the SHA-256 of the **exact bytes of the file** (re-formatting
+it breaks the signature), wrapped in an in-toto Statement v1 inside a DSSE envelope. The predicate type is
+`https://github.com/BichengWang/ai-decision-system/predicate/jevdecision/<answer|provenance>/v<N>` with
+predicate `{"schema": "<the schema $id>"}`, so a signature for one record type or schema version cannot
+vouch for another. For an evaluation directory the signed file is `provenance.json`, which already pins
+every other file by hash.
+
+```bash
+jev-decision --generate-key signing.key        # 32 random bytes as hex, mode 0600, never overwrites
+jev-decision --questions q.json --state "..." --out answer.json --sign-key signing.key   # answer.json.dsse.json
+jev-decision-verify answer.json --require-signature --key signing.key
+jev-decision-eval --questions q.json --cases c.jsonl --responses r.jsonl --out run --sign-key signing.key
+jev-decision-verify --evaluation run --require-signature --key signing.key   # run/provenance.json.dsse.json
+```
+
+`--sign-key` on `jev-decision` needs `--out` (the signature covers the written file; the record goes to
+that file instead of stdout, and neither `--out` nor its envelope may already exist). The key is read before
+any request or output, so a bad key exits 2 and leaves nothing behind. The envelope is `FILE.dsse.json` next to
+the file; `--signature ENVELOPE` selects another. Without `--require-signature`, `jev-decision-verify`
+behaves exactly as before and ignores envelopes. With it the signature is checked first, on the bytes read
+once, and then the normal verification runs (for an evaluation directory: signature of `provenance.json`,
+then the file hashes, then re-scoring).
+
+| Situation | Exit |
+| --- | --- |
+| Unsigned (no envelope), wrong key, record edited and re-hashed, wrong predicate type, malformed envelope, or Sigstore rejection | 1 |
+| Missing, short or non-hex key file; `cosign` not installed; conflicting or incomplete flags | 2 |
+
+**Sigstore.** `jev-decision-verify RECORD --predicate-out pred.json` (or `--evaluation DIR --predicate-out
+pred.json`) writes the predicate and prints its type without verifying anything. Sign with an external
+`cosign`, for example keyless in GitHub Actions (`permissions: id-token: write`):
+
+```bash
+cosign attest-blob --yes --predicate pred.json --type "$PREDICATE_TYPE" \
+  --bundle answer.json.sigstore.json answer.json
+jev-decision-verify answer.json --require-signature --sigstore-bundle answer.json.sigstore.json \
+  --certificate-identity "$SIGNER_IDENTITY" --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+Verification shells out to `cosign verify-blob-attestation`; the package never signs with Sigstore and has no
+dependency on it. CI exercises this keylessly in a `sigstore` job (skipped for fork and Dependabot pull
+requests, which get no OIDC token).
+
+**Key handling.** Generate with `--generate-key` (mode 0600, no overwrite); keep keys outside the
+repository and out of backups you do not trust, because anyone who can read the key can sign anything. To
+rotate, make a new key (a new `hmac-sha256:` key id, printed by `--generate-key` and written in each
+envelope) and keep old keys to verify old envelopes. HMAC proves the signer held the shared secret; it is
+not an identity, and every verifier holds the same key and so could also sign. Keyless Sigstore signing
+writes the signer identity and the record digest to the public Rekor transparency log permanently, so do not
+use it for private decisions. A signature shows who attested to the file, not that the provider response or
+labels inside it are authentic. Synthetic records signed in CI are software checks, not adoption evidence.
 
 ## Evaluating a decision model
 

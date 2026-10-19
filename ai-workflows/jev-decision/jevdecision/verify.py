@@ -17,8 +17,13 @@ between platform math libraries); everything else compares exactly. Hashes detec
 authenticate who wrote a record, and a record edited together with its digests
 cannot be told from the original except through the re-derived content.
 
-Exit codes: 0 verified, 1 mismatch, 2 malformed, unreadable, unsupported or
-unverifiable (for example schema 1) input.
+With `--require-signature` (and `--key KEYFILE [--signature ENVELOPE]`, or `--sigstore-bundle BUNDLE
+--certificate-identity ID --certificate-oidc-issuer URL`) the signature over the exact file bytes is
+checked first; for an evaluation directory the signed file is provenance.json.
+
+Exit codes: 0 verified, 1 mismatch (or, under --require-signature, an unsigned, wrongly keyed,
+re-hashed, wrong-predicate or malformed-envelope file), 2 malformed, unreadable, unsupported or
+unverifiable (for example schema 1) input, or a bad key file or missing cosign.
 """
 
 from __future__ import annotations
@@ -30,6 +35,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from . import attestation, signing
 from .backends import BACKENDS, create_backend
 from .errors import DecisionError
 from .evaluation import Case, _expected, case_results, evaluate, replay
@@ -238,10 +244,15 @@ def _input_bytes(name: str, contents: dict[str, bytes], recorded: dict | None, s
 
 
 def verify_evaluation_dir(directory: Path, questions_file: Path | None = None,
-                          requirements_file: Path | None = None) -> list[str]:
-    """Return mismatched files and fields; raise ValueError/OSError for unreadable or invalid records."""
+                          requirements_file: Path | None = None, provenance_bytes: bytes | None = None) -> list[str]:
+    """Return mismatched files and fields; raise ValueError/OSError for unreadable or invalid records.
+
+    `provenance_bytes` are the bytes of provenance.json already read (and, if required, signature-checked).
+    """
     directory = Path(directory)
-    provenance = loads_strict((directory / "provenance.json").read_text(encoding="utf-8"))
+    if provenance_bytes is None:
+        provenance_bytes = (directory / "provenance.json").read_bytes()
+    provenance = loads_strict(provenance_bytes.decode("utf-8"))
     hashes = _check_provenance(provenance)
     mismatches: list[str] = []
     contents: dict[str, bytes] = {}
@@ -318,29 +329,107 @@ def verify_evaluation_dir(directory: Path, questions_file: Path | None = None,
 
 # Command line --------------------------------------------------------------
 
+def _check_answer_file(path: Path, options: argparse.Namespace) -> list[str]:
+    data = path.read_bytes()
+    record = loads_strict(data.decode("utf-8"))
+    if options.require_signature:
+        attestation.require_signature(path, data, "answer", attestation.answer_version(record), options)
+    return verify_answer_record(record)
+
+
+def _check_evaluation_dir(directory: Path, options: argparse.Namespace) -> list[str]:
+    """With a signature requirement: provenance.json's signature first, then its hashes, then re-scoring."""
+    data = (directory / attestation.PROVENANCE).read_bytes()
+    if options.require_signature:
+        attestation.require_signature(directory / attestation.PROVENANCE, data, "provenance", 2, options)
+    return verify_evaluation_dir(directory, options.questions, options.requirements, data)
+
+
+def _check_signature_options(parser: argparse.ArgumentParser, args: argparse.Namespace, targets: int) -> None:
+    given = {"--key": args.key, "--signature": args.signature, "--sigstore-bundle": args.sigstore_bundle,
+             "--certificate-identity": args.certificate_identity,
+             "--certificate-oidc-issuer": args.certificate_oidc_issuer}
+    used = [flag for flag, value in given.items() if value is not None]
+    if not args.require_signature:
+        if used:
+            parser.error(f"{', '.join(used)} need --require-signature")
+        return
+    if (args.key is None) == (args.sigstore_bundle is None):
+        parser.error("--require-signature needs exactly one of --key or --sigstore-bundle")
+    if args.key is not None:
+        if args.certificate_identity is not None or args.certificate_oidc_issuer is not None:
+            parser.error("--certificate-identity and --certificate-oidc-issuer go with --sigstore-bundle")
+    elif args.signature is not None:
+        parser.error("--signature goes with --key")
+    elif args.certificate_identity is None or args.certificate_oidc_issuer is None:
+        parser.error("--sigstore-bundle needs --certificate-identity and --certificate-oidc-issuer")
+    if (args.signature is not None or args.sigstore_bundle is not None) and targets != 1:
+        parser.error("--signature and --sigstore-bundle name one file's signature: verify one record at a time")
+
+
+def _write_predicate(args: argparse.Namespace) -> int:
+    """Write the in-toto predicate for cosign attest-blob and print its type; verifies nothing."""
+    try:
+        if args.answers:
+            data = args.answers[0].read_bytes()
+            kind, version = "answer", attestation.answer_version(loads_strict(data.decode("utf-8")))
+        else:
+            kind, version = "provenance", 2
+        with open(args.predicate_out, "x", encoding="utf-8") as stream:
+            json.dump(attestation.predicate(kind, version), stream, indent=2)
+            stream.write("\n")
+    except (OSError, ValueError) as exc:
+        print(f"cannot write predicate: {exc}", file=sys.stderr)
+        return 2
+    print(json.dumps({"predicate_type": attestation.predicate_type(kind, version),
+                      "predicate_file": str(args.predicate_out)}))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="jev-decision-verify", description=__doc__.split("\n")[0])
     parser.add_argument("answers", nargs="*", type=Path, metavar="ANSWER_JSON",
-                        help="schema 2 answer records written by jev-decision")
+                        help="answer records written by jev-decision (schema 2 can be verified)")
     parser.add_argument("--evaluation", action="append", type=Path, default=[], metavar="DIR",
                         help="evaluation output directory written by jev-decision-eval (repeatable)")
     parser.add_argument("--questions", type=Path, metavar="FILE",
                         help="original question file, for evaluation directories without a retained questions.json")
     parser.add_argument("--requirements", type=Path, metavar="FILE",
                         help="original requirement file, for directories without a retained requirements.json")
+    parser.add_argument("--require-signature", action="store_true",
+                        help="first require a signature over the exact bytes of the answer record, or of "
+                             "the evaluation directory's provenance.json; then verify as usual")
+    parser.add_argument("--key", type=Path, help="HMAC key file (with --require-signature)")
+    parser.add_argument("--signature", type=Path,
+                        help="DSSE envelope (default: FILE.dsse.json next to the signed file)")
+    parser.add_argument("--sigstore-bundle", type=Path, help="Sigstore bundle verified with an external cosign")
+    parser.add_argument("--certificate-identity", help="signer identity expected in the Sigstore certificate")
+    parser.add_argument("--certificate-oidc-issuer", help="OIDC issuer expected in the Sigstore certificate")
+    parser.add_argument("--predicate-out", type=Path, metavar="FILE",
+                        help="write the in-toto predicate for `cosign attest-blob` for the one record or "
+                             "evaluation directory given, print its predicate type, and verify nothing")
     args = parser.parse_args(sys.argv[1:] if argv is None else argv)
     if not args.answers and not args.evaluation:
         parser.error("give at least one ANSWER_JSON or --evaluation DIR")
     if (args.questions is not None or args.requirements is not None) and len(args.evaluation) != 1:
         parser.error("--questions and --requirements need exactly one --evaluation DIR")
+    targets = len(args.answers) + len(args.evaluation)
+    _check_signature_options(parser, args, targets)
+    if args.predicate_out is not None:
+        if targets != 1 or args.require_signature:
+            parser.error("--predicate-out takes exactly one record or --evaluation DIR and no --require-signature")
+        return _write_predicate(args)
 
     result = 0
-    checks = [(path, lambda path=path: verify_answer_record(
-        loads_strict(path.read_text(encoding="utf-8")))) for path in args.answers]
-    checks += [(path, lambda path=path: verify_evaluation_dir(path, args.questions, args.requirements)) for path in args.evaluation]
+    checks = [(path, lambda path=path: _check_answer_file(path, args)) for path in args.answers]
+    checks += [(path, lambda path=path: _check_evaluation_dir(path, args)) for path in args.evaluation]
     for path, check in checks:
         try:
             mismatches = check()
+        except signing.SignatureError as exc:
+            print(f"{path}: signature: {exc}", file=sys.stderr)
+            result = max(result, 1)
+            continue
         except (OSError, ValueError, TypeError, OverflowError, RecursionError) as exc:
             print(f"{path}: cannot verify: {exc}", file=sys.stderr)
             result = max(result, 2)
