@@ -1,0 +1,2 @@
+{"id":"t01","response":{"answers":{"department":{"choice":"technical","probabilities":{"billing":0.1,"sales":0.05,"technical":0.85},"type":"choice"},"frustration":{"probabilities":{"0":0.05,"1":0.85,"2":0.1},"score":1.05,"type":"score"},"refund":{"noul":0.08,"type":"noul"}},"id":"example-t01","model":"jev-example"}}
+{"id":"t03","response":{"answers":{"refund":{"noul":4}}}}

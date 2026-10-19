@@ -1,0 +1,206 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/BichengWang/ai-decision-system/schema/jevdecision/provenance.v2.json",
+  "title": "jevdecision evaluation provenance, schema 2",
+  "$comment": "Canonicalization: none. Every digest is the lowercase hex SHA-256 of the exact bytes of the named file, not of re-serialized JSON. `outputs` entries are checked against the files in the evaluation directory; `inputs.questions` and `inputs.requirements` also against the retained questions.json and requirements.json when present. Inputs `cases` and `responses` name files that are not retained. provenance.json does not hash itself.",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 2
+    },
+    "produced_by": {
+      "$ref": "#/$defs/producedBy"
+    },
+    "response_mode": {
+      "enum": [
+        "live",
+        "replay"
+      ]
+    },
+    "response_origin": {
+      "type": "string"
+    },
+    "inputs": {
+      "type": "object",
+      "properties": {
+        "questions": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/sha256Entry"
+            }
+          ]
+        },
+        "cases": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/sha256Entry"
+            }
+          ]
+        },
+        "requirements": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/sha256Entry"
+            }
+          ]
+        },
+        "responses": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/sha256Entry"
+            }
+          ]
+        }
+      },
+      "required": [
+        "questions",
+        "cases",
+        "requirements",
+        "responses"
+      ],
+      "additionalProperties": false
+    },
+    "outputs": {
+      "type": "object",
+      "properties": {
+        "evaluation.json": {
+          "type": "object",
+          "properties": {
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          "required": [
+            "sha256"
+          ],
+          "additionalProperties": false
+        },
+        "EVALUATION.md": {
+          "type": "object",
+          "properties": {
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          "required": [
+            "sha256"
+          ],
+          "additionalProperties": false
+        },
+        "responses.jsonl": {
+          "type": "object",
+          "properties": {
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          "required": [
+            "sha256"
+          ],
+          "additionalProperties": false
+        },
+        "cases.jsonl": {
+          "type": "object",
+          "properties": {
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          "required": [
+            "sha256"
+          ],
+          "additionalProperties": false
+        },
+        "questions.json": {
+          "type": "object",
+          "properties": {
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          "required": [
+            "sha256"
+          ],
+          "additionalProperties": false
+        },
+        "requirements.json": {
+          "type": "object",
+          "properties": {
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          "required": [
+            "sha256"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "evaluation.json",
+        "EVALUATION.md",
+        "responses.jsonl",
+        "cases.jsonl"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schema_version",
+    "produced_by",
+    "response_mode",
+    "response_origin",
+    "inputs",
+    "outputs"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "producedBy": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "const": "jevdecision"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "additionalProperties": false
+    },
+    "sha256Entry": {
+      "type": "object",
+      "properties": {
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "sha256"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

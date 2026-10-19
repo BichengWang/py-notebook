@@ -111,7 +111,9 @@
       "packages": [
         "jevdecision"
       ],
-      "third_party_imports": [],
+      "third_party_imports": [
+        "jsonschema"
+      ],
       "paths": [
         "ai-workflows/jev-decision/**",
         ".github/workflows/jev-decision-ci.yml"

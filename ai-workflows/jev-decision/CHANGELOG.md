@@ -10,6 +10,8 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `jev-decision-verify --evaluation DIR` hashes every file listed in `provenance.json` and re-scores the retained responses against `evaluation.json` and `cases.jsonl` without calling a provider; recomputed metric floats compare with a relative tolerance of 1e-9, everything else exactly.
 - Answer record schema 2: embeds `questions` and the raw `response` and carries `record_sha256`, the SHA-256 of the RFC 8785 (JCS) canonical record without that member. `jevdecision/jcs.py` ships with the RFC 8785 test vectors.
 - `jev-decision --schema-version {1,2}`.
+- JSON Schemas (2020-12) for answer records 1 and 2, `evaluation.json` 2 and `provenance.json` 2, shipped as package data in `jevdecision/schema/`.
+- Conformance vectors under `conformance/` (valid, tampered and invalid answer records and evaluation directories, with canonical bytes and `bytes` digests), `conformance/manifest.json` and the deterministic `conformance/generate.py`.
 
 ### Changed
 - `jev-decision` prints schema 2 answer records by default; it exits 1 when the provider response cannot be recorded as canonical JSON. Schema 1 records stay readable and exit 2 in the verifier as unverifiable.

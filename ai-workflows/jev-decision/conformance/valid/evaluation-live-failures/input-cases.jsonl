@@ -1,0 +1,3 @@
+{"id": "t01", "state": "Help! My payouts have been failing for 3 days.", "labels": {"refund": false, "department": "technical", "frustration": "Frustrated"}}
+{"id": "t02", "state": "I was charged twice for March. Please refund the duplicate charge.", "labels": {"refund": true, "department": "billing", "frustration": "Frustrated"}}
+{"id": "t03", "state": "What does the Enterprise plan cost for 200 seats?", "labels": {"refund": false, "department": "sales", "frustration": "Calm"}}
