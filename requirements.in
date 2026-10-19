@@ -92,6 +92,7 @@ gymnasium
 # arrive transitively or have a loose constraint above. Raise when a new advisory lands.
 # accelerate has no patched tag in its advisory, so the floor is the first release above it.
 accelerate>1.14.0
+aiohttp>=3.14.4
 bleach>=6.4.0
 flask>=3.1.3
 flask-cors>=6.0.0
