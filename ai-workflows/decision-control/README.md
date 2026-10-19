@@ -230,13 +230,16 @@ original rules (`evaluate_cases(..., schema_version=1)` reproduces one). Replay
 picks the rule from the report's own `schema_version`; unknown versions exit 2.
 
 Replay recomputes every metric and compares it with the recorded report exactly,
-for both schemas. This is portable because the recomputation uses only integer
-counts, IEEE 754 division, multiplication, addition and `math.sqrt` (correctly
-rounded), plus a fixed literal for the 95% normal quantile. It calls no libm
-transcendental function (`log`, `exp`, `erf`) and no inverse-CDF routine, so the
-Wilson bounds are bit-identical across platforms. The committed vectors are
-generated on one machine and replayed by CI on Linux, which is the check of that
-claim; no regeneration happens in CI. Decision records contain no derived floats
+for both schemas (no tolerance). That is portable because every floating-point
+operation involved is correctly rounded by IEEE 754 and so gives identical bits on
+every platform: integer-to-float division (`numerator / denominator`), `+ - *` and
+`/` on floats, and `math.sqrt`. `denominator ** 2` is exact integer arithmetic, and
+the 95% normal quantile is a fixed literal. Nothing calls a platform-libm function
+(`log`, `exp`, `erf`, float `pow`) or an inverse-CDF routine, whose last digits can
+differ between libm builds. A unit test fails if `evaluation.py` starts importing
+anything but `math.sqrt` from `math`, a statistics or numeric library, or a float
+power. The committed vectors are generated on one machine and replayed by CI on
+Linux, which exercises the claim; no regeneration happens in CI. Decision records contain no derived floats
 (probabilities and thresholds are copied inputs), so record replay has no
 floating-point recomputation.
 

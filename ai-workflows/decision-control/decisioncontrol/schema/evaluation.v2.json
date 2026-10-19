@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/BichengWang/ai-decision-system/schema/decisioncontrol/evaluation.v2.json",
   "title": "decision-control policy evaluation report, schema 2",
-  "$comment": "sha256 covers /report, canonicalized as RFC 8785 (JCS) canonical bytes. Duplicate object keys are rejected by the reader. Not expressible here: the reader recomputes every metric, gate and disposition from the frozen cases, policy and requirements and requires the report to equal that recomputation exactly.",
+  "$comment": "sha256 covers /report, canonicalized as RFC 8785 (JCS) canonical bytes. Duplicate object keys are rejected by the reader, and integers are limited to +-(2^53-1). Not expressible here: the reader recomputes every metric, gate and disposition from the frozen cases, policy and requirements and requires the report to equal that recomputation exactly.",
   "type": "object",
   "properties": {
     "report": {
@@ -19,7 +19,8 @@
         },
         "cases": {
           "type": "integer",
-          "minimum": 1
+          "minimum": 1,
+          "maximum": 9007199254740991
         },
         "confidence_level": {
           "const": 0.95
@@ -131,22 +132,34 @@
   ],
   "additionalProperties": false,
   "$defs": {
+    "string": {
+      "type": "string",
+      "pattern": "^[^\\ud800-\\udfff]*$",
+      "description": "Any string without an unpaired surrogate (which has no UTF-8 encoding)."
+    },
     "text": {
       "type": "string",
-      "pattern": "^(?:\\S|\\S[\\s\\S]*\\S)$",
-      "description": "Nonempty, no leading or trailing whitespace."
+      "allOf": [
+        {
+          "pattern": "^[^\\ud800-\\udfff]*$"
+        },
+        {
+          "pattern": "^(?:\\S|\\S[\\s\\S]*\\S)(?![\\s\\S])"
+        }
+      ],
+      "description": "Nonempty, no leading or trailing whitespace, no unpaired surrogate."
     },
     "sha256": {
       "type": "string",
-      "pattern": "^[0-9a-f]{64}$"
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
     },
     "uuid": {
       "type": "string",
-      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?![\\s\\S])"
     },
     "timestamp": {
       "type": "string",
-      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]+)?(?:Z|[+-]00:00)$",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]+)?(?:Z|[+-]00:00)(?![\\s\\S])",
       "description": "ISO 8601 timestamp at UTC offset zero."
     },
     "names": {
@@ -155,27 +168,6 @@
         "$ref": "#/$defs/text"
       },
       "uniqueItems": true
-    },
-    "ticket": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "$ref": "#/$defs/text"
-        },
-        "department": {
-          "$ref": "#/$defs/text"
-        },
-        "revision": {
-          "type": "integer",
-          "minimum": 0
-        }
-      },
-      "required": [
-        "id",
-        "department",
-        "revision"
-      ],
-      "additionalProperties": false
     },
     "verdict": {
       "enum": [
@@ -210,6 +202,28 @@
       "type": "number",
       "minimum": 0,
       "maximum": 1
+    },
+    "ticket": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/text"
+        },
+        "department": {
+          "$ref": "#/$defs/text"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "id",
+        "department",
+        "revision"
+      ],
+      "additionalProperties": false
     },
     "recommendation": {
       "type": "object",
@@ -301,11 +315,13 @@
       "properties": {
         "numerator": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 0,
+          "maximum": 9007199254740991
         },
         "denominator": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 0,
+          "maximum": 9007199254740991
         },
         "value": {
           "oneOf": [
@@ -313,7 +329,9 @@
               "type": "null"
             },
             {
-              "type": "number"
+              "type": "number",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
             }
           ]
         },
@@ -323,7 +341,9 @@
               "type": "null"
             },
             {
-              "type": "number"
+              "type": "number",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
             }
           ]
         },
@@ -333,7 +353,9 @@
               "type": "null"
             },
             {
-              "type": "number"
+              "type": "number",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
             }
           ]
         }
@@ -359,7 +381,8 @@
         },
         "min_denominator": {
           "type": "integer",
-          "minimum": 1
+          "minimum": 1,
+          "maximum": 9007199254740991
         },
         "min": {
           "$ref": "#/$defs/probability"
@@ -391,7 +414,8 @@
       "properties": {
         "min_cases": {
           "type": "integer",
-          "minimum": 1
+          "minimum": 1,
+          "maximum": 9007199254740991
         },
         "bounds": {
           "type": "object",
@@ -452,7 +476,9 @@
               "type": "null"
             },
             {
-              "type": "number"
+              "type": "number",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
             }
           ]
         },
@@ -462,7 +488,9 @@
               "type": "null"
             },
             {
-              "type": "number"
+              "type": "number",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
             }
           ]
         },
@@ -472,17 +500,21 @@
               "type": "null"
             },
             {
-              "type": "number"
+              "type": "number",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
             }
           ]
         },
         "denominator": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 0,
+          "maximum": 9007199254740991
         },
         "min_denominator": {
           "type": "integer",
-          "minimum": 1
+          "minimum": 1,
+          "maximum": 9007199254740991
         },
         "passed": {
           "type": "boolean"

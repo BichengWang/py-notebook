@@ -86,6 +86,41 @@ class ManifestTests(unittest.TestCase):
                 self.assertIn((expect, name), coverage)
 
 
+def strictly_parseable(text):
+    """True when the text is JSON without duplicate keys or NaN/Infinity literals."""
+    def pairs(items):
+        keys = [key for key, _ in items]
+        if len(keys) != len(set(keys)):
+            raise ValueError("duplicate key")
+        return dict(items)
+
+    def constant(name):
+        raise ValueError(name)
+
+    try:
+        json.loads(text, object_pairs_hook=pairs, parse_constant=constant)
+    except ValueError:
+        return False
+    return True
+
+
+class DocumentCoverageTests(unittest.TestCase):
+    def test_every_parseable_invalid_vector_declares_its_schema_result(self):
+        parseable = 0
+        for vector in MANIFEST["vectors"]:
+            if vector["expect"] != "invalid":
+                continue
+            text = vector_file(vector).read_text(encoding="utf-8")
+            with self.subTest(path=vector["path"]):
+                if strictly_parseable(text):
+                    parseable += 1
+                    self.assertTrue(vector.get("documents"), "parseable invalid vector needs a documents entry")
+                    self.assertTrue(all(entry["schema_valid"] is False for entry in vector["documents"]))
+                else:
+                    self.assertNotIn("documents", vector)
+        self.assertGreaterEqual(parseable, 10)
+
+
 class VerifierTests(unittest.TestCase):
     def test_verifier_exit_codes(self):
         for vector in MANIFEST["vectors"]:

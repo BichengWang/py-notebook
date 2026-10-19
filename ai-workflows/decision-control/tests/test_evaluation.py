@@ -228,5 +228,47 @@ class PolicyEvaluationTests(unittest.TestCase):
             replay_evaluation(self.envelope(report))
 
 
+class FloatingPointPortabilityGuard(unittest.TestCase):
+    """Replay compares recomputed metrics exactly; that is only portable without libm functions.
+
+    Wilson bounds use integer counts, + - * / (correctly rounded IEEE 754) and math.sqrt
+    (correctly rounded); ``denominator ** 2`` is exact integer arithmetic. log, exp, erf, pow
+    on floats or an inverse CDF come from the platform libm and may differ in the last digits.
+    """
+    BANNED_MODULES = {"statistics", "numpy", "scipy", "cmath", "random", "decimal", "fractions"}
+    ALLOWED_MATH = {"sqrt"}
+
+    def tree(self):
+        import ast
+        source = Path(__file__).resolve().parents[1] / "decisioncontrol" / "evaluation.py"
+        return ast.parse(source.read_text(encoding="utf-8"))
+
+    def test_evaluation_module_only_uses_correctly_rounded_math(self):
+        import ast
+        used = set()
+        for node in ast.walk(self.tree()):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    self.assertNotIn(alias.name.split(".")[0], self.BANNED_MODULES)
+            elif isinstance(node, ast.ImportFrom):
+                self.assertNotIn((node.module or "").split(".")[0], self.BANNED_MODULES)
+                if node.module == "math":
+                    used.update(alias.name for alias in node.names)
+            elif isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.value.id == "math":
+                used.add(node.attr)
+        self.assertTrue(used, "expected math.sqrt in the Wilson interval")
+        self.assertLessEqual(used, self.ALLOWED_MATH, "evaluation replay must stay bit-portable")
+
+    def test_evaluation_module_has_no_float_power_or_pow_call(self):
+        import ast
+        for node in ast.walk(self.tree()):
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+                self.assertNotIn(node.func.id, {"pow"})
+            if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Pow):
+                # Only integer-literal exponents on integer counts are exact.
+                self.assertIsInstance(node.right, ast.Constant)
+                self.assertIs(type(node.right.value), int)
+
+
 if __name__ == "__main__":
     unittest.main()

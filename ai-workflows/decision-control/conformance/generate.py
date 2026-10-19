@@ -300,11 +300,11 @@ def invalid_records():
                 "probability replaced by the non-JSON literal NaN; schema 4 canonicalization rejects non-finite numbers"))
     big = text.replace('"revision": 1', '"revision": 9007199254740993', 1)
     assert big != text
-    out.append(("record-v4-integer-outside-safe-range", big, None,
+    out.append(("record-v4-integer-outside-safe-range", big, [{"path": ".", "schema": schema4, "schema_valid": False}],
                 "result.revision replaced by 9007199254740993, an integer beyond 2^53-1 that RFC 8785 cannot represent exactly"))
     surrogate = text.replace('"department": "intake"', '"department": "\\ud800"', 1)
     assert surrogate != text
-    out.append(("record-v4-lone-surrogate", surrogate, None,
+    out.append(("record-v4-lone-surrogate", surrogate, [{"path": ".", "schema": schema4, "schema_valid": False}],
                 "ticket.department replaced by the unpaired surrogate \\ud800, which has no UTF-8 encoding"))
     out.append(("record-v4-not-json", text[: len(text) // 2], None,
                 "Valid schema 4 document truncated in the middle"))
@@ -476,6 +476,14 @@ def eval_invalid():
     out.append(("evaluation-v2-non-finite-number", nan, None,
                 "confidence_level replaced by the non-JSON literal NaN"))
     out.append(("evaluation-v2-not-json", text[: len(text) // 2], None, "Valid schema 2 document truncated in the middle"))
+    big = text.replace('"revision": 0', '"revision": 9007199254740993', 1)
+    assert big != text
+    out.append(("evaluation-v2-integer-outside-safe-range", big, [{"path": ".", "schema": schema2, "schema_valid": False}],
+                "First case ticket.revision replaced by 9007199254740993, an integer beyond 2^53-1 that RFC 8785 cannot represent exactly"))
+    surrogate = text.replace('"department": "intake"', '"department": "\\ud800"', 1)
+    assert surrogate != text
+    out.append(("evaluation-v2-lone-surrogate", surrogate, [{"path": ".", "schema": schema2, "schema_valid": False}],
+                "First case ticket.department replaced by the unpaired surrogate \\ud800, which has no UTF-8 encoding"))
     future = deepcopy(report)
     future["schema_version"] = 3
     out.append(("evaluation-v2-unsupported-schema-version", pretty(rehash_any_report(future)),

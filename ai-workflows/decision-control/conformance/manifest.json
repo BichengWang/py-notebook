@@ -1193,6 +1193,48 @@
       "note": "Valid schema 2 document with the kind member repeated; schema 2 readers reject duplicate keys"
     },
     {
+      "path": "invalid/evaluation-v2-integer-outside-safe-range.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay-evaluation",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "First case ticket.revision replaced by 9007199254740993, an integer beyond 2^53-1 that RFC 8785 cannot represent exactly",
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/evaluation.v2.json",
+          "schema_valid": false
+        }
+      ]
+    },
+    {
+      "path": "invalid/evaluation-v2-lone-surrogate.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay-evaluation",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "First case ticket.department replaced by the unpaired surrogate \\ud800, which has no UTF-8 encoding",
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/evaluation.v2.json",
+          "schema_valid": false
+        }
+      ]
+    },
+    {
       "path": "invalid/evaluation-v2-missing-checksum.json",
       "expect": "invalid",
       "verify": {
@@ -1351,7 +1393,14 @@
         ],
         "exit_code": 2
       },
-      "note": "result.revision replaced by 9007199254740993, an integer beyond 2^53-1 that RFC 8785 cannot represent exactly"
+      "note": "result.revision replaced by 9007199254740993, an integer beyond 2^53-1 that RFC 8785 cannot represent exactly",
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v4.json",
+          "schema_valid": false
+        }
+      ]
     },
     {
       "path": "invalid/record-v4-lone-surrogate.json",
@@ -1365,7 +1414,14 @@
         ],
         "exit_code": 2
       },
-      "note": "ticket.department replaced by the unpaired surrogate \\ud800, which has no UTF-8 encoding"
+      "note": "ticket.department replaced by the unpaired surrogate \\ud800, which has no UTF-8 encoding",
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v4.json",
+          "schema_valid": false
+        }
+      ]
     },
     {
       "path": "invalid/record-v4-missing-checksum.json",
