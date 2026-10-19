@@ -1,21 +1,20 @@
 # Decisions
 
-Newest first. **Adopted** decisions are in force. **Proposed** decisions were
-drafted from evidence on 2026-10-18 and take effect when the owner marks them
-adopted (or replaces them); until then the phase rows that depend on them stay
-blocked. Each entry says what would reopen it. The owner adopted six proposals
-and replaced the workbench proposal on 2026-10-19.
+Newest first. **Adopted** decisions are in force. **Proposed** decisions are
+drafted from evidence and take effect when the owner marks them adopted (or
+replaces them); until then the phase rows that depend on them stay blocked. Each
+entry says what would reopen it. On 2026-10-19 the owner adopted the 2026-10-18
+proposals (RFC 8785 after an explanation) and replaced the workbench proposal.
 
 ## Proposed (owner decides)
 
-| Date | Decision | Why | Reopen if |
-| --- | --- | --- | --- |
-| 2026-10-18 | **Adopt RFC 8785 (JCS) canonical JSON for the next schema version of every record type**; current schemas keep their Python `json.dumps` form and readers. On 2026-10-19 the owner asked for an explanation before deciding; it stays proposed and P-017 stays blocked on it | Python writes `5.0` and `1e-07`, JCS writes `5` and `1e-7`; every bundled expgate example has integral floats, so digests cannot be recomputed outside Python today. JCS is implementable with the standard library. Alternative: specify Python's float repr as the canonical number form and ship it in the vectors | A JCS port proves larger than the verifier it serves |
+None open.
 
 ## Adopted
 
 | Date | Decision | Why | Reopen if |
 | --- | --- | --- | --- |
+| 2026-10-19 | **Adopt RFC 8785 (JCS) canonical JSON for the next schema version of every record type whose digest covers a re-serialized object**; current schemas keep their Python `json.dumps` form and readers (old readers kept). Integers are limited to the I-JSON safe range ±(2^53−1) | Python's `json.dumps` spells numbers `2.0` and `1e-07`, and a non-Python parser cannot recover int-versus-float, so other languages cannot recompute our digests. Measured on `experiment-gate/examples/offer-ranker-v2.json`: the Python digest is `c0b34a77…` and Node's is `c1ff2af0…`, from a single `2.0`. JCS is an IETF specification with libraries in other languages and a stdlib-only Python implementation of about 80 lines. Cost: one new integer schema version per affected record type. Alternative not taken: specify Python's float repr as the canonical number form | A JCS port proves larger than the verifier it serves, or the I-JSON integer limit excludes a field a record needs |
 | 2026-10-19 | **Publish 0.1.0 to PyPI before any new feature** (P-016). The owner registers the three pending trusted publishers on pypi.org. GitHub environment `pypi` (required reviewer BichengWang; deployment tag patterns `experiment-gate/v*`, `jev-decision/v*`, `decision-control/v*`) and repository variable `PYPI_PUBLISH=true` were set on 2026-10-19; `release.yml` is dispatched only after the owner has registered the publishers | The READMEs already promise `pip install`; a pending trusted publisher is invalidated if someone registers the name first ([PyPI docs](https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/)) | A name is already taken on PyPI, or trusted publishing is refused for a package |
 | 2026-10-19 | **Keep the legacy `src/` workbench in this repository and triage its Dependabot alerts** by upgrading or removing vulnerable dependencies (P-019). Supersedes the 2026-10-18 proposal to move it to `BichengWang/research-workbench` | Owner choice, 2026-10-19. The 100 open alerts (2 critical, 48 high on 2026-10-18) all come from the workbench's lockfiles, so triage there is the whole job | The alerts cannot be brought to 0 open critical/high, or the workbench blocks packaging or CI of the three packages |
 | 2026-10-19 | **Signed records use an in-toto Statement v1 in a DSSE envelope**, one predicate type per record; runtime stays standard library with keyed HMAC-SHA256; Sigstore signing and verification go through external `cosign`/`sigstore` tooling, documented (P-012) | Reuse the supply-chain envelope verifiers already understand; in-toto's SVR predicate omits reproduction data, which is exactly what our records add; a public transparency log is wrong as a default for private decisions | in-toto vets a decision predicate that embeds inputs, or a user needs asymmetric signing in-package |
