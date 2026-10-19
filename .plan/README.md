@@ -41,14 +41,16 @@ is the record, not another platform.
   LangGraph approvals are checkpointed state, not evidence ([interrupts](https://docs.langchain.com/oss/python/langgraph/interrupts)).
 - **Logging duties exist, formats don't.** EU AI Act Article 12 requires
   automatic event logs for high-risk systems without prescribing a format;
-  Articles 19 and 26 require at least six months' retention. Regulation (EU)
-  2026/1744 moved Annex III obligations to 2 December 2027 (secondary sources:
-  [White & Case](https://www.whitecase.com/insight-alert/eu-ai-omnibus-enters-force-amending-ai-act),
-  [lawgent](https://lawgent.se/ai-act-logging-record-keeping-article-12/); confirm
-  on EUR-Lex before citing). ISO/IEC 42001 control A.6.2.8 asks for event logs at
-  defined lifecycle phases. None of this makes our records compliance evidence;
-  it makes "which inputs and which rules produced this decision" a question
-  auditors will ask.
+  Articles 19(1) and 26(6) require providers and deployers to keep the logs under
+  their control for at least six months unless other law provides otherwise.
+  Regulation (EU) 2026/1744 moved the application of Chapter III Sections 1 to 3
+  to 2 December 2027 for Annex III high-risk systems and 2 August 2028 for Annex I
+  (confirmed on EUR-Lex on 2026-10-19: [consolidated text](https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX:02024R1689-20260727),
+  [Regulation (EU) 2026/1744](https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX:32026R1744)).
+  ISO/IEC 42001 has a control A.6.2.8, "AI system recording of event logs"; its
+  text is paywalled and was not reviewed. None of this makes our records compliance
+  evidence; it makes "which inputs and which rules produced this decision" a question
+  auditors will ask. See the [regulatory mapping](../docs/REGULATORY_MAPPING.md).
 - **So we complement, not compete.** Signing and transport come from in-toto and
   Sigstore, policy from OPA or Cedar, statistics from the experiment platform,
   workflow from LangGraph. Our part is the record and its verifier.
