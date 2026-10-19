@@ -116,6 +116,7 @@ team. Attach the files to the tagged commit.
 | Population, period and exclusion rules | [ ] | [ ] |
 | Analysis commands, in order, with every flag | [ ] | [ ] |
 | Verification commands, in order | [ ] | [ ] |
+| Signing option and predicate type (section 6) | [`none` / `hmac` / `sigstore`; predicate type URL] | not applicable |
 | Package source commit (section 2) | [40-character ID] | not applicable |
 | Date and time this section was frozen | [ ] | not applicable |
 
@@ -161,15 +162,22 @@ A run that has not finished by [date] is recorded as `not run`.
 
 Records detect change. They do not detect forgery or authorship: someone who edits
 an input can recompute its digest. A signature adds who vouched for the record.
-Signing options depend on the package version fixed in section 2, so check that
-version's README and `SECURITY.md` before choosing; if the pinned version does
-not ship signing, choose `none`.
+Signing is available only if the package version fixed in section 2 ships it
+(plan item P-012; not shipped at the time of drafting), so check that version's
+README and `SECURITY.md` before choosing; if the pinned version does not ship
+signing, choose `none`.
+
+Format, when shipped: an in-toto Statement v1 in a DSSE envelope, one predicate
+type per record type and schema version
+(`https://github.com/BichengWang/ai-decision-system/predicate/<package>/<record>/v<N>`).
+The statement's subject is the SHA-256 of the record file's exact bytes. Write
+the predicate type and the signing option into section 4 of the frozen protocol.
 
 | Option | What it gives | Trade-off |
 | --- | --- | --- |
 | `none` | Digest check only | Anyone with the file can edit and re-hash |
-| `hmac` (default when signing is shipped) | In-package keyed HMAC-SHA256, standard library only; a shared secret key proves the record came from a key holder | Both sides need the same secret; no third party can verify it without that secret; key custody is on the team |
-| `sigstore` | Signature through external `cosign`/`sigstore` tooling, verifiable by identity | Public transparency log entries are public and permanent: the signed digest, identity and time become visible, including for rejected or null results. Use only if section 8 allows publication of those facts |
+| `hmac` (default when signing is shipped) | In-package keyed HMAC-SHA256 over the DSSE envelope, standard library only; a shared secret key proves the record came from a key holder | Both sides need the same secret; no third party can verify it without that secret; key custody is on the team |
+| `sigstore` | Signature through external `cosign` (`cosign attest-blob`, checked with `cosign verify-blob-attestation`), verifiable by identity | Sigstore entries are public and permanent: the signed digest, identity and time become visible, including for rejected or null results. Use only if section 8 allows publication of those facts |
 
 Chosen option: [ ]. Key custody (who generates, stores, rotates): [ ].
 Where verification keys or trusted identities are recorded: [ ].
