@@ -265,6 +265,46 @@
           "run": "python3 workspace.py check"
         }
       ]
+    },
+    "conformance": {
+      "kind": "tooling",
+      "path": "scripts/conformance",
+      "summary": "Node cross-check of every ai-workflows conformance manifest: Ajv schema validation and independent digest recomputation (pinned npm dependencies)",
+      "sources": [
+        "scripts/conformance/**"
+      ],
+      "packages": [],
+      "third_party_imports": [],
+      "paths": [
+        "scripts/conformance/**",
+        "ai-workflows/*/conformance/**",
+        "ai-workflows/*/*/schema/**",
+        ".github/workflows/conformance.yml"
+      ],
+      "ci": {
+        "workflow": ".github/workflows/conformance.yml",
+        "trigger": "paths"
+      },
+      "checks": [
+        {
+          "name": "conformance (node)",
+          "workflow": "Conformance"
+        }
+      ],
+      "test": [
+        {
+          "run": "npm ci --no-audit --no-fund",
+          "cwd": "scripts/conformance"
+        },
+        {
+          "run": "node --test",
+          "cwd": "scripts/conformance"
+        },
+        {
+          "run": "node verify.mjs",
+          "cwd": "scripts/conformance"
+        }
+      ]
     }
   }
 }
