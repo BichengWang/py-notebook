@@ -125,7 +125,7 @@ new directory and prints retained record paths. See the [Makefile](Makefile).
 For RELIA use `make relia-sync`, `make relia-test` and
 `make relia-reproduce RELIA_OUT=/abs/new/dir`; a local pass is not release acceptance.
 
-The older `src/` [research workbench](scripts/README.md) has a separate root
+The older `src/` [research workbench](src/README.md) has a separate root
 environment. Its limited service-free `make test` baseline uses Python 3.11
 (the pinned pandas 1.5.3 lacks Python 3.12+ wheels); broker, browser and ML probes
 need separate services/environments. Root tests do not validate the whole repo.
