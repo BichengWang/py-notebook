@@ -89,6 +89,10 @@
         {
           "name": "test (3.13)",
           "workflow": "Experiment gate CI"
+        },
+        {
+          "name": "golden vectors",
+          "workflow": "Experiment gate CI"
         }
       ],
       "test": [

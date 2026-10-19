@@ -3,16 +3,24 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import lru_cache
-from math import exp, log, sqrt
+from math import erfc, exp, log, sqrt
 from statistics import NormalDist
 
 _N = NormalDist()
 
 
-def z_for(alpha: float) -> float:
-    """Critical value for a one-sided test at level ``alpha``."""
+def z_for(alpha: float, *, exact_tail: bool = False) -> float:
+    """Critical value for a one-sided test at level ``alpha``.
+
+    The default is ``inv_cdf(1 - alpha)``, the rule schema-2 records were produced with and are
+    replayed with. It sees ``1 - alpha`` rounded to about 1e-16, so its relative error grows below
+    ``alpha`` of about 1e-9 (4.4e-7 at 1e-12). ``exact_tail=True`` uses ``-inv_cdf(alpha)``, which
+    has no such loss.
+    """
     if not 0.0 < alpha < 1.0:
         raise ValueError("alpha must be in (0, 1)")
+    if exact_tail:
+        return -_N.inv_cdf(alpha)
     return _N.inv_cdf(1.0 - alpha)
 
 
@@ -204,8 +212,15 @@ def minimum_detectable_effect(se: float, z: float, power: float) -> float:
     return (z + _N.inv_cdf(power)) * se
 
 
-def sample_ratio_p_value(control_n: int, treatment_n: int, expected_treatment_share: float) -> float:
-    """Chi-square (1 df) goodness-of-fit p-value for the observed assignment split."""
+def sample_ratio_p_value(control_n: int, treatment_n: int, expected_treatment_share: float, *,
+                         exact_tail: bool = False) -> float:
+    """Chi-square (1 df) goodness-of-fit p-value for the observed assignment split.
+
+    The default is ``2 * (1 - cdf(z))``, the rule schema-2 records were produced with and are
+    replayed with. Its absolute error is about 2e-16, so it loses digits below a p-value of about
+    1e-7 and is exactly 0.0 once ``z`` exceeds about 8.3. ``exact_tail=True`` uses ``erfc``, which
+    is accurate down to the smallest float.
+    """
     if not 0.0 < expected_treatment_share < 1.0:
         raise ValueError("expected_treatment_share must be in (0, 1)")
     total = control_n + treatment_n
@@ -215,4 +230,6 @@ def sample_ratio_p_value(control_n: int, treatment_n: int, expected_treatment_sh
     exp_c = total - exp_t
     chi2 = (treatment_n - exp_t) ** 2 / exp_t + (control_n - exp_c) ** 2 / exp_c
     # With one degree of freedom, chi2 = z**2, so the p-value is two-sided normal.
+    if exact_tail:
+        return erfc(sqrt(chi2 / 2.0))
     return 2.0 * (1.0 - _N.cdf(sqrt(chi2)))

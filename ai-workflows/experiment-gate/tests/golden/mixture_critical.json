@@ -1,0 +1,431 @@
+{
+  "cases": [
+    {
+      "expected": {
+        "scipy_quad_brentq": {
+          "z": 11.471319456
+        }
+      },
+      "inputs": {
+        "alpha": 0.3,
+        "ratio": 0.01
+      },
+      "name": "ratio-0.01-alpha-0.3"
+    },
+    {
+      "expected": {
+        "scipy_quad_brentq": {
+          "z": 3.8875637806
+        }
+      },
+      "inputs": {
+        "alpha": 0.3,
+        "ratio": 0.1
+      },
+      "name": "ratio-0.1-alpha-0.3"
+    },
+    {
+      "expected": {
+        "scipy_quad_brentq": {
+          "z": 1.9449496798
+        }
+      },
+      "inputs": {
+        "alpha": 0.3,
+        "ratio": 1.0
+      },
+      "name": "ratio-1-alpha-0.3"
+    },
+    {
+      "expected": {
+        "scipy_quad_brentq": {
+          "z": 1.8960408634
+        }
+      },
+      "inputs": {
+        "alpha": 0.3,
+        "ratio": 6.5
+      },
+      "name": "ratio-6.5-alpha-0.3"
+    },
+    {
+      "expected": {
+        "scipy_quad_brentq": {
+          "z": 2.1539946773
+        }
+      },
+      "inputs": {
+        "alpha": 0.3,
+        "ratio": 30.0
+      },
+      "name": "ratio-30-alpha-0.3"
+    },
+    {
+      "expected": {
+        "scipy_quad_brentq": {
+          "z": 2.8183674775
+        }
+      },
+      "inputs": {
+        "alpha": 0.3,
+        "ratio": 1000.0
+      },
+      "name": "ratio-1000-alpha-0.3"
+    },
+    {
+      "expected": {
+        "scipy_quad_brentq": {
+          "z": 3.5404959405
+        }
+      },
+      "inputs": {
+        "alpha": 0.3,
+        "ratio": 100000.0
+      },
+      "name": "ratio-100000-alpha-0.3"
+    },
+    {
+      "expected": {
+        "scipy_quad_brentq": {
+          "z": 21.663211218
+        }
+      },
+      "inputs": {
+        "alpha": 0.05,
+        "ratio": 0.01
+      },
+      "name": "ratio-0.01-alpha-0.05"
+    },
+    {
+      "expected": {
+        "scipy_quad_brentq": {
+          "z": 7.2134394797
+        }
+      },
+      "inputs": {
+        "alpha": 0.05,
+        "ratio": 0.1
+      },
+      "name": "ratio-0.1-alpha-0.05"
+    },
+    {
+      "expected": {
+        "scipy_quad_brentq": {
+          "z": 3.2617532654
+        }
+      },
+      "inputs": {
+        "alpha": 0.05,
+        "ratio": 1.0
+      },
+      "name": "ratio-1-alpha-0.05"
+    },
+    {
+      "expected": {
+        "scipy_quad_brentq": {
+          "z": 2.7658894619
+        }
+      },
+      "inputs": {
+        "alpha": 0.05,
+        "ratio": 6.5
+      },
+      "name": "ratio-6.5-alpha-0.05"
+    },
+    {
+      "expected": {
+        "scipy_quad_brentq": {
+          "z": 2.8830284507
+        }
+      },
+      "inputs": {
+        "alpha": 0.05,
+        "ratio": 30.0
+      },
+      "name": "ratio-30-alpha-0.05"
+    },
+    {
+      "expected": {
+        "scipy_quad_brentq": {
+          "z": 3.395015495
+        }
+      },
+      "inputs": {
+        "alpha": 0.05,
+        "ratio": 1000.0
+      },
+      "name": "ratio-1000-alpha-0.05"
+    },
+    {
+      "expected": {
+        "scipy_quad_brentq": {
+          "z": 4.0147635477
+        }
+      },
+      "inputs": {
+        "alpha": 0.05,
+        "ratio": 100000.0
+      },
+      "name": "ratio-100000-alpha-0.05"
+    },
+    {
+      "expected": {
+        "scipy_quad_brentq": {
+          "z": 28.13806462
+        }
+      },
+      "inputs": {
+        "alpha": 0.01,
+        "ratio": 0.01
+      },
+      "name": "ratio-0.01-alpha-0.01"
+    },
+    {
+      "expected": {
+        "scipy_quad_brentq": {
+          "z": 9.3363075222
+        }
+      },
+      "inputs": {
+        "alpha": 0.01,
+        "ratio": 0.1
+      },
+      "name": "ratio-0.1-alpha-0.01"
+    },
+    {
+      "expected": {
+        "scipy_quad_brentq": {
+          "z": 4.1281248907
+        }
+      },
+      "inputs": {
+        "alpha": 0.01,
+        "ratio": 1.0
+      },
+      "name": "ratio-1-alpha-0.01"
+    },
+    {
+      "expected": {
+        "scipy_quad_brentq": {
+          "z": 3.3696593172
+        }
+      },
+      "inputs": {
+        "alpha": 0.01,
+        "ratio": 6.5
+      },
+      "name": "ratio-6.5-alpha-0.01"
+    },
+    {
+      "expected": {
+        "scipy_quad_brentq": {
+          "z": 3.4108825866
+        }
+      },
+      "inputs": {
+        "alpha": 0.01,
+        "ratio": 30.0
+      },
+      "name": "ratio-30-alpha-0.01"
+    },
+    {
+      "expected": {
+        "scipy_quad_brentq": {
+          "z": 3.8402679051
+        }
+      },
+      "inputs": {
+        "alpha": 0.01,
+        "ratio": 1000.0
+      },
+      "name": "ratio-1000-alpha-0.01"
+    },
+    {
+      "expected": {
+        "scipy_quad_brentq": {
+          "z": 4.3974067133
+        }
+      },
+      "inputs": {
+        "alpha": 0.01,
+        "ratio": 100000.0
+      },
+      "name": "ratio-100000-alpha-0.01"
+    },
+    {
+      "expected": {
+        "scipy_quad_brentq": {
+          "z": 35.445708865
+        }
+      },
+      "inputs": {
+        "alpha": 0.001,
+        "ratio": 0.01
+      },
+      "name": "ratio-0.01-alpha-0.001"
+    },
+    {
+      "expected": {
+        "scipy_quad_brentq": {
+          "z": 11.737725833
+        }
+      },
+      "inputs": {
+        "alpha": 0.001,
+        "ratio": 0.1
+      },
+      "name": "ratio-0.1-alpha-0.001"
+    },
+    {
+      "expected": {
+        "scipy_quad_brentq": {
+          "z": 5.1230176937
+        }
+      },
+      "inputs": {
+        "alpha": 0.001,
+        "ratio": 1.0
+      },
+      "name": "ratio-1-alpha-0.001"
+    },
+    {
+      "expected": {
+        "scipy_quad_brentq": {
+          "z": 4.082457347
+        }
+      },
+      "inputs": {
+        "alpha": 0.001,
+        "ratio": 6.5
+      },
+      "name": "ratio-6.5-alpha-0.001"
+    },
+    {
+      "expected": {
+        "scipy_quad_brentq": {
+          "z": 4.048709326
+        }
+      },
+      "inputs": {
+        "alpha": 0.001,
+        "ratio": 30.0
+      },
+      "name": "ratio-30-alpha-0.001"
+    },
+    {
+      "expected": {
+        "scipy_quad_brentq": {
+          "z": 4.3996954336
+        }
+      },
+      "inputs": {
+        "alpha": 0.001,
+        "ratio": 1000.0
+      },
+      "name": "ratio-1000-alpha-0.001"
+    },
+    {
+      "expected": {
+        "scipy_quad_brentq": {
+          "z": 4.893096369
+        }
+      },
+      "inputs": {
+        "alpha": 0.001,
+        "ratio": 100000.0
+      },
+      "name": "ratio-100000-alpha-0.001"
+    },
+    {
+      "expected": {
+        "scipy_quad_brentq": {
+          "z": 51.494877569
+        }
+      },
+      "inputs": {
+        "alpha": 1e-06,
+        "ratio": 0.01
+      },
+      "name": "ratio-0.01-alpha-1e-06"
+    },
+    {
+      "expected": {
+        "scipy_quad_brentq": {
+          "z": 17.021762818
+        }
+      },
+      "inputs": {
+        "alpha": 1e-06,
+        "ratio": 0.1
+      },
+      "name": "ratio-0.1-alpha-1e-06"
+    },
+    {
+      "expected": {
+        "scipy_quad_brentq": {
+          "z": 7.3400101016
+        }
+      },
+      "inputs": {
+        "alpha": 1e-06,
+        "ratio": 1.0
+      },
+      "name": "ratio-1-alpha-1e-06"
+    },
+    {
+      "expected": {
+        "scipy_quad_brentq": {
+          "z": 5.7102771603
+        }
+      },
+      "inputs": {
+        "alpha": 1e-06,
+        "ratio": 6.5
+      },
+      "name": "ratio-6.5-alpha-1e-06"
+    },
+    {
+      "expected": {
+        "scipy_quad_brentq": {
+          "z": 5.5378700307
+        }
+      },
+      "inputs": {
+        "alpha": 1e-06,
+        "ratio": 30.0
+      },
+      "name": "ratio-30-alpha-1e-06"
+    },
+    {
+      "expected": {
+        "scipy_quad_brentq": {
+          "z": 5.7607842369
+        }
+      },
+      "inputs": {
+        "alpha": 1e-06,
+        "ratio": 1000.0
+      },
+      "name": "ratio-1000-alpha-1e-06"
+    },
+    {
+      "expected": {
+        "scipy_quad_brentq": {
+          "z": 6.1447570983
+        }
+      },
+      "inputs": {
+        "alpha": 1e-06,
+        "ratio": 100000.0
+      },
+      "name": "ratio-100000-alpha-1e-06"
+    }
+  ],
+  "comparison": "relative 1e-9 with an absolute floor of 1e-12 (see tests/test_golden.py)",
+  "generator": "tests/golden/generate.py",
+  "method": "half-normal mixture critical value at a fixed mixing ratio",
+  "references": {
+    "numpy": "1.26.4",
+    "scipy": "1.14.1"
+  }
+}

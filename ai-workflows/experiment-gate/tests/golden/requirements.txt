@@ -1,0 +1,16 @@
+# Reference libraries for tests/golden/generate.py. Development and CI only: expgate itself and
+# its default tests need none of them. Use Python 3.10: confseq 0.0.11 (the latest release)
+# ships wheels only up to 3.10, and gbstats 0.8.0 pins pandas<2 and numpy<2.
+#
+#   python3.10 -m venv .venv && .venv/bin/pip install -r tests/golden/requirements.txt
+#   .venv/bin/python tests/golden/generate.py
+#
+# Versions that determine the numbers are pinned exactly; the rest of the dependency tree floats.
+numpy==1.26.4
+pandas==1.5.3
+scipy==1.14.1
+patsy==1.0.3
+formulaic==1.2.2
+statsmodels==0.15.0
+gbstats==0.8.0
+confseq==0.0.11

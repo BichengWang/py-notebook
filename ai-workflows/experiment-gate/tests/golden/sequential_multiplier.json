@@ -1,0 +1,431 @@
+{
+  "cases": [
+    {
+      "expected": {
+        "confseq": {
+          "multiplier": 2.367184
+        }
+      },
+      "inputs": {
+        "alpha": 0.2,
+        "information_ratio": 0.1
+      },
+      "name": "alpha-0.2-information-ratio-0.1"
+    },
+    {
+      "expected": {
+        "confseq": {
+          "multiplier": 2.215792
+        }
+      },
+      "inputs": {
+        "alpha": 0.2,
+        "information_ratio": 0.25
+      },
+      "name": "alpha-0.2-information-ratio-0.25"
+    },
+    {
+      "expected": {
+        "confseq": {
+          "multiplier": 2.128579
+        }
+      },
+      "inputs": {
+        "alpha": 0.2,
+        "information_ratio": 0.5
+      },
+      "name": "alpha-0.2-information-ratio-0.5"
+    },
+    {
+      "expected": {
+        "confseq": {
+          "multiplier": 2.091645
+        }
+      },
+      "inputs": {
+        "alpha": 0.2,
+        "information_ratio": 1.0
+      },
+      "name": "alpha-0.2-information-ratio-1"
+    },
+    {
+      "expected": {
+        "confseq": {
+          "multiplier": 2.144351
+        }
+      },
+      "inputs": {
+        "alpha": 0.2,
+        "information_ratio": 2.0
+      },
+      "name": "alpha-0.2-information-ratio-2"
+    },
+    {
+      "expected": {
+        "confseq": {
+          "multiplier": 2.341814
+        }
+      },
+      "inputs": {
+        "alpha": 0.2,
+        "information_ratio": 4.0
+      },
+      "name": "alpha-0.2-information-ratio-4"
+    },
+    {
+      "expected": {
+        "confseq": {
+          "multiplier": 2.944668
+        }
+      },
+      "inputs": {
+        "alpha": 0.2,
+        "information_ratio": 10.0
+      },
+      "name": "alpha-0.2-information-ratio-10"
+    },
+    {
+      "expected": {
+        "confseq": {
+          "multiplier": 2.993063
+        }
+      },
+      "inputs": {
+        "alpha": 0.05,
+        "information_ratio": 0.1
+      },
+      "name": "alpha-0.05-information-ratio-0.1"
+    },
+    {
+      "expected": {
+        "confseq": {
+          "multiplier": 2.868859
+        }
+      },
+      "inputs": {
+        "alpha": 0.05,
+        "information_ratio": 0.25
+      },
+      "name": "alpha-0.05-information-ratio-0.25"
+    },
+    {
+      "expected": {
+        "confseq": {
+          "multiplier": 2.796804
+        }
+      },
+      "inputs": {
+        "alpha": 0.05,
+        "information_ratio": 0.5
+      },
+      "name": "alpha-0.05-information-ratio-0.5"
+    },
+    {
+      "expected": {
+        "confseq": {
+          "multiplier": 2.765822
+        }
+      },
+      "inputs": {
+        "alpha": 0.05,
+        "information_ratio": 1.0
+      },
+      "name": "alpha-0.05-information-ratio-1"
+    },
+    {
+      "expected": {
+        "confseq": {
+          "multiplier": 2.812035
+        }
+      },
+      "inputs": {
+        "alpha": 0.05,
+        "information_ratio": 2.0
+      },
+      "name": "alpha-0.05-information-ratio-2"
+    },
+    {
+      "expected": {
+        "confseq": {
+          "multiplier": 2.99287
+        }
+      },
+      "inputs": {
+        "alpha": 0.05,
+        "information_ratio": 4.0
+      },
+      "name": "alpha-0.05-information-ratio-4"
+    },
+    {
+      "expected": {
+        "confseq": {
+          "multiplier": 3.580911
+        }
+      },
+      "inputs": {
+        "alpha": 0.05,
+        "information_ratio": 10.0
+      },
+      "name": "alpha-0.05-information-ratio-10"
+    },
+    {
+      "expected": {
+        "confseq": {
+          "multiplier": 3.246927
+        }
+      },
+      "inputs": {
+        "alpha": 0.025,
+        "information_ratio": 0.1
+      },
+      "name": "alpha-0.025-information-ratio-0.1"
+    },
+    {
+      "expected": {
+        "confseq": {
+          "multiplier": 3.131658
+        }
+      },
+      "inputs": {
+        "alpha": 0.025,
+        "information_ratio": 0.25
+      },
+      "name": "alpha-0.025-information-ratio-0.25"
+    },
+    {
+      "expected": {
+        "confseq": {
+          "multiplier": 3.064745
+        }
+      },
+      "inputs": {
+        "alpha": 0.025,
+        "information_ratio": 0.5
+      },
+      "name": "alpha-0.025-information-ratio-0.5"
+    },
+    {
+      "expected": {
+        "confseq": {
+          "multiplier": 3.03589
+        }
+      },
+      "inputs": {
+        "alpha": 0.025,
+        "information_ratio": 1.0
+      },
+      "name": "alpha-0.025-information-ratio-1"
+    },
+    {
+      "expected": {
+        "confseq": {
+          "multiplier": 3.079388
+        }
+      },
+      "inputs": {
+        "alpha": 0.025,
+        "information_ratio": 2.0
+      },
+      "name": "alpha-0.025-information-ratio-2"
+    },
+    {
+      "expected": {
+        "confseq": {
+          "multiplier": 3.251664
+        }
+      },
+      "inputs": {
+        "alpha": 0.025,
+        "information_ratio": 4.0
+      },
+      "name": "alpha-0.025-information-ratio-4"
+    },
+    {
+      "expected": {
+        "confseq": {
+          "multiplier": 3.823301
+        }
+      },
+      "inputs": {
+        "alpha": 0.025,
+        "information_ratio": 10.0
+      },
+      "name": "alpha-0.025-information-ratio-10"
+    },
+    {
+      "expected": {
+        "confseq": {
+          "multiplier": 3.547669
+        }
+      },
+      "inputs": {
+        "alpha": 0.01,
+        "information_ratio": 0.1
+      },
+      "name": "alpha-0.01-information-ratio-0.1"
+    },
+    {
+      "expected": {
+        "confseq": {
+          "multiplier": 3.441607
+        }
+      },
+      "inputs": {
+        "alpha": 0.01,
+        "information_ratio": 0.25
+      },
+      "name": "alpha-0.01-information-ratio-0.25"
+    },
+    {
+      "expected": {
+        "confseq": {
+          "multiplier": 3.38003
+        }
+      },
+      "inputs": {
+        "alpha": 0.01,
+        "information_ratio": 0.5
+      },
+      "name": "alpha-0.01-information-ratio-0.5"
+    },
+    {
+      "expected": {
+        "confseq": {
+          "multiplier": 3.353412
+        }
+      },
+      "inputs": {
+        "alpha": 0.01,
+        "information_ratio": 1.0
+      },
+      "name": "alpha-0.01-information-ratio-1"
+    },
+    {
+      "expected": {
+        "confseq": {
+          "multiplier": 3.393915
+        }
+      },
+      "inputs": {
+        "alpha": 0.01,
+        "information_ratio": 2.0
+      },
+      "name": "alpha-0.01-information-ratio-2"
+    },
+    {
+      "expected": {
+        "confseq": {
+          "multiplier": 3.556152
+        }
+      },
+      "inputs": {
+        "alpha": 0.01,
+        "information_ratio": 4.0
+      },
+      "name": "alpha-0.01-information-ratio-4"
+    },
+    {
+      "expected": {
+        "confseq": {
+          "multiplier": 4.105535
+        }
+      },
+      "inputs": {
+        "alpha": 0.01,
+        "information_ratio": 10.0
+      },
+      "name": "alpha-0.01-information-ratio-10"
+    },
+    {
+      "expected": {
+        "confseq": {
+          "multiplier": 4.192313
+        }
+      },
+      "inputs": {
+        "alpha": 0.001,
+        "information_ratio": 0.1
+      },
+      "name": "alpha-0.001-information-ratio-0.1"
+    },
+    {
+      "expected": {
+        "confseq": {
+          "multiplier": 4.101974
+        }
+      },
+      "inputs": {
+        "alpha": 0.001,
+        "information_ratio": 0.25
+      },
+      "name": "alpha-0.001-information-ratio-0.25"
+    },
+    {
+      "expected": {
+        "confseq": {
+          "multiplier": 4.049548
+        }
+      },
+      "inputs": {
+        "alpha": 0.001,
+        "information_ratio": 0.5
+      },
+      "name": "alpha-0.001-information-ratio-0.5"
+    },
+    {
+      "expected": {
+        "confseq": {
+          "multiplier": 4.026818
+        }
+      },
+      "inputs": {
+        "alpha": 0.001,
+        "information_ratio": 1.0
+      },
+      "name": "alpha-0.001-information-ratio-1"
+    },
+    {
+      "expected": {
+        "confseq": {
+          "multiplier": 4.06186
+        }
+      },
+      "inputs": {
+        "alpha": 0.001,
+        "information_ratio": 2.0
+      },
+      "name": "alpha-0.001-information-ratio-2"
+    },
+    {
+      "expected": {
+        "confseq": {
+          "multiplier": 4.204624
+        }
+      },
+      "inputs": {
+        "alpha": 0.001,
+        "information_ratio": 4.0
+      },
+      "name": "alpha-0.001-information-ratio-4"
+    },
+    {
+      "expected": {
+        "confseq": {
+          "multiplier": 4.704343
+        }
+      },
+      "inputs": {
+        "alpha": 0.001,
+        "information_ratio": 10.0
+      },
+      "name": "alpha-0.001-information-ratio-10"
+    }
+  ],
+  "comparison": "relative 1e-6 (see tests/test_golden.py)",
+  "generator": "tests/golden/generate.py",
+  "method": "sequential_multiplier (normal-mixture confidence sequence)",
+  "references": {
+    "confseq": "0.0.11",
+    "scipy": "1.14.1"
+  }
+}

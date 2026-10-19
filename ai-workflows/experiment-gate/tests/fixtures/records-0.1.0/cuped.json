@@ -1,0 +1,99 @@
+{
+  "decision": "HOLD",
+  "experiment": "cuped",
+  "expgate_version": "0.1.0",
+  "input": {
+    "arms": {
+      "control": {
+        "metrics": {
+          "revenue_per_user": {
+            "covariate": {
+              "corr": 0.793334,
+              "mean": 19.626837,
+              "sd": 8.093412
+            },
+            "mean": 19.905368,
+            "sd": 7.881768
+          }
+        },
+        "units": 2000
+      },
+      "treatment": {
+        "metrics": {
+          "revenue_per_user": {
+            "covariate": {
+              "corr": 0.803426,
+              "mean": 20.155334,
+              "sd": 8.060403
+            },
+            "mean": 20.566286,
+            "sd": 8.03028
+          }
+        },
+        "units": 2000
+      }
+    },
+    "assignment": {
+      "expected_treatment_share": 0.5
+    },
+    "description": "Real revenue lift of 0.4; a chance covariate imbalance inflates the raw estimate",
+    "experiment": "cuped",
+    "metrics": {
+      "revenue_per_user": {
+        "direction": "increase",
+        "role": "primary",
+        "type": "mean"
+      }
+    },
+    "seed": 20260924
+  },
+  "input_sha256": "1fb9ac17b25a10c2048b51c4374e1517ae4051251577d45eecd5e79f252cc6b9",
+  "metrics": [
+    {
+      "adjustment": {
+        "method": "cuped",
+        "raw_diff": 0.6609180000000023,
+        "raw_se": 0.25160252749547646,
+        "theta": 0.7864489515487327,
+        "variance_reduction": 0.6373868632983946
+      },
+      "control": 19.905368,
+      "diff": 0.24528208845335053,
+      "direction": "increase",
+      "improvement": 0.24528208845335053,
+      "improvement_bounds": [
+        -0.003927084061274511,
+        0.4944912609679756
+      ],
+      "mde": 0.3767218750145855,
+      "mde_basis": "fixed_horizon_normal_approximation",
+      "metric": "revenue_per_user",
+      "role": "primary",
+      "se": 0.15150841900534504,
+      "status": "INCONCLUSIVE",
+      "treatment": 20.566286,
+      "type": "mean",
+      "z": 1.6448536269514715
+    }
+  ],
+  "policy": {
+    "alpha": 0.05,
+    "power": 0.8,
+    "srm_alpha": 0.001
+  },
+  "produced_by": {
+    "name": "expgate",
+    "version": "0.1.0"
+  },
+  "reasons": [
+    "primary metric is inconclusive (detectable improvement at 80% power: 0.3767)"
+  ],
+  "sample_ratio": {
+    "control_units": 2000,
+    "expected_treatment_share": 0.5,
+    "p_value": 1.0,
+    "pass": true,
+    "treatment_units": 2000
+  },
+  "schema_version": 2
+}

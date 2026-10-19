@@ -27,6 +27,7 @@ ORIGINAL_CHECK_WORKFLOWS = {
     "src baseline": "Research baseline",
     "test (3.11)": "Experiment gate CI",
     "test (3.13)": "Experiment gate CI",
+    "golden vectors": "Experiment gate CI",
 }
 
 
@@ -39,7 +40,7 @@ def legacy_required_checks(paths):
         required.add("RELIA required")
     if any(path.startswith("ai-workflows/experiment-gate/") or path == ".github/workflows/expgate-ci.yml"
            for path in paths):
-        required.update({"test (3.11)", "test (3.13)"})
+        required.update({"test (3.11)", "test (3.13)", "golden vectors"})
     if any(path.startswith(("src/", "tests/")) or path in {
             "pyproject.toml", "requirements.txt", "setup.cfg", "Makefile", ".github/workflows/src-baseline.yml"}
            for path in paths):

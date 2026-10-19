@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Golden vectors under `tests/golden/` that compare every estimator in `expgate.stats` with
+  scipy, statsmodels, gbstats and confseq (dev-only, pinned in `tests/golden/requirements.txt`).
+  The default tests read the committed JSON and need no third-party library; a CI job
+  regenerates the vectors and fails on any difference. The README documents references,
+  versions, tolerances and the deliberate differences (pooled versus unpooled proportion
+  variance, normal versus t critical values, the CUPED slope and standard error).
+- `exact_tail=True` on `stats.sample_ratio_p_value` and `stats.z_for` (`erfc` and
+  `-inv_cdf(alpha)`). The cross-checks showed the defaults lose digits in the tails: the
+  sample-ratio p-value below about 1e-7 and as exactly 0.0 past `z` of about 8.3, `z_for` for
+  `alpha` below about 1e-9. The defaults are unchanged: schema-2 records, including every 0.1.0
+  scenario record (now committed as test fixtures), replay with the formulas that produced them.
+  The accurate tails are intended for the next decision schema.
+- Documented that `expgate.verify` is exact only on the producing platform: records written on
+  macOS arm64 verify there but, on Linux, five of the seven 0.1.0 scenario records report a
+  last-digit `metrics` mismatch, and sequential records also differ between Python 3.15 and
+  3.11/3.13. No behavior change; the committed 0.1.0 fixtures are compared with a tolerance.
+
 ## [0.1.0] - 2026-10-13
 
 ### Added

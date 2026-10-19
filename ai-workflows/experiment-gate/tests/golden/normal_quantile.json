@@ -1,0 +1,175 @@
+{
+  "cases": [
+    {
+      "expected": {
+        "scipy": {
+          "z": -3.0902323062
+        }
+      },
+      "inputs": {
+        "alpha": 0.999
+      },
+      "name": "alpha-0.999"
+    },
+    {
+      "expected": {
+        "scipy": {
+          "z": -1.2815515655
+        }
+      },
+      "inputs": {
+        "alpha": 0.9
+      },
+      "name": "alpha-0.9"
+    },
+    {
+      "expected": {
+        "scipy": {
+          "z": 0.0
+        }
+      },
+      "inputs": {
+        "alpha": 0.5
+      },
+      "name": "alpha-0.5"
+    },
+    {
+      "expected": {
+        "scipy": {
+          "z": 0.84162123357
+        }
+      },
+      "inputs": {
+        "alpha": 0.2
+      },
+      "name": "alpha-0.2"
+    },
+    {
+      "expected": {
+        "scipy": {
+          "z": 1.2815515655
+        }
+      },
+      "inputs": {
+        "alpha": 0.1
+      },
+      "name": "alpha-0.1"
+    },
+    {
+      "expected": {
+        "scipy": {
+          "z": 1.644853627
+        }
+      },
+      "inputs": {
+        "alpha": 0.05
+      },
+      "name": "alpha-0.05"
+    },
+    {
+      "expected": {
+        "scipy": {
+          "z": 1.9599639845
+        }
+      },
+      "inputs": {
+        "alpha": 0.025
+      },
+      "name": "alpha-0.025"
+    },
+    {
+      "expected": {
+        "scipy": {
+          "z": 2.326347874
+        }
+      },
+      "inputs": {
+        "alpha": 0.01
+      },
+      "name": "alpha-0.01"
+    },
+    {
+      "expected": {
+        "scipy": {
+          "z": 2.5758293035
+        }
+      },
+      "inputs": {
+        "alpha": 0.005
+      },
+      "name": "alpha-0.005"
+    },
+    {
+      "expected": {
+        "scipy": {
+          "z": 3.0902323062
+        }
+      },
+      "inputs": {
+        "alpha": 0.001
+      },
+      "name": "alpha-0.001"
+    },
+    {
+      "expected": {
+        "scipy": {
+          "z": 3.7190164855
+        }
+      },
+      "inputs": {
+        "alpha": 0.0001
+      },
+      "name": "alpha-0.0001"
+    },
+    {
+      "expected": {
+        "scipy": {
+          "z": 4.7534243088
+        }
+      },
+      "inputs": {
+        "alpha": 1e-06
+      },
+      "name": "alpha-1e-06"
+    },
+    {
+      "expected": {
+        "scipy": {
+          "z": 5.6120012442
+        }
+      },
+      "inputs": {
+        "alpha": 1e-08
+      },
+      "name": "alpha-1e-08"
+    },
+    {
+      "expected": {
+        "scipy": {
+          "z": 6.3613409024
+        }
+      },
+      "inputs": {
+        "alpha": 1e-10
+      },
+      "name": "alpha-1e-10"
+    },
+    {
+      "expected": {
+        "scipy": {
+          "z": 7.0344838253
+        }
+      },
+      "inputs": {
+        "alpha": 1e-12
+      },
+      "name": "alpha-1e-12"
+    }
+  ],
+  "comparison": "relative 1e-9 with an absolute floor of 1e-12 (see tests/test_golden.py)",
+  "generator": "tests/golden/generate.py",
+  "method": "z_for (one-sided normal critical value)",
+  "references": {
+    "scipy": "1.14.1"
+  }
+}
