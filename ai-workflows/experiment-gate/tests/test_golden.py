@@ -23,6 +23,7 @@ GOLDEN = Path(__file__).resolve().parent / "golden"
 # other stored value is within 1e-6 of zero except tail probabilities, which keep the relative test.
 REL_TOL = 1e-9
 ZERO_REFERENCE_ABS_TOL = 1e-12
+SRM_TAIL_ABS_TOL = 2.3e-16
 
 # The sequential boundary is the one quantity the references compute by iteration rather than
 # a formula. confseq finds the boundary by numerical root finding and the mixing variance comes
@@ -41,8 +42,10 @@ def load(name):
 
 
 class GoldenTestCase(unittest.TestCase):
-    def close(self, actual, expected, rel=REL_TOL, msg=None):
+    def close(self, actual, expected, rel=REL_TOL, floor=None, msg=None):
         tolerance = rel * max(abs(actual), abs(expected)) if expected != 0 else ZERO_REFERENCE_ABS_TOL
+        if floor is not None:
+            tolerance = max(tolerance, floor)
         self.assertLessEqual(abs(actual - expected), tolerance,
                              msg or f"{actual!r} != {expected!r} (tolerance {tolerance:.3g})")
 
@@ -111,13 +114,25 @@ class CupedEffectGolden(GoldenTestCase):
 
 
 class SampleRatioGolden(GoldenTestCase):
-    def test_chi_square_p_value_against_scipy(self):
+    def test_exact_tail_against_scipy(self):
+        for case in load("sample_ratio"):
+            with self.subTest(case=case["name"]):
+                inputs = case["inputs"]
+                p = stats.sample_ratio_p_value(inputs["control_n"], inputs["treatment_n"],
+                                               inputs["expected_treatment_share"], exact_tail=True)
+                self.close(p, case["expected"]["scipy"]["p_value"])
+
+    def test_schema_2_rule_keeps_its_documented_tail_limit(self):
         for case in load("sample_ratio"):
             with self.subTest(case=case["name"]):
                 inputs = case["inputs"]
                 p = stats.sample_ratio_p_value(inputs["control_n"], inputs["treatment_n"],
                                                inputs["expected_treatment_share"])
-                self.close(p, case["expected"]["scipy"]["p_value"])
+                expected = case["expected"]["scipy"]["p_value"]
+                # 1 - cdf(z) is exact only to about 1.1e-16, so below p = 1e-7 the relative error
+                # exceeds 1e-9 and past z = 8.3 the result is 0.0. Records made by 0.1.0 replay
+                # with this rule, so it stays the default; the bound is two roundings of 1 - cdf.
+                self.close(p, expected, floor=SRM_TAIL_ABS_TOL)
 
 
 class MinimumDetectableEffectGolden(GoldenTestCase):
@@ -130,10 +145,19 @@ class MinimumDetectableEffectGolden(GoldenTestCase):
 
 
 class NormalQuantileGolden(GoldenTestCase):
-    def test_critical_value_against_scipy(self):
+    def test_exact_tail_against_scipy(self):
         for case in load("normal_quantile"):
             with self.subTest(case=case["name"]):
-                self.close(stats.z_for(case["inputs"]["alpha"]), case["expected"]["scipy"]["z"])
+                self.close(stats.z_for(case["inputs"]["alpha"], exact_tail=True), case["expected"]["scipy"]["z"])
+
+    def test_schema_2_rule_keeps_its_documented_tail_limit(self):
+        for case in load("normal_quantile"):
+            with self.subTest(case=case["name"]):
+                alpha, z = case["inputs"]["alpha"], case["expected"]["scipy"]["z"]
+                # inv_cdf(1 - alpha) sees 1 - alpha rounded to 1.1e-16: a relative error of
+                # 1.1e-16 / alpha in alpha and, in the tail where phi(z) ~ alpha z, of
+                # 1.1e-16 / (alpha z**2) in z. Records made by 0.1.0 replay with this rule.
+                self.close(stats.z_for(alpha), z, rel=max(REL_TOL, 1.2e-16 / (alpha * z * z)) if z else REL_TOL)
 
 
 class MixtureGolden(GoldenTestCase):

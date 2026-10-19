@@ -1,0 +1,159 @@
+{
+  "decision": "ROLLBACK",
+  "experiment": "early-regression",
+  "expgate_version": "0.1.0",
+  "input": {
+    "arms": {
+      "control": {
+        "metrics": {
+          "conversion": {
+            "successes": 728
+          },
+          "latency_ms": {
+            "mean": 39.972806,
+            "sd": 11.912272
+          },
+          "refund_rate": {
+            "successes": 138
+          }
+        },
+        "units": 7500
+      },
+      "treatment": {
+        "metrics": {
+          "conversion": {
+            "successes": 589
+          },
+          "latency_ms": {
+            "mean": 40.026986,
+            "sd": 12.010978
+          },
+          "refund_rate": {
+            "successes": 171
+          }
+        },
+        "units": 7500
+      }
+    },
+    "assignment": {
+      "expected_treatment_share": 0.5
+    },
+    "description": "Interim look at 15,000 of 60,000 planned units; candidate lowers conversion",
+    "experiment": "early-regression",
+    "metrics": {
+      "conversion": {
+        "direction": "increase",
+        "role": "primary",
+        "type": "proportion"
+      },
+      "latency_ms": {
+        "direction": "decrease",
+        "margin": 2.0,
+        "role": "guardrail",
+        "type": "mean"
+      },
+      "refund_rate": {
+        "direction": "decrease",
+        "margin": 0.003,
+        "role": "guardrail",
+        "type": "proportion"
+      }
+    },
+    "policy": {
+      "sequential": {
+        "planned_units": 60000
+      }
+    },
+    "seed": 20260924
+  },
+  "input_sha256": "3b14e47d43d5007959963393021836de1de1e20197f147ec6f14f895424d2c75",
+  "metrics": [
+    {
+      "control": 0.09706666666666666,
+      "diff": -0.018533333333333332,
+      "direction": "increase",
+      "improvement": -0.018533333333333332,
+      "improvement_bounds": [
+        -0.032357265859580105,
+        -0.0047094008070865615
+      ],
+      "mde": 0.01771134298646029,
+      "mde_basis": "current_look_normal_approximation",
+      "metric": "conversion",
+      "role": "primary",
+      "se": 0.004618954828064863,
+      "status": "DEGRADED",
+      "treatment": 0.07853333333333333,
+      "type": "proportion",
+      "z": 2.992870257628907
+    },
+    {
+      "control": 39.972806,
+      "diff": 0.05418000000000234,
+      "direction": "decrease",
+      "improvement": -0.05418000000000234,
+      "improvement_bounds": [
+        -0.6893410704510575,
+        0.5809810704510529
+      ],
+      "margin": 2.0,
+      "mde": 0.7995584647417718,
+      "mde_basis": "current_look_normal_approximation",
+      "metric": "latency_ms",
+      "role": "guardrail",
+      "se": 0.19533418090321278,
+      "status": "NON_INFERIOR",
+      "treatment": 40.026986,
+      "type": "mean",
+      "z": 3.2516637257960226
+    },
+    {
+      "control": 0.0184,
+      "diff": 0.004400000000000001,
+      "direction": "decrease",
+      "improvement": -0.004400000000000001,
+      "improvement_bounds": [
+        -0.01194139266102849,
+        0.003141392661028487
+      ],
+      "margin": 0.003,
+      "mde": 0.009493315347215462,
+      "mde_basis": "current_look_normal_approximation",
+      "metric": "refund_rate",
+      "role": "guardrail",
+      "se": 0.0023192412552384455,
+      "status": "INCONCLUSIVE",
+      "treatment": 0.0228,
+      "type": "proportion",
+      "z": 3.2516637257960226
+    }
+  ],
+  "policy": {
+    "alpha": 0.05,
+    "power": 0.8,
+    "sequential": {
+      "planned_units": 60000
+    },
+    "srm_alpha": 0.001
+  },
+  "produced_by": {
+    "name": "expgate",
+    "version": "0.1.0"
+  },
+  "reasons": [
+    "primary metric degraded"
+  ],
+  "sample_ratio": {
+    "control_units": 7500,
+    "expected_treatment_share": 0.5,
+    "p_value": 1.0,
+    "pass": true,
+    "treatment_units": 7500
+  },
+  "schema_version": 2,
+  "sequential": {
+    "information_fraction": 0.25,
+    "planned_units": 60000,
+    "units": 15000
+  }
+}

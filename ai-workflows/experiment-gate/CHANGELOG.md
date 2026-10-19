@@ -14,17 +14,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   regenerates the vectors and fails on any difference. The README documents references,
   versions, tolerances and the deliberate differences (pooled versus unpooled proportion
   variance, normal versus t critical values, the CUPED slope and standard error).
-
-### Fixed
-- The sample-ratio p-value is accurate in the tail: it was `2 * (1 - cdf(z))`, which lost
-  digits below about 1e-7 and returned `0.0` once `z` exceeded about 8.3. Below 1e-6 it now
-  uses `erfc`.
-- `z_for` is accurate for `alpha` below 1e-6: it rounded `1 - alpha` (relative error 4.4e-7 in
-  the critical value at `alpha = 1e-12`). Below 1e-6 it now uses `-inv_cdf(alpha)`.
-
-Both changes leave results unchanged at and above a tail probability of 1e-6, so records made
-by 0.1.0 replay to identical values there; records with a sample-ratio p-value or `alpha` below
-1e-6 can replay with different digits.
+- `exact_tail=True` on `stats.sample_ratio_p_value` and `stats.z_for` (`erfc` and
+  `-inv_cdf(alpha)`). The cross-checks showed the defaults lose digits in the tails: the
+  sample-ratio p-value below about 1e-7 and as exactly 0.0 past `z` of about 8.3, `z_for` for
+  `alpha` below about 1e-9. The defaults are unchanged: schema-2 records, including every 0.1.0
+  scenario record (now committed as test fixtures), replay with the formulas that produced them.
+  The accurate tails are intended for the next decision schema.
+- Documented that records with `policy.sequential` replay byte for byte on Python 3.11 and 3.13
+  but not on 3.15, where the mixing-variance search lands about 1e-9 away (a multiplier
+  difference of 1.3e-11); no behavior change.
 
 ## [0.1.0] - 2026-10-13
 

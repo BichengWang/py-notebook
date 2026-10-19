@@ -13,6 +13,7 @@ from expgate import stats
 from expgate.decision import evaluate
 from expgate.generator import SCENARIOS, generate
 from expgate.run import main
+from expgate.verify import main as verify_main, verify_record
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "offer-ranker-v2.json"
 
@@ -39,27 +40,6 @@ class StatsTest(unittest.TestCase):
         self.assertAlmostEqual(stats.sample_ratio_p_value(5000, 5000, 0.5), 1.0)
         self.assertLess(stats.sample_ratio_p_value(4700, 5300, 0.5), 1e-8)
         self.assertAlmostEqual(stats.sample_ratio_p_value(2000, 8000, 0.8), 1.0)
-
-    def test_sample_ratio_tail_keeps_its_digits(self):
-        # 1 - cdf(z) rounds to 0 for z > 8.3 and loses digits well before that. The reference
-        # values are scipy.stats.chi2.sf (tests/golden/sample_ratio.json covers more).
-        self.assertAlmostEqual(stats.sample_ratio_p_value(40000, 44000, 0.5) / 2.502589491e-43, 1.0, places=9)
-        self.assertAlmostEqual(stats.sample_ratio_p_value(4700, 5300, 0.5) / 1.97317529e-09, 1.0, places=7)
-        self.assertGreater(stats.sample_ratio_p_value(30000, 36000, 0.5), 0.0)
-
-    def test_ordinary_probabilities_are_unchanged_from_0_1_0(self):
-        # Records replay with the running version, so outside the tail the original expressions
-        # must give the same bits, not just the same value to 1e-9.
-        n = statistics.NormalDist()
-        chi2 = (5050 - 5000) ** 2 / 5000 * 2
-        self.assertEqual(stats.sample_ratio_p_value(4950, 5050, 0.5), 2.0 * (1.0 - n.cdf(math.sqrt(chi2))))
-        for alpha in (0.5, 0.05, 0.01, 1e-5):
-            self.assertEqual(stats.z_for(alpha), n.inv_cdf(1.0 - alpha))
-
-    def test_critical_value_for_tiny_alpha(self):
-        # 1 - alpha rounds to a multiple of 1.1e-16, which is a 1e-4 relative error in alpha = 1e-12.
-        self.assertAlmostEqual(stats.z_for(1e-12) / 7.034483825, 1.0, places=9)
-        self.assertAlmostEqual(stats.z_for(1e-10) / 6.361340902, 1.0, places=9)
 
     def test_rejects_invalid_inputs(self):
         with self.assertRaises(ValueError):
@@ -763,6 +743,55 @@ class BatchInputTest(unittest.TestCase):
                     self.assertIn("error:", err)
                     self.assertFalse(out.exists())
             self.assertFalse(Path(tmp, "escape").exists())
+
+
+class RecordsFromEarlierVersionsTest(unittest.TestCase):
+    """Schema-2 records keep replaying with the formulas that produced them.
+
+    ``tests/fixtures/records-0.1.0`` holds the decision.json of every scenario, written by 0.1.0
+    (``python -m expgate.run --all-scenarios``). The ``srm`` record carries ``p_value: 0.0``: the
+    0.1.0 tail rule underflows there, and the exact tail (``exact_tail=True``, for schema 3) would
+    write 2e-139 instead. Changing the default would make that record fail verification.
+    """
+
+    FIXTURES = Path(__file__).resolve().parent / "fixtures" / "records-0.1.0"
+
+    # The fixtures were written on Python 3.11 (3.13 gives the same bytes). The mixing variance of
+    # the sequential bound is found by a search over a function that is flat at its minimum, so
+    # one-ulp differences in the interpreter's float path move it by about 1e-9: Python 3.15 returns
+    # a mixing ratio that differs in the 9th digit, and the early-regression record (the only one
+    # with a sequential bound) then replays with a multiplier 1.3e-11 away. The record is checked
+    # exactly wherever the search lands where it did when the record was written.
+    SEQUENTIAL_SAME_AS_WRITTEN = stats.mixture_ratio(0.05).hex() == "0x1.ac50afae8bbe1p+2"
+
+    def paths(self):
+        paths = sorted(self.FIXTURES.glob("*.json"))
+        self.assertEqual({p.stem for p in paths}, set(SCENARIOS))
+        if not self.SEQUENTIAL_SAME_AS_WRITTEN:
+            paths = [p for p in paths if p.stem != "early-regression"]
+        return paths
+
+    def test_every_scenario_record_still_verifies(self):
+        for path in self.paths():
+            with self.subTest(record=path.stem):
+                record = json.loads(path.read_text(encoding="utf-8"))
+                self.assertEqual(record["produced_by"], {"name": "expgate", "version": "0.1.0"})
+                self.assertEqual(verify_record(record), [])
+
+    def test_verify_command_exits_zero(self):
+        out, err = io.StringIO(), io.StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            code = verify_main([str(path) for path in self.paths()])
+        self.assertEqual((code, err.getvalue()), (0, ""))
+
+    def test_srm_record_keeps_the_schema_2_tail(self):
+        record = json.loads((self.FIXTURES / "srm.json").read_text(encoding="utf-8"))
+        sample_ratio = record["sample_ratio"]
+        self.assertEqual(sample_ratio["p_value"], 0.0)
+        args = (sample_ratio["control_units"], sample_ratio["treatment_units"],
+                sample_ratio["expected_treatment_share"])
+        self.assertEqual(stats.sample_ratio_p_value(*args), 0.0)
+        self.assertGreater(stats.sample_ratio_p_value(*args, exact_tail=True), 0.0)
 
 
 if __name__ == "__main__":

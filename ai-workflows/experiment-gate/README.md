@@ -294,9 +294,9 @@ install, not other parts of the GrowthBook repository.
 | `mean_effect` (Welch) | scipy `ttest_ind_from_stats(equal_var=False)`, gbstats `SampleMeanStatistic` | 1e-9 relative | agrees |
 | `ratio_effect` (delta method) | gbstats `RatioStatistic`; linearization recomputed from raw per-unit data with numpy | 1e-9 relative | agrees |
 | `cuped_effect` | OLS of `y ~ treated + x` on raw per-unit data (statsmodels) with the variance of `y - theta x` per arm (numpy); gbstats `RegressionAdjustedStatistic` where the method is the same | 1e-9 relative | agrees; gbstats differs by design, see below |
-| `sample_ratio_p_value` | scipy `chisquare` | 1e-9 relative | disagreed in the tail; fixed |
+| `sample_ratio_p_value` | scipy `chisquare` | `exact_tail=True`: 1e-9 relative; schema-2 rule: 2.3e-16 absolute | tail limit in the schema-2 rule, documented |
 | `minimum_detectable_effect` | scipy `norm.isf` and `norm.ppf`; statsmodels `NormalIndPower().power` at that effect equals the requested power | 1e-9 relative | agrees |
-| `z_for` | scipy `norm.isf` | 1e-9 relative | disagreed for `alpha` below about 1e-9; fixed |
+| `z_for` | scipy `norm.isf` | `exact_tail=True`: 1e-9 relative; schema-2 rule: 1e-9 above `alpha` = 1e-9, looser below | tail limit in the schema-2 rule, documented |
 | mixture critical value at a fixed mixing ratio | scipy `quad` for the half-normal mixture integral and `brentq` for its root | 1e-9 relative | agrees |
 | `sequential_multiplier` | confseq `normal_mixture_bound` (one-sided), mixing variance tuned with scipy `minimize_scalar` to be narrowest at the planned size | 1e-6 relative | agrees to 2.6e-7 at worst |
 
@@ -318,22 +318,28 @@ objective that is flat at its minimum. The two agreed to 2.6e-7 at worst across 
 of `alpha` (0.001 to 0.2) and planned-to-current information ratio (0.1 to 10); a wrong boundary
 would be off by far more (the fixed-horizon value at `alpha = 0.05` is 40% lower).
 
-**Disagreements found, and fixed.**
+**Disagreements found: two tail-accuracy limits in the schema-2 rules.** Both come from computing
+a tail through `1 - x`.
 
-- The sample-ratio p-value was computed as `2 * (1 - cdf(z))`. The subtraction loses digits
-  below about 1e-7 (a split of 4,700 to 5,300 reported 1.9731754e-9, 5.6e-8 relative error) and
-  returns exactly 0 once `z` exceeds about 8.3, so a severe mismatch reported `p = 0.0` where
-  scipy gives 2.5e-43 (40,000 against 44,000 units). The tail now uses `erfc`. The gate decision
-  changes only for an `srm_alpha` below the true p-value, which the exact 0 used to force to
-  `INVALID`.
-- `z_for` computed `inv_cdf(1 - alpha)`, which rounds `1 - alpha` to a multiple of 1.1e-16: a
-  relative error of 1e-4 in `alpha` at 1e-12, which is 4.4e-7 in the critical value (1.9e-9 at
-  1e-10). Below `alpha = 1e-6` it now uses `-inv_cdf(alpha)`.
+- The sample-ratio p-value is `2 * (1 - cdf(z))`. The subtraction is exact to about 1.1e-16, so
+  below about 1e-7 the relative error exceeds 1e-9 (a split of 4,700 to 5,300 gives 1.9731754e-9,
+  5.6e-8 off) and once `z` exceeds about 8.3 the result is exactly 0.0, where scipy gives 2.5e-43
+  for 40,000 against 44,000 units. The `srm` scenario record written by 0.1.0 holds
+  `p_value: 0.0` for 28,200 against 31,800 units; the true value is 6.7e-49. A 0.0 still fails any
+  `srm_alpha`, so the decision is right; it matters only if you read tiny p-values or set
+  `srm_alpha` below the true p-value.
+- `z_for` is `inv_cdf(1 - alpha)`, which sees `1 - alpha` rounded to 1.1e-16. The critical value is
+  within 1e-9 relative for `alpha` of 1e-9 and above, 1.9e-9 at 1e-10 and 4.4e-7 at 1e-12.
 
-Both fixes apply only below a tail probability of 1e-6. Above it the original expressions are
-kept, so a record made by 0.1.0 still replays to identical values; only records whose
-sample-ratio p-value is below 1e-6 or whose `alpha` is below 1e-6 can replay with different
-digits.
+Accurate versions exist: `stats.sample_ratio_p_value(..., exact_tail=True)` uses `erfc` and
+`stats.z_for(alpha, exact_tail=True)` uses `-inv_cdf(alpha)`; the golden vectors hold both to
+1e-9 relative. They are not the default. A schema-2 record must replay with the formulas that
+produced it, and the default changing would make the 0.1.0 `srm` record fail `expgate.verify`
+(a regression test verifies every scenario record written by 0.1.0, committed under
+`tests/fixtures/records-0.1.0`). Producers and the verifier therefore keep the 0.1.0 rules for
+schema 2, and the vectors test those too, against the limits above (2.3e-16 absolute for the
+p-value). The accurate tails are meant to become the default with the next decision schema,
+which is a new record format and so may change its numerics.
 
 **Deliberate differences from the references.** These are method choices, not defects. The
 vectors record the other side where it helps (the `informational` blocks are not asserted).
@@ -385,6 +391,11 @@ performance or calibration on live-model outcomes.
   bounds do. The guarantee is exact for normal estimates with known variance and holds only
   approximately at small samples. The sample-ratio check is not sequential: re-running it at
   every look raises its false alarm rate above `srm_alpha`.
+- Replaying a record that uses `policy.sequential` is exact only when the interpreter's float
+  arithmetic matches the producer's. The mixing variance comes from a search over an objective
+  that is flat at its minimum, so one-ulp differences move it by about 1e-9: a record written on
+  Python 3.11 replays on 3.13 byte for byte, but on Python 3.15 the multiplier differs by 1.3e-11
+  and `expgate.verify` reports a `metrics` mismatch. Fixed-horizon records are unaffected.
 - CUPED is supported for one covariate per proportion or mean metric. There is no CUPED for
   ratio metrics, no multi-covariate adjustment, and no heterogeneous-effect analysis.
 - The delta method is a first-order approximation. It needs enough units that the
