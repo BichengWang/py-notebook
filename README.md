@@ -136,17 +136,5 @@ The three small packages carry their own MIT licenses; the root [MIT license](LI
 covers the research material within its scope. [RELIA's license status](ai-workflows/ai-decision-reliability/LICENSE)
 grants no current rights; intended Apache-2.0 publication requires rights clearance.
 See [SECURITY](SECURITY.md), [CONTRIBUTING](CONTRIBUTING.md), [CITATION](CITATION.cff),
-[records](docs/DECISION_RECORDS.md), [releasing](docs/RELEASING.md) and
-[plan](.plan/README.md).
-
-## Portfolio and publication records
-
-The [author-produced portfolio report](docs/PUBLICATION_REPORT.md) records local
-checks and evidence gaps for an EB-2 NIW assessment. It is not independent
-recognition, a legal eligibility finding or an accepted RELIA release.
-[News/reviewer briefing](docs/NEWS_READY.md), [publication record](docs/PUBLICATION_RECORD.md),
-[USCIS/NIST source notes](docs/NIW_SOURCE_NOTES.md), [publication protocol](docs/PUBLICATION_GUIDE.md)
-and [local evidence summary](docs/publication/evidence-2026-10-11.json) retain the
-claim boundaries. Fixtures and self-produced reports are not live-model quality,
-adoption, production impact or national-importance evidence; RELIA reuse remains
-subject to rights, reproduction and acceptance review.
+[records](docs/DECISION_RECORDS.md), [releasing](docs/RELEASING.md),
+[plan](.plan/README.md) and [publication records](docs/publication/README.md).
