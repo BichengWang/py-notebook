@@ -402,8 +402,10 @@ records and evaluation directories, and `manifest.json` listing for each one the
 each document must (or must not) validate against, and every digest it carries: the JCS canonical bytes
 for `record_sha256` (`*.canonical`) and `bytes` digests of the retained files for provenance. All vectors
 are produced by `python3 conformance/generate.py` from the bundled examples and hand-written responses
-(synthetic, not provider output); the unit tests assert that the committed tree equals a fresh generation,
-run the verifier over every vector and recompute every digest. After changing a record format or the
+(synthetic, not provider output); the unit tests assert that the committed tree equals a fresh generation (for evaluation directories,
+`evaluation.json` is compared with the verifier's 1e-9 tolerance, and `EVALUATION.md` and the hashes
+of those two files are skipped, because metric floats differ in their last digits between platforms: the
+vectors were generated on macOS and CI on Linux produced a different `evaluation.json`), run the verifier over every vector and recompute every digest. After changing a record format or the
 package version, rerun the generator and commit the result. With the test-only `jsonschema` pin from
 `requirements-dev.txt` installed (CI does), the tests also validate every manifest document and the
 records the commands produce against the schemas; without it those tests skip.
