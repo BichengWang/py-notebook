@@ -77,3 +77,36 @@ jobs:
           replay_exit=$?
           set -e
           test "$replay_exit" -eq 0
+      - name: Verify records with the installed wheel
+        run: |
+          venv="$RUNNER_TEMP/jev-wheel"
+          cd "$RUNNER_TEMP"
+          example_dir="$GITHUB_WORKSPACE/ai-workflows/jev-decision/examples"
+          "$venv/bin/python" - "$example_dir" "$RUNNER_TEMP/answer.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          from jevdecision import JevBackend, questions_from_spec
+          from jevdecision.records import answer_record, dumps_record
+          examples, target = Path(sys.argv[1]), Path(sys.argv[2])
+          questions = questions_from_spec(json.loads((examples / "support-ticket.json").read_text()))
+          response = json.loads((examples / "support-ticket-responses.jsonl").read_text().splitlines()[0])["response"]
+          backend = JevBackend(api_key="unused", transport=lambda *args: response, env={})
+          decision = backend.decide("Help! My payouts have been failing for 3 days.", questions)
+          target.write_text(dumps_record(answer_record(decision, questions)), encoding="utf-8")
+          PY
+          "$venv/bin/jev-decision-verify" answer.json
+          sed 's/"noul":0.08/"noul":0.8/' answer.json > tampered.json
+          if cmp -s answer.json tampered.json; then echo "tamper edit did not change the record"; exit 1; fi
+          set +e
+          "$venv/bin/jev-decision-verify" tampered.json
+          tampered_exit=$?
+          set -e
+          test "$tampered_exit" -eq 1
+          "$venv/bin/jev-decision-verify" --evaluation "$RUNNER_TEMP/jev-wheel-eval"
+          cp -r "$RUNNER_TEMP/jev-wheel-eval" "$RUNNER_TEMP/jev-wheel-eval-tampered"
+          echo " " >> "$RUNNER_TEMP/jev-wheel-eval-tampered/responses.jsonl"
+          set +e
+          "$venv/bin/jev-decision-verify" --evaluation "$RUNNER_TEMP/jev-wheel-eval-tampered"
+          tampered_eval_exit=$?
+          set -e
+          test "$tampered_eval_exit" -eq 1

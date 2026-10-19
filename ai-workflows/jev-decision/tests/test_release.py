@@ -137,7 +137,9 @@ class ReleaseTests(unittest.TestCase):
             with mock.patch('jevdecision.__main__.create_backend', return_value=backend), redirect_stdout(output):
                 self.assertEqual(decide_main(['--questions', str(path), '--state', 'state']), 1)
             record = json.loads(output.getvalue())
-            self.assertEqual(record['schema_version'], 1)
+            self.assertEqual(record['schema_version'], 2)
+            self.assertEqual(record['answers']['n']['type'], 'refusal')
+            self.assertEqual(record['questions'], {'n': {'type': 'noul', 'instructions': 'yes?'}})
             self.assertEqual(record['produced_by'], {'name': 'jevdecision', 'version': '0.1.0'})
             self.assertEqual(record['answers']['n']['type'], 'refusal')
 

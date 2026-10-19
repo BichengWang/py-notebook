@@ -22,8 +22,8 @@ and source distribution under `examples/`; they are not installed in the wheel.
 pip install jevdecision
 ```
 
-The distribution includes `jev-decision` and `jev-decision-eval`; existing
-`python -m jevdecision` and `python -m jevdecision.evaluation` commands remain supported.
+The distribution includes `jev-decision`, `jev-decision-eval` and `jev-decision-verify`; existing
+`python -m jevdecision`, `python -m jevdecision.evaluation` and `python -m jevdecision.verify` commands remain supported.
 Use the `examples/` directory in a clone or unpacked source distribution.
 
 ## Question types
@@ -162,12 +162,85 @@ The questions file uses Jev's native question map
 accepted as an alias of `noul`. A `.json` state file is sent as structured
 state, and any other file is sent as text. `--dry-run` prints the provider request
 without sending it, so it needs no API key; the state is validated first either
-way. The decision is printed as JSON. Exit codes: 0 for success, 1 for a result containing refusals or a provider
-or response error, 2 for invalid input (questions, state, or a `--timeout` that is
+way. The decision is printed as one line of JSON, an answer record (see
+[Answer records and verification](#answer-records-and-verification)). Exit codes: 0 for success, 1 for a result
+containing refusals, a provider or response error, or a response that cannot be recorded as
+canonical JSON, 2 for invalid input (questions, state, or a `--timeout` that is
 not a positive number of seconds).
 
 From the repository root, `make jev-test` runs the tests and
 `make jev-dry-run` prints the example request for both backends.
+
+## Answer records and verification
+
+`jev-decision` prints a **schema 2** answer record by default (`--schema-version 1` prints the
+earlier typed-answers-only record). Besides the typed answers, `backend`, `model`, `id`, `usage`
+and `produced_by`, a schema 2 record embeds:
+
+- `questions`: the question definitions in Jev's question map form (`type`, `instructions`,
+  `criteria`), normalized (no `predicate` alias, no extra keys);
+- `response`: the raw provider response exactly as received and parsed from JSON;
+- `record_sha256`: lowercase hex SHA-256 of the [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785)
+  (JCS) canonical form of the whole record **without the `record_sha256` member**. It therefore
+  covers every other field. The printed line is that canonical form.
+
+The state text is not embedded; it may be sensitive and re-parsing does not need it. JCS writes `2.0`
+as `2` and sorts object members, so the digest depends on neither the integer/float distinction nor
+member order; score levels stay ordered because they are a list. A response containing integers
+beyond 2^53-1 or non-finite numbers cannot be recorded canonically, and `jev-decision` then exits 1.
+
+```bash
+python3 -m jevdecision --questions examples/support-ticket.json --state "My payouts are failing." > answer.json
+jev-decision-verify answer.json            # python3 -m jevdecision.verify answer.json
+```
+
+`jev-decision-verify` re-parses the embedded response with the embedded question definitions (the
+same parser the SDK uses), compares the typed answers and refusals, the response `id`, `usage` and
+`model` with the recorded ones, and recomputes `record_sha256`. It prints `PATH: verified`,
+`PATH: mismatch: <fields>` or `PATH: cannot verify: <reason>` (stderr) for each argument.
+
+`jev-decision-verify --evaluation DIR` checks an output directory of `jev-decision-eval`:
+
+1. every file listed in `provenance.json` `outputs` is hashed byte for byte and compared;
+2. the retained `responses.jsonl` is re-scored with the retained `questions.json`, the retained
+   `requirements.json` (when the run had one), and the labels recorded in `cases.jsonl`, using the same
+   evaluation code; the recomputed report must equal `evaluation.json` and the recomputed rows must
+   equal `cases.jsonl`. Nothing is sent to a provider;
+3. the `questions.json` and `requirements.json` copies must match the input hashes in `provenance.json`.
+
+Metrics use `math.log` and `NormalDist.inv_cdf`, whose last digits can differ between platform math
+libraries, so the re-scored metric floats (including each requirement's `value`) match `evaluation.json`
+within a relative 1e-9 (absolute 1e-12 where the recomputed value is exactly 0). Everything else is exact:
+requirement bounds, counts, strings, booleans, statuses, the rows of `cases.jsonl`, and every file hash.
+Answer record verification is exact: the only arithmetic on recorded floats is addition,
+multiplication and division, which are bit-portable. The committed conformance vectors are generated on one
+platform and verified on others in CI. `jev-decision-eval` itself is unchanged: it writes whatever the
+local math library computes, and its byte-for-byte reproducibility claim holds for the Python versions
+named under Limitations, not across platforms.
+
+Runs from 0.1.0 did not retain `questions.json` and `requirements.json`; pass the original files with
+`--questions FILE` and `--requirements FILE` (their hashes must match `provenance.json`); the same
+float tolerance applies to those directories. A failed
+live request has no response to re-derive its error message from, so that message is taken from
+`evaluation.json` (it must be a string, one per case, else the directory is malformed, exit 2). It and the
+requested `model` name used when no response names one are the only values the re-scoring takes from the
+record instead of recomputing. Case states and the supplied responses file are not retained and are not re-checked.
+
+Output directories contain the question and requirement text verbatim (`questions.json`,
+`requirements.json`), and `responses.jsonl` holds raw provider responses, so treat them as sensitive as
+the inputs. `cases.jsonl` holds case ids, expected and predicted answers, not the case states.
+
+| Exit | Meaning |
+|---|---|
+| 0 | every argument verified |
+| 1 | mismatch: a field, response byte or retained file differs from what was recorded or re-derived (including a missing retained file) |
+| 2 | malformed or unreadable input, duplicate object keys, non-finite numbers, unsupported schema, or an unverifiable record |
+
+**Schema 1 answer records** (written by 0.1.0) stay readable but exit 2: they embed neither
+questions nor the response, so there is nothing to re-derive ("schema 1 cannot be verified").
+Verification checks that a record is internally consistent under this implementation; it does not
+authenticate who produced the response or prove that a provider sent it, and a record whose content and
+digest are rewritten consistently passes whenever its response still parses to its answers.
 
 ## Evaluating a decision model
 
@@ -280,8 +353,8 @@ to re-score without calling a provider. The bundled replay produces byte-identic
 `responses.jsonl` and `cases.jsonl` on Python 3.11 and 3.13; live-to-replay
 metrics remain the same, but the report's `source` changes.
 
-Decision records use `schema_version: 1`; evaluation and provenance records use
-`schema_version: 2`. They carry `produced_by: {"name": "jevdecision", "version": "0.1.0"}`.
+Answer records use `schema_version: 2` (1 from 0.1.0 remains readable but cannot be verified);
+evaluation and provenance records use `schema_version: 2`. They carry `produced_by: {"name": "jevdecision", "version": "0.1.0"}`.
 Raw provider response replay remains compatible with existing unversioned fixtures.
 JSON records use sorted keys, compact separators and UTF-8 without ASCII escaping;
 SHA-256 digests are lowercase hexadecimal. JSONL rows use the same encoding.
@@ -293,7 +366,9 @@ CLI runs also write a separate deterministic `provenance.json`:
 - `response_mode` is `live` or `replay`. Replay origin is explicitly **unverified**:
   files may be hand-written, and their `model` fields do not authenticate provider output.
 - `outputs` records SHA-256 of `evaluation.json`, `EVALUATION.md`, `responses.jsonl`
-  and `cases.jsonl`. The manifest does not hash itself, include timestamps, paths,
+  and `cases.jsonl`, plus `questions.json` and `requirements.json`: exact copies of the question
+  file and of the requirement file (when `--require` was given) that `jev-decision-verify --evaluation`
+  needs to re-score the run. The manifest does not hash itself, include timestamps, paths,
   headers or credentials, or enter the metric records. Whitespace-only input
   changes can therefore change provenance without changing `evaluation.json`.
 

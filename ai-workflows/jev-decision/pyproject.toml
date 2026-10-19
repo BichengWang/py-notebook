@@ -35,6 +35,7 @@ Changelog = "https://github.com/BichengWang/ai-decision-system/blob/main/ai-work
 [project.scripts]
 jev-decision = "jevdecision.__main__:main"
 jev-decision-eval = "jevdecision.evaluation:main"
+jev-decision-verify = "jevdecision.verify:main"
 
 [tool.setuptools.dynamic]
 version = {attr = "jevdecision.__version__"}

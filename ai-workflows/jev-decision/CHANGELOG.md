@@ -3,6 +3,18 @@
 All notable changes are documented here, following [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
 This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- `jev-decision-verify answer.json` re-parses the embedded raw provider response with the embedded question definitions, compares typed answers, refusals, `id`, `usage` and `model`, and recomputes the digest. Exit 0 verified, 1 mismatch, 2 malformed or unverifiable.
+- `jev-decision-verify --evaluation DIR` hashes every file listed in `provenance.json` and re-scores the retained responses against `evaluation.json` and `cases.jsonl` without calling a provider; recomputed metric floats compare with a relative tolerance of 1e-9, everything else exactly.
+- Answer record schema 2: embeds `questions` and the raw `response` and carries `record_sha256`, the SHA-256 of the RFC 8785 (JCS) canonical record without that member. `jevdecision/jcs.py` ships with the RFC 8785 test vectors.
+- `jev-decision --schema-version {1,2}`.
+
+### Changed
+- `jev-decision` prints schema 2 answer records by default; it exits 1 when the provider response cannot be recorded as canonical JSON. Schema 1 records stay readable and exit 2 in the verifier as unverifiable.
+- `jev-decision-eval` retains exact copies of the question file and any requirement file as `questions.json` and `requirements.json` and lists them in `provenance.json` `outputs`. Runs from 0.1.0 need `--questions` and `--requirements` to be verified.
+
 ## [0.1.0] - 2026-10-13
 
 ### Added

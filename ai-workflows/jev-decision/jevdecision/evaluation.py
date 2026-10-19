@@ -32,7 +32,9 @@ and predicted answer (or the case's error), and EVALUATION.md lists the incorrec
 
 Command line: exit 0 for PASS, 1 for FAIL/provider errors, 2 for invalid input,
 and 3 for UNGATED (no explicit question metric bounds). CLI runs also write provenance.json
-with exact input and output file SHA-256 hashes, separately from evaluation metrics.
+with exact input and output file SHA-256 hashes, separately from evaluation metrics, and a
+retained copies of the question and requirement files (`questions.json`, `requirements.json`)
+so `jev-decision-verify --evaluation` can re-score the run from the directory alone.
 
     python -m jevdecision.evaluation --questions examples/support-ticket.json \
         --cases examples/support-ticket-cases.jsonl \
@@ -565,6 +567,10 @@ def main(argv=None):
             staging = Path(tempfile.mkdtemp(prefix=f".{args.out.name}-", dir=args.out.parent))
         digest = _write_records(report, raw, staging, case_results(questions, cases, answers, errors),
                                 preserve_streams=not args.responses)
+        retained = {"questions": "questions.json", "requirements": "requirements.json"}
+        for role, filename in retained.items():
+            if inputs[role] is not None:
+                (staging / filename).write_bytes(inputs[role])
         provenance = {
             "schema_version": 2,
             "produced_by": {"name": "jevdecision", "version": __version__},
@@ -575,7 +581,8 @@ def main(argv=None):
             "inputs": {name: {"sha256": hashlib.sha256(blob).hexdigest()} if blob is not None else None
                        for name, blob in inputs.items()},
             "outputs": {name: {"sha256": hashlib.sha256((staging / name).read_bytes()).hexdigest()}
-                        for name in ("evaluation.json", "EVALUATION.md", "responses.jsonl", "cases.jsonl")},
+                        for name in ("evaluation.json", "EVALUATION.md", "responses.jsonl", "cases.jsonl",
+                                     *(filename for role, filename in retained.items() if inputs[role] is not None))},
         }
         (staging / "provenance.json").write_text(
             json.dumps(provenance, sort_keys=True, separators=(",", ":"), ensure_ascii=False), encoding="utf-8")
