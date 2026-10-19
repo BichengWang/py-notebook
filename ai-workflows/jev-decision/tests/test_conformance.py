@@ -65,16 +65,22 @@ def load_generator():
 DIGEST_LINE = re.compile(rb"(- evaluation\.json SHA-256: `)[0-9a-f]{64}(`)")
 # Vectors whose provenance.json deliberately lists a hash that is not that of the committed file.
 STALE_BY_DESIGN = {"evaluation-markdown-edited": ("EVALUATION.md", lambda data: data[:-1])}
+# Every tampered and invalid evaluation vector is derived from this valid one by a named edit; only the
+# edits that change EVALUATION.md appear here, all others leave it byte-identical to the source.
+SOURCE_VECTOR = "evaluation-replay-gated"
+MARKDOWN_EDITS = {"evaluation-markdown-edited": lambda data: data + b"\n"}
 
 
-def compare_evaluation_directory(kind, directory, committed, fresh):
+def compare_evaluation_directory(kind, directory, committed, fresh, source=None):
     """Compare a committed evaluation vector with a fresh generation, allowing only the platform
     difference of metric floats (evaluation.json compared with the verifier's tolerance) and what
     follows from it: the evaluation.json hash in provenance.json and the digest line of EVALUATION.md.
 
     EVALUATION.md must equal the fresh Markdown apart from that digest line, and for valid vectors must
     equal exactly what the renderer produces from the committed report and cases and the committed
-    report's actual digest. Both derived hashes in provenance.json must be the SHA-256 of the committed
+    report's actual digest. For tampered and invalid vectors the digest line is not normalized at all:
+    EVALUATION.md must equal the committed source vector's Markdown plus the vector's named edit,
+    byte for byte. Both derived hashes in provenance.json must be the SHA-256 of the committed
     files, checked independently. Everything else is byte-exact.
     """
     name = f"{kind}/{directory}"
@@ -84,9 +90,13 @@ def compare_evaluation_directory(kind, directory, committed, fresh):
     if "evaluation.json" in committed:
         assert _close(json.loads(fresh["evaluation.json"]), json.loads(committed["evaluation.json"]),
                       frozenset({"limit"})), f"{name}/evaluation.json"
-    if "EVALUATION.md" in committed:
+    if "EVALUATION.md" in committed and kind == "valid":
         assert DIGEST_LINE.sub(rb"\1X\2", committed["EVALUATION.md"]) == DIGEST_LINE.sub(
             rb"\1X\2", fresh["EVALUATION.md"]), f"{name}/EVALUATION.md"
+    elif "EVALUATION.md" in committed:
+        assert source is not None, f"{name}: needs the committed source vector"
+        expected_markdown = MARKDOWN_EDITS.get(directory, lambda data: data)(source["EVALUATION.md"])
+        assert committed["EVALUATION.md"] == expected_markdown, f"{name}/EVALUATION.md differs from the source vector"
     provenance, fresh_provenance = json.loads(committed["provenance.json"]), json.loads(fresh["provenance.json"])
     derived = {}
     for document in (provenance, fresh_provenance):
@@ -203,11 +213,13 @@ class ManifestTests(unittest.TestCase):
             else:
                 self.assertEqual(committed[name], fresh[name], name)
         self.assertEqual(len(directories), 12)
+        loaded = {key: {f: (CONFORMANCE / key[0] / key[1] / f).read_bytes() for f in filenames}
+                  for key, filenames in directories.items()}
+        source = loaded[("valid", SOURCE_VECTOR)]
         for (kind, directory), filenames in directories.items():
             compare_evaluation_directory(
-                kind, directory,
-                {f: committed[f"{kind}/{directory}/{f}"] for f in filenames},
-                {f: fresh[f"{kind}/{directory}/{f}"] for f in filenames})
+                kind, directory, loaded[(kind, directory)],
+                {f: fresh[f"{kind}/{directory}/{f}"] for f in filenames}, source)
 
     def test_substituted_markdown_with_a_matching_provenance_hash_is_caught(self):
         kind, directory = "valid", "evaluation-replay-gated"
@@ -227,6 +239,22 @@ class ManifestTests(unittest.TestCase):
             for name, data in forged.items():
                 (Path(tmp) / name).write_bytes(data)
             self.assertEqual(run_verify(["jev-decision-verify", "--evaluation", "{path}"], Path(tmp))[0], 0)
+
+    def test_zeroed_digest_line_in_a_tampered_vector_is_caught(self):
+        source_dir = CONFORMANCE / "valid" / SOURCE_VECTOR
+        source = {path.name: path.read_bytes() for path in source_dir.iterdir()}
+        for kind, directory in (("tampered", "evaluation-responses-edited"), ("invalid", "evaluation-cases-unparseable")):
+            base = CONFORMANCE / kind / directory
+            files = {path.name: path.read_bytes() for path in base.iterdir()}
+            compare_evaluation_directory(kind, directory, files, dict(files), source)  # control
+            forged = dict(files)
+            forged["EVALUATION.md"] = DIGEST_LINE.sub(rb"\g<1>" + b"0" * 64 + rb"\g<2>", files["EVALUATION.md"])
+            self.assertNotEqual(forged["EVALUATION.md"], files["EVALUATION.md"])
+            provenance = json.loads(forged["provenance.json"])
+            provenance["outputs"]["EVALUATION.md"]["sha256"] = hashlib.sha256(forged["EVALUATION.md"]).hexdigest()
+            forged["provenance.json"] = json.dumps(provenance, sort_keys=True, separators=(",", ":")).encode("utf-8")
+            with self.subTest(directory=directory), self.assertRaises(AssertionError):
+                compare_evaluation_directory(kind, directory, forged, dict(files), source)
 
     def test_provenance_normalization_covers_only_the_two_derived_hashes(self):
         kind, directory = "valid", "evaluation-replay-gated"

@@ -405,8 +405,9 @@ are produced by `python3 conformance/generate.py` from the bundled examples and 
 (synthetic, not provider output); the unit tests assert that the committed tree equals a fresh generation. For evaluation directories only
 the platform difference of metric floats is allowed: `evaluation.json` is compared with the verifier's 1e-9
 tolerance (the vectors were generated on macOS and CI on Linux produced a different `evaluation.json`),
-`EVALUATION.md` must equal the fresh rendering apart from its digest line and, for valid vectors, exactly the
-rendering of the committed report and cases, and the two hashes in `provenance.json` that follow from
+on valid vectors `EVALUATION.md` must equal the fresh rendering apart from its digest line and exactly the
+rendering of the committed report and cases; on tampered and invalid vectors it must equal the committed
+source vector's Markdown plus the named edit, byte for byte; and the two hashes in `provenance.json` that follow from
 `evaluation.json` and `EVALUATION.md` are checked against the committed files' bytes. Everything else is
 byte-exact. The tests also run the verifier over every vector and recompute every digest. After changing a record format or the
 package version, rerun the generator and commit the result. With the test-only `jsonschema` pin from
