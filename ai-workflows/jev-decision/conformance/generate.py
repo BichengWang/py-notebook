@@ -101,6 +101,11 @@ class Tree:
                           indent=2, ensure_ascii=False) + "\n"
 
 
+def append_newline(data):
+    """The named edit of tampered/evaluation-markdown-edited: one newline appended to EVALUATION.md."""
+    return data + b"\n"
+
+
 def document(schema, valid, path="."):
     return {"path": path, "schema": SCHEMA_DIR + schema, "schema_valid": valid}
 
@@ -355,7 +360,7 @@ def add_evaluations(tree):
                 "cases.jsonl removed although provenance.json lists it", None, EVAL_DOCUMENTS)
 
         files = dict(gated_full)
-        files["EVALUATION.md"] = files["EVALUATION.md"] + b"\n"
+        files["EVALUATION.md"] = append_newline(files["EVALUATION.md"])
         add_dir(tree, "tampered", "evaluation-markdown-edited", files,
                 "a newline appended to EVALUATION.md; provenance.json left", None, EVAL_DOCUMENTS)
 
