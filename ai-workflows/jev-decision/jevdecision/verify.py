@@ -276,10 +276,15 @@ def verify_evaluation_dir(directory: Path, questions_file: Path | None = None,
             or report["source"] not in ("live", "replay") or not isinstance(report["model"], str)
             or not isinstance(report["errors"], list)):
         raise ValueError("evaluation.json: invalid producer, backend, source, model or errors")
-    recorded_errors = {}
+    # The one value taken from the record rather than recomputed is the message of a live request that
+    # failed without a response; it must be a string, once per case, before it is used.
+    recorded_errors: dict[str, str] = {}
     for error in report["errors"]:
-        if not isinstance(error, dict) or set(error) != {"id", "error"} or not isinstance(error["id"], str):
-            raise ValueError("evaluation.json: invalid errors entry")
+        if (not isinstance(error, dict) or set(error) != {"id", "error"} or not isinstance(error["id"], str)
+                or not isinstance(error["error"], str)):
+            raise ValueError("evaluation.json: invalid errors entry (needs a string id and a string error)")
+        if error["id"] in recorded_errors:
+            raise ValueError(f"evaluation.json: more than one error for case {error['id']!r}")
         recorded_errors[error["id"]] = error["error"]
 
     case_rows = _strict_jsonl(contents["cases.jsonl"].decode("utf-8"), "cases.jsonl")

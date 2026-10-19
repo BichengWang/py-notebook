@@ -222,7 +222,9 @@ Runs from 0.1.0 did not retain `questions.json` and `requirements.json`; pass th
 `--questions FILE` and `--requirements FILE` (their hashes must match `provenance.json`); the same
 float tolerance applies to those directories. A failed
 live request has no response to re-derive its error message from, so that message is taken from
-`evaluation.json`. Case states and the supplied responses file are not retained and are not re-checked.
+`evaluation.json` (it must be a string, one per case, else the directory is malformed, exit 2). It and the
+requested `model` name used when no response names one are the only values the re-scoring takes from the
+record instead of recomputing. Case states and the supplied responses file are not retained and are not re-checked.
 
 Output directories contain the question and requirement text verbatim (`questions.json`,
 `requirements.json`), and `responses.jsonl` holds raw provider responses, so treat them as sensitive as

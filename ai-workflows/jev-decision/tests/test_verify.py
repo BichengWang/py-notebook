@@ -506,6 +506,54 @@ class EvaluationDirectoryTests(unittest.TestCase):
         (forged / "evaluation.json").write_text(json.dumps(report, sort_keys=True, separators=(",", ":")))
         write_provenance(forged)
         self.assertEqual(self.verify(forged)[0], 1)
+        self.assertEqual(report["errors"][0]["id"], "t02")  # the failed request: no response to re-derive from
+
+        def rewrite(name, edit):
+            directory = self.root / name
+            directory.mkdir()
+            for path in out.iterdir():
+                (directory / path.name).write_bytes(path.read_bytes())
+            report = json.loads((directory / "evaluation.json").read_text())
+            rows = [json.loads(line) for line in (directory / "cases.jsonl").read_text().splitlines()]
+            edit(report, rows)
+            (directory / "evaluation.json").write_text(json.dumps(report, sort_keys=True, separators=(",", ":")))
+            (directory / "cases.jsonl").write_text(
+                "".join(json.dumps(row, sort_keys=True, separators=(",", ":")) + "\n" for row in rows))
+            write_provenance(directory)
+            return directory
+
+        # A non-string message copied consistently into evaluation.json and cases.jsonl is malformed (exit 2),
+        # not verified. Any string message for the failed request is accepted: it cannot be re-derived.
+        for index, value in enumerate(({"not": "a string"}, ["x"], 7, None, True)):
+            def malformed(report, rows, value=value):
+                report["errors"][0]["error"] = value
+                next(row for row in rows if row["id"] == "t02")["error"] = value
+
+            with self.subTest(value=value):
+                code, stdout, stderr = self.verify(rewrite(f"bad-error-{index}", malformed))
+                self.assertEqual((code, stdout), (2, ""))
+                self.assertIn("invalid errors entry", stderr)
+
+        def reworded(report, rows):
+            report["errors"][0]["error"] = "another message"
+            next(row for row in rows if row["id"] == "t02")["error"] = "another message"
+
+        self.assertEqual(self.verify(rewrite("reworded", reworded))[0], 0)
+
+        def duplicated(report, rows):
+            report["errors"].append(dict(report["errors"][0]))
+
+        code, _, stderr = self.verify(rewrite("duplicated-error", duplicated))
+        self.assertEqual(code, 2)
+        self.assertIn("more than one error", stderr)
+
+    def test_replay_error_entries_must_be_well_formed_too(self):
+        directory = self.copy("replay-bad-error")
+        report = json.loads((directory / "evaluation.json").read_text())
+        report["errors"] = [{"id": "t01", "error": {"not": "a string"}}]
+        (directory / "evaluation.json").write_text(json.dumps(report, sort_keys=True, separators=(",", ":")))
+        write_provenance(directory)
+        self.assertEqual(self.verify(directory)[0], 2)
 
     def test_cli_exits_zero_only_when_every_target_verifies(self):
         record = self.root / "answer.json"
