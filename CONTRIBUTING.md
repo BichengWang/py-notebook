@@ -33,7 +33,7 @@ OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 VECLIB_MAXIMUM_THREAD
 python3 -m unittest discover -s scripts/tests -v
 ```
 
-For research workbench changes, follow the [baseline setup](scripts/README.md#baseline-check)
+For research workbench changes, follow the [baseline setup](src/README.md#baseline-check)
 and run `make test` with Python 3.11. Additional component-specific checks are
 documented in each project's README.
 

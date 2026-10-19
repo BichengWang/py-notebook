@@ -6,6 +6,15 @@ authors:
   - family-names: Wang
     given-names: Bicheng
 repository-code: "https://github.com/BichengWang/ai-decision-system"
+license: MIT
+# The repository holds independently versioned components. Version, commit and date
+# identify the GitHub releases of expgate, jevdecision and decisioncontrol: all three
+# 0.1.0 tags (experiment-gate/v0.1.0, jev-decision/v0.1.0, decision-control/v0.1.0)
+# point at this commit and were released on 2026-10-13. RELIA is not released and
+# is not covered by this version; the src/ workbench is unversioned.
+version: "0.1.0"
+commit: 2cadb8b061dc0fa0d79bd0bed7e351da93ea7c1e
+date-released: "2026-10-13"
 abstract: >-
   This repository develops independent tools for replayable decision records
   for AI-assisted go/no-go decisions, with offline verification of recorded

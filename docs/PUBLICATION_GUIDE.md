@@ -28,7 +28,7 @@ Successful collection and retained-artifact integrity checks exit 0; a failed co
 
 ## Scope and claim limits
 
-- The root legacy `src/` workbench is inventoried in the repository overview but is **not** covered by this four-project command. Its own bounded baseline remains in the [setup guide](../scripts/README.md#baseline-check).
+- The root legacy `src/` workbench is inventoried in the repository overview but is **not** covered by this four-project command. Its own bounded baseline remains in the [setup guide](../src/README.md#baseline-check).
 - RELIA's two-run agreement is same-environment local repeatability. This command does not complete stored-reference comparison, a clean-room reviewer attestation, rights review, or release acceptance. Follow [RELIA's separate protocol](../ai-workflows/ai-decision-reliability/docs/REPRODUCE.md) for those claims.
 - Bundled Jev responses, decision-control recommendations, and labels are hand-authored fixtures. No live-model quality, calibration, or production-safety inference follows.
 - Projects remain independent. Shared subject matter is not a tested integrated application.

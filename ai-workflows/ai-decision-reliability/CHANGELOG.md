@@ -3,14 +3,16 @@
 Each entry describes the candidate at the stated date; older release-status statements are
 historical snapshots.
 
-## 0.1.5 candidate — 2026-09-19 (unreleased)
+## 0.1.5 candidate — 2026-10-01 (unreleased)
+
+The integration entries below were written 2026-09-19; the ranking-path input guard was added 2026-10-01 (#176), so this entry is dated to the later change. Test counts and checksums carry their own dates.
 
 - Integrated the project into `BichengWang/ai-decision-system` at `ai-workflows/ai-decision-reliability/`, retaining its independent environment and lockfile and targeting the Python 3.13 series with the existing 3.13.7 reproduction pin.
 - Defined a project-only `relia-release` export and annotated `relia/v<version>` tag scheme. The reviewed monorepo commit and standalone export commit are distinct; their project/root trees must match, and the accepted export commit must survive publication unchanged.
 - Aligned frozen execution, clean-machine/account disclosures, per-field comparison requirements, and external release records with that layout. Added a comparison helper and regression coverage; record the actual suite count and outcome for this candidate rather than inheriting 0.1.4's count.
 - Added a technical report and explicit project license scope. Rights clearance, license grant, maintainer acceptance, unaffiliated reproduction, and public release remain pending.
-- Retained specification `0.1.3`: the generator, partitions, metrics, thresholds, models, gates, and benchmark semantics are unchanged. Regenerated version-bearing artifacts; the result content matches the historical 0.1.4 result after excluding the package-version field. The full 35-test suite passed locally and two explicit fresh runs produced identical result and manifest bytes. Historical 0.1.4 checksums do not identify this candidate. These checks are development validation, not clean-machine or unaffiliated reproduction.
-- Routed the ranking path's feature construction through the input guard (`RANKING_AUTHORIZED_FEATURES`, `build_ranking_features`), the roadmap item "extend the input guard to the ranking path" (Post-release validation). A read outside the allowlist stops the run. It is deliberately not a gate input: exporting an access count would add a key to `results.json` and change specification 0.1.3's results. Three tests added (38 in total). A fresh run in the same Linux environment is byte-identical to the run before the change (`results.json` SHA-256 `365b072749df1829be75d84730b60271a6d5a074e4237b1f1eaab88d8e6abd60`), and the guarded update is still rejected (`REJECT_UPDATE_KEEP_CURRENT_REFERENCE`).
+- Retained specification `0.1.3`: the generator, partitions, metrics, thresholds, models, gates, and benchmark semantics are unchanged. Regenerated version-bearing artifacts; the result content matches the historical 0.1.4 result after excluding the package-version field. As of 2026-09-19 the full 35-test suite passed locally and two explicit fresh runs produced identical result and manifest bytes. Historical 0.1.4 checksums do not identify this candidate. These checks are development validation, not clean-machine or unaffiliated reproduction.
+- 2026-10-01 (#176): routed the ranking path's feature construction through the input guard (`RANKING_AUTHORIZED_FEATURES`, `build_ranking_features`), the roadmap item "extend the input guard to the ranking path" (Post-release validation). A read outside the allowlist stops the run. It is deliberately not a gate input: exporting an access count would add a key to `results.json` and change specification 0.1.3's results. Three tests added (38 in total). A fresh run in the same Linux environment is byte-identical to the run before the change (`results.json` SHA-256 `365b072749df1829be75d84730b60271a6d5a074e4237b1f1eaab88d8e6abd60`), and the guarded update is still rejected (`REJECT_UPDATE_KEEP_CURRENT_REFERENCE`).
 
 ## 0.1.4 candidate — 2026-09-18 (unreleased)
 
