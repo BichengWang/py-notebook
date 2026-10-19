@@ -229,6 +229,17 @@ Schema 1 reports, digested as Python sorted compact JSON, still replay under the
 original rules (`evaluate_cases(..., schema_version=1)` reproduces one). Replay
 picks the rule from the report's own `schema_version`; unknown versions exit 2.
 
+Replay recomputes every metric and compares it with the recorded report exactly,
+for both schemas. This is portable because the recomputation uses only integer
+counts, IEEE 754 division, multiplication, addition and `math.sqrt` (correctly
+rounded), plus a fixed literal for the 95% normal quantile. It calls no libm
+transcendental function (`log`, `exp`, `erf`) and no inverse-CDF routine, so the
+Wilson bounds are bit-identical across platforms. The committed vectors are
+generated on one machine and replayed by CI on Linux, which is the check of that
+claim; no regeneration happens in CI. Decision records contain no derived floats
+(probabilities and thresholds are copied inputs), so record replay has no
+floating-point recomputation.
+
 ## Record schema v4 (v1-v3 readable)
 
 An export contains `record` and `sha256`. The record includes:
