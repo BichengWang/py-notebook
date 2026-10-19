@@ -119,7 +119,6 @@ def snapshot():
         "repo": repo,
         "date": str(datetime.now(ZoneInfo("America/Los_Angeles")).date()),
         "merged_today": count,
-        "daily_target": [15, 20],
         "open_managed_prs": managed,
         "next_issue": queue[0] if queue and count < 20 and len(managed) < 3 else None,
         "blocker": "daily cap" if count >= 20 else "three PRs open" if len(managed) >= 3 else None,

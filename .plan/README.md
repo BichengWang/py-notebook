@@ -1,6 +1,6 @@
 # ai-decision-system plan: re-verifiable records for AI go/no-go decisions
 
-Status: 2026-10-18. Owner: Bicheng Wang. This directory is the source of truth for
+Status: 2026-10-19. Owner: Bicheng Wang. This directory is the source of truth for
 direction and the delivery queue. Change
 [`decisions.md`](decisions.md) first when direction changes. RELIA's own
 [roadmap](../ai-workflows/ai-decision-reliability/docs/ROADMAP.md) stays
@@ -58,7 +58,7 @@ is the record, not another platform.
 | Fact (2026-10-18) | Value |
 | --- | --- |
 | Packages | `expgate`, `jevdecision`, `decisioncontrol` 0.1.0 tagged and GitHub-released 2026-10-13 (PR #224). 903 / 1,592 / 1,180 source lines; 76 / 105 / 98 tests pass locally (Python 3.15.0) |
-| PyPI | All three names return 404. No `pypi` GitHub environment, `PYPI_PUBLISH` unset; the release workflow's `pypi` job was skipped. The READMEs say "PyPI pending" |
+| PyPI | All three names returned 404 on 2026-10-18 and the release workflow's `pypi` job was skipped; the READMEs say "PyPI pending". On 2026-10-19 GitHub environment `pypi` (required reviewer BichengWang, tag patterns `experiment-gate/v*`, `jev-decision/v*`, `decision-control/v*`) and `PYPI_PUBLISH=true` were set; the owner registers the three pending publishers, and nothing has been published yet |
 | Verifiers | `experiment-gate-verify` and `decision-control replay` exit 1 on tampering in tests. Jev has no record-only verifier ([records table](../docs/DECISION_RECORDS.md#records-and-checks)), so P-009 holds for two of three packages |
 | Canonical form | Digests use Python `json.dumps(sort_keys=True, separators=(",", ":"), ensure_ascii=False)`. Python writes `5.0` and `1e-07`; JavaScript and RFC 8785 write `5` and `1e-7`. Every bundled expgate example contains integral floats such as `20.0`, so a non-Python verifier cannot recompute `input_sha256` today |
 | RELIA | Candidate 0.1.5, spec 0.1.3, 1,098 source lines, 38 tests; unreleased and human-gated. Its roadmap's September 2026 FTC comment (docket FTC-2026-1057, closed 2026-09-25) has no filing record in the repository |
@@ -101,7 +101,7 @@ ai-decision-system/
 ├── ai-workflows/experiment-gate/tests/golden/ # P-013, reference-library vectors
 ├── ai-workflows/experiment-gate/expgate/importers/ # P-025 GrowthBook
 ├── ai-workflows/decision-control/decisioncontrol/adapters/ # P-015 OPA, Cedar
-└── src/, tests/, root uv.lock               # leave the repository if P-019 is approved
+└── src/, tests/, root uv.lock               # stay; alerts triaged by P-019
 ```
 
 ## Calendar
@@ -113,7 +113,7 @@ gantt
   section Phase 0
   PyPI 0.1.0 (owner setup)               :p016, 2026-10-19, 5d
   Jev record-only verifier               :p017, 2026-10-19, 12d
-  Workbench decision and move            :p019, 2026-10-19, 13d
+  Workbench alert triage                 :p019, 2026-10-19, 13d
   section Phase 1
   Statistics golden vectors              :p013, 2026-11-02, 14d
   Schemas and conformance vectors        :p011, 2026-11-02, 21d
@@ -134,7 +134,7 @@ gantt
 
 | By | Engineering | External evidence |
 | --- | --- | --- |
-| 2026-11-01 | `pip install expgate jevdecision decisioncontrol` works in a clean venv; every record type has a record-only verifier; open Dependabot alerts are 0 or the owner has recorded why not | – |
+| 2026-11-01 | `pip install expgate jevdecision decisioncontrol` works in a clean venv; every record type has a record-only verifier; no open critical or high Dependabot alerts | – |
 | 2026-12-13 | 0.2.0 on PyPI with schemas, conformance vectors, golden-vector tests and optional signed records; a non-Python validator passes every vector in CI | – |
 | 2027-02-28 | GrowthBook, OPA/Cedar and LangGraph bridges released | Launch done; first issue or PR from someone other than the owner; one pilot agreed in writing |
 | 2027-05-31 | – | One unaffiliated reproduction recorded; one pilot record (any outcome) published with permission; preprint posted |
@@ -156,7 +156,7 @@ is not use, and interest is not adoption.
 | Risk | Mitigation |
 | --- | --- |
 | Someone registers `expgate`, `jevdecision` or `decisioncontrol` on PyPI first; a pending publisher is invalidated if the name is taken | P-016 is the first owner action |
-| 100 open alerts in a governance repository read as negligence | P-019 separates the workbench; until then the README states the alerts are confined to it |
+| 100 open alerts in a governance repository read as negligence | P-019 upgrades or removes the vulnerable workbench dependencies until no critical or high alert is open; until then the README states the alerts are confined to the workbench |
 | A schema freeze locks in a canonical form other languages cannot reproduce | P-011 vectors carry canonical bytes; RFC 8785 adoption is decided before any schema is published |
 | Signed records leak decision metadata to a public transparency log | Keyed (HMAC) signing is the default; Sigstore is opt-in and documented as public |
 | Adapters drift into a platform | Importers convert exported files only; no network clients, no services |
