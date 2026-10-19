@@ -1,0 +1,254 @@
+{
+  "cases": [
+    {
+      "expected": {
+        "gbstats": {
+          "diff": 1.0,
+          "se": 0.28284271247
+        },
+        "scipy": {
+          "diff": 1.0,
+          "se": 0.28284271247,
+          "t": 3.5355339059
+        }
+      },
+      "informational": {
+        "normal_critical_one_sided_0.05": 1.644853627,
+        "t_critical_one_sided_0.05": 1.6496704105,
+        "welch_df": 317.27710843
+      },
+      "inputs": {
+        "control_mean": 10.0,
+        "control_n": 100,
+        "control_sd": 2.0,
+        "treatment_mean": 11.0,
+        "treatment_n": 400,
+        "treatment_sd": 4.0
+      },
+      "name": "ordinary"
+    },
+    {
+      "expected": {
+        "gbstats": {
+          "diff": -1.0,
+          "se": 0.93094933625
+        },
+        "scipy": {
+          "diff": -1.0,
+          "se": 0.93094933625,
+          "t": -1.0741723111
+        }
+      },
+      "informational": {
+        "normal_critical_one_sided_0.05": 1.644853627,
+        "t_critical_one_sided_0.05": 1.6454012978,
+        "welch_df": 2783.2037493
+      },
+      "inputs": {
+        "control_mean": 50.0,
+        "control_n": 30,
+        "control_sd": 1.0,
+        "treatment_mean": 49.0,
+        "treatment_n": 3000,
+        "treatment_sd": 50.0
+      },
+      "name": "unequal-variances"
+    },
+    {
+      "expected": {
+        "gbstats": {
+          "diff": -3.5,
+          "se": 0.70641898175
+        },
+        "scipy": {
+          "diff": -3.5,
+          "se": 0.70641898175,
+          "t": -4.9545667521
+        }
+      },
+      "informational": {
+        "normal_critical_one_sided_0.05": 1.644853627,
+        "t_critical_one_sided_0.05": 1.6457827276,
+        "welch_df": 1640.9792713
+      },
+      "inputs": {
+        "control_mean": 100.0,
+        "control_n": 800,
+        "control_sd": 15.0,
+        "treatment_mean": 96.5,
+        "treatment_n": 900,
+        "treatment_sd": 14.0
+      },
+      "name": "negative-effect"
+    },
+    {
+      "expected": {
+        "gbstats": {
+          "diff": 1.2,
+          "se": 1.0992421632
+        },
+        "scipy": {
+          "diff": 1.2,
+          "se": 1.0992421632,
+          "t": 1.0916611828
+        }
+      },
+      "informational": {
+        "normal_critical_one_sided_0.05": 1.644853627,
+        "t_critical_one_sided_0.05": 5.0814108255,
+        "welch_df": 1.1504787962
+      },
+      "inputs": {
+        "control_mean": 5.0,
+        "control_n": 2,
+        "control_sd": 1.5,
+        "treatment_mean": 6.2,
+        "treatment_n": 3,
+        "treatment_sd": 0.5
+      },
+      "name": "small-n"
+    },
+    {
+      "expected": {
+        "gbstats": {
+          "diff": -1.0,
+          "se": 3.0013330372
+        },
+        "scipy": {
+          "diff": -1.0,
+          "se": 3.0013330372,
+          "t": -0.33318528388
+        }
+      },
+      "informational": {
+        "normal_critical_one_sided_0.05": 1.644853627,
+        "t_critical_one_sided_0.05": 2.3516616219,
+        "welch_df": 3.0053339228
+      },
+      "inputs": {
+        "control_mean": 12.0,
+        "control_n": 5,
+        "control_sd": 0.2,
+        "treatment_mean": 11.0,
+        "treatment_n": 4,
+        "treatment_sd": 6.0
+      },
+      "name": "small-n-unequal"
+    },
+    {
+      "expected": {
+        "gbstats": {
+          "diff": 20000.0,
+          "se": 991.96774141
+        },
+        "scipy": {
+          "diff": 20000.0,
+          "se": 991.96774141,
+          "t": 20.161945964
+        }
+      },
+      "informational": {
+        "normal_critical_one_sided_0.05": 1.644853627,
+        "t_critical_one_sided_0.05": 1.644888047,
+        "welch_df": 44270.741228
+      },
+      "inputs": {
+        "control_mean": 1000000.0,
+        "control_n": 20000,
+        "control_sd": 100000.0,
+        "treatment_mean": 1020000.0,
+        "treatment_n": 25000,
+        "treatment_sd": 110000.0
+      },
+      "name": "large-scale"
+    },
+    {
+      "expected": {
+        "gbstats": {
+          "diff": 1e-05,
+          "se": 1.4288690166e-06
+        },
+        "scipy": {
+          "diff": 1e-05,
+          "se": 1.4288690166e-06,
+          "t": 6.9985421222
+        }
+      },
+      "informational": {
+        "normal_critical_one_sided_0.05": 1.644853627,
+        "t_critical_one_sided_0.05": 1.6464335093,
+        "welch_df": 965.41447916
+      },
+      "inputs": {
+        "control_mean": 0.0003,
+        "control_n": 400,
+        "control_sd": 2e-05,
+        "treatment_mean": 0.00031,
+        "treatment_n": 600,
+        "treatment_sd": 2.5e-05
+      },
+      "name": "tiny-scale"
+    },
+    {
+      "expected": {
+        "gbstats": {
+          "diff": 0.5,
+          "se": 0.25819888975
+        },
+        "scipy": {
+          "diff": 0.5,
+          "se": 0.25819888975,
+          "t": 1.9364916731
+        }
+      },
+      "informational": {
+        "normal_critical_one_sided_0.05": 1.644853627,
+        "t_critical_one_sided_0.05": 1.6710930321,
+        "welch_df": 59.0
+      },
+      "inputs": {
+        "control_mean": 7.0,
+        "control_n": 50,
+        "control_sd": 0.0,
+        "treatment_mean": 7.5,
+        "treatment_n": 60,
+        "treatment_sd": 2.0
+      },
+      "name": "zero-variance-control"
+    },
+    {
+      "expected": {
+        "gbstats": {
+          "diff": 0.001,
+          "se": 0.011313708499
+        },
+        "scipy": {
+          "diff": 0.001,
+          "se": 0.011313708499,
+          "t": 0.088388347648
+        }
+      },
+      "informational": {
+        "normal_critical_one_sided_0.05": 1.644853627,
+        "t_critical_one_sided_0.05": 1.6448543888,
+        "welch_df": 1999998.0
+      },
+      "inputs": {
+        "control_mean": 20.0,
+        "control_n": 1000000,
+        "control_sd": 8.0,
+        "treatment_mean": 20.001,
+        "treatment_n": 1000000,
+        "treatment_sd": 8.0
+      },
+      "name": "tiny-difference"
+    }
+  ],
+  "comparison": "relative 1e-9 with an absolute floor of 1e-12 (see tests/test_golden.py)",
+  "generator": "tests/golden/generate.py",
+  "method": "mean_effect (Welch)",
+  "references": {
+    "gbstats": "0.8.0",
+    "scipy": "1.14.1"
+  }
+}

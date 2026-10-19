@@ -1,0 +1,416 @@
+{
+  "cases": [
+    {
+      "expected": {
+        "gbstats": {
+          "diff": 0.34,
+          "se": 0.096752181751,
+          "theta": 0.81640700783
+        },
+        "statsmodels_ols_numpy": {
+          "diff": 0.34,
+          "raw_diff": 0.34,
+          "raw_se": 0.16124515497,
+          "se": 0.096752181751,
+          "theta": 0.81640700783,
+          "variance_reduction": 0.63996212794
+        }
+      },
+      "informational": {
+        "gbstats_agrees_with_expgate_method": true,
+        "gbstats_diff": 0.34,
+        "gbstats_se": 0.096752181751,
+        "gbstats_theta_pooled_sample": 0.81640700783,
+        "ols_homoskedastic_se": 0.096757020691
+      },
+      "inputs": {
+        "control": {
+          "cov_corr": 0.8,
+          "cov_mean": 20.4,
+          "cov_sd": 7.9,
+          "mean": 20.46,
+          "n": 5000,
+          "var": 64.0
+        },
+        "treatment": {
+          "cov_corr": 0.8,
+          "cov_mean": 20.4,
+          "cov_sd": 7.9,
+          "mean": 20.8,
+          "n": 5000,
+          "var": 66.0
+        }
+      },
+      "name": "balanced-covariate"
+    },
+    {
+      "expected": {
+        "statsmodels_ols_numpy": {
+          "diff": 0.29097637345,
+          "raw_diff": 0.94,
+          "raw_se": 0.16124515497,
+          "se": 0.096747262351,
+          "theta": 0.81127953318,
+          "variance_reduction": 0.63999873953
+        }
+      },
+      "informational": {
+        "gbstats_agrees_with_expgate_method": false,
+        "gbstats_diff": 0.29024149601,
+        "gbstats_se": 0.096747372604,
+        "gbstats_theta_pooled_sample": 0.81219812999,
+        "ols_homoskedastic_se": 0.096874509433
+      },
+      "inputs": {
+        "control": {
+          "cov_corr": 0.8,
+          "cov_mean": 20.4,
+          "cov_sd": 7.9,
+          "mean": 20.46,
+          "n": 5000,
+          "var": 64.0
+        },
+        "treatment": {
+          "cov_corr": 0.8,
+          "cov_mean": 21.2,
+          "cov_sd": 8.0,
+          "mean": 21.4,
+          "n": 5000,
+          "var": 66.0
+        }
+      },
+      "name": "covariate-imbalance"
+    },
+    {
+      "expected": {
+        "statsmodels_ols_numpy": {
+          "diff": -2.4949747468,
+          "raw_diff": -1.5,
+          "raw_se": 0.22248595461,
+          "se": 0.17799004061,
+          "theta": 0.66331649789,
+          "variance_reduction": 0.35999081703
+        }
+      },
+      "informational": {
+        "gbstats_agrees_with_expgate_method": false,
+        "gbstats_diff": -2.4777637514,
+        "gbstats_se": 0.17800501815,
+        "gbstats_theta_pooled_sample": 0.65184250091,
+        "ols_homoskedastic_se": 0.17861831314
+      },
+      "inputs": {
+        "control": {
+          "cov_corr": 0.6,
+          "cov_mean": 49.0,
+          "cov_sd": 9.0,
+          "mean": 50.0,
+          "n": 4000,
+          "var": 100.0
+        },
+        "treatment": {
+          "cov_corr": 0.6,
+          "cov_mean": 50.5,
+          "cov_sd": 9.0,
+          "mean": 48.5,
+          "n": 4000,
+          "var": 98.0
+        }
+      },
+      "name": "negative-effect-imbalance"
+    },
+    {
+      "expected": {
+        "statsmodels_ols_numpy": {
+          "diff": 0.4,
+          "raw_diff": 0.4,
+          "raw_se": 0.1303840481,
+          "se": 0.1303840481,
+          "theta": 2.2985086057e-17,
+          "variance_reduction": 0.0
+        }
+      },
+      "informational": {
+        "gbstats_agrees_with_expgate_method": false,
+        "gbstats_diff": 0.39844306281,
+        "gbstats_se": 0.13038444473,
+        "gbstats_theta_pooled_sample": 0.0031138743863,
+        "ols_homoskedastic_se": 0.13064943253
+      },
+      "inputs": {
+        "control": {
+          "cov_corr": 0.0,
+          "cov_mean": 9.0,
+          "cov_sd": 4.0,
+          "mean": 10.0,
+          "n": 3000,
+          "var": 25.0
+        },
+        "treatment": {
+          "cov_corr": 0.0,
+          "cov_mean": 9.5,
+          "cov_sd": 4.0,
+          "mean": 10.4,
+          "n": 3000,
+          "var": 26.0
+        }
+      },
+      "name": "uncorrelated"
+    },
+    {
+      "expected": {
+        "gbstats": {
+          "diff": 0.5,
+          "se": 0.12035235841,
+          "theta": -0.83412558482
+        },
+        "statsmodels_ols_numpy": {
+          "diff": 0.5,
+          "raw_diff": 0.5,
+          "raw_se": 0.16852299546,
+          "se": 0.12035235841,
+          "theta": -0.83412558482,
+          "variance_reduction": 0.48997569806
+        }
+      },
+      "informational": {
+        "gbstats_agrees_with_expgate_method": true,
+        "gbstats_diff": 0.5,
+        "gbstats_se": 0.12035235841,
+        "gbstats_theta_pooled_sample": -0.83412558482,
+        "ols_homoskedastic_se": 0.12036440027
+      },
+      "inputs": {
+        "control": {
+          "cov_corr": -0.7,
+          "cov_mean": 12.0,
+          "cov_sd": 5.0,
+          "mean": 15.0,
+          "n": 2500,
+          "var": 36.0
+        },
+        "treatment": {
+          "cov_corr": -0.7,
+          "cov_mean": 12.0,
+          "cov_sd": 5.0,
+          "mean": 15.5,
+          "n": 2500,
+          "var": 35.0
+        }
+      },
+      "name": "negative-correlation"
+    },
+    {
+      "expected": {
+        "statsmodels_ols_numpy": {
+          "diff": -0.40336348045,
+          "raw_diff": 1.0,
+          "raw_se": 0.47434164903,
+          "se": 0.36735030525,
+          "theta": 0.93557565363,
+          "variance_reduction": 0.40023890327
+        }
+      },
+      "informational": {
+        "gbstats_agrees_with_expgate_method": false,
+        "gbstats_diff": -0.3981397553,
+        "gbstats_se": 0.36740339614,
+        "gbstats_theta_pooled_sample": 0.9320931702,
+        "ols_homoskedastic_se": 0.37314611327
+      },
+      "inputs": {
+        "control": {
+          "cov_corr": 0.5,
+          "cov_mean": 28.0,
+          "cov_sd": 6.0,
+          "mean": 30.0,
+          "n": 1200,
+          "var": 90.0
+        },
+        "treatment": {
+          "cov_corr": 0.7,
+          "cov_mean": 29.5,
+          "cov_sd": 7.0,
+          "mean": 31.0,
+          "n": 800,
+          "var": 120.0
+        }
+      },
+      "name": "arms-differ"
+    },
+    {
+      "expected": {
+        "gbstats": {
+          "diff": 0.4,
+          "se": 0.027963570107,
+          "theta": 1.0012484414
+        },
+        "statsmodels_ols_numpy": {
+          "diff": 0.40000000004,
+          "raw_diff": 0.4,
+          "raw_se": 0.089554452709,
+          "se": 0.027963570107,
+          "theta": 1.0012484414,
+          "variance_reduction": 0.90249859687
+        }
+      },
+      "informational": {
+        "gbstats_agrees_with_expgate_method": true,
+        "gbstats_diff": 0.4,
+        "gbstats_se": 0.027963570107,
+        "gbstats_theta_pooled_sample": 1.0012484414,
+        "ols_homoskedastic_se": 0.027963640017
+      },
+      "inputs": {
+        "control": {
+          "cov_corr": 0.95,
+          "cov_mean": 99.0,
+          "cov_sd": 19.0,
+          "mean": 100.0,
+          "n": 100000,
+          "var": 400.0
+        },
+        "treatment": {
+          "cov_corr": 0.95,
+          "cov_mean": 99.0,
+          "cov_sd": 19.0,
+          "mean": 100.4,
+          "n": 100000,
+          "var": 402.0
+        }
+      },
+      "name": "high-correlation"
+    },
+    {
+      "expected": {
+        "statsmodels_ols_numpy": {
+          "diff": 1.3492674531,
+          "raw_diff": 1.0,
+          "raw_se": 1.2247448714,
+          "se": 1.0074933556,
+          "theta": 0.69853490629,
+          "variance_reduction": 0.32330475893
+        }
+      },
+      "informational": {
+        "gbstats_agrees_with_expgate_method": false,
+        "gbstats_diff": 1.2763340773,
+        "gbstats_se": 1.0176909133,
+        "gbstats_theta_pooled_sample": 0.5526681546,
+        "ols_homoskedastic_se": 1.1339341421
+      },
+      "inputs": {
+        "control": {
+          "cov_corr": 0.5,
+          "cov_mean": 2.5,
+          "cov_sd": 1.0,
+          "mean": 3.0,
+          "n": 4,
+          "var": 2.0
+        },
+        "treatment": {
+          "cov_corr": 0.6,
+          "cov_mean": 2.0,
+          "cov_sd": 1.5,
+          "mean": 4.0,
+          "n": 3,
+          "var": 3.0
+        }
+      },
+      "name": "small-n"
+    },
+    {
+      "expected": {
+        "gbstats": {
+          "diff": 0.01,
+          "se": 0.0029240081785,
+          "theta": 0.30644487847
+        },
+        "statsmodels_ols_numpy": {
+          "diff": 0.01,
+          "raw_diff": 0.01,
+          "raw_se": 0.0030651264248,
+          "se": 0.0029240081785,
+          "theta": 0.30644487847,
+          "variance_reduction": 0.089960209885
+        }
+      },
+      "informational": {
+        "gbstats_agrees_with_expgate_method": true,
+        "gbstats_diff": 0.01,
+        "gbstats_se": 0.0029240081785,
+        "gbstats_theta_pooled_sample": 0.30644487847,
+        "ols_homoskedastic_se": 0.0029240447311
+      },
+      "inputs": {
+        "control": {
+          "cov_corr": 0.3,
+          "cov_mean": 0.12,
+          "cov_sd": 0.3,
+          "mean": 0.1,
+          "n": 20000,
+          "successes": 2000,
+          "var": 0.09
+        },
+        "treatment": {
+          "cov_corr": 0.3,
+          "cov_mean": 0.12,
+          "cov_sd": 0.3,
+          "mean": 0.11,
+          "n": 20000,
+          "successes": 2200,
+          "var": 0.0979
+        }
+      },
+      "name": "proportion-outcome"
+    },
+    {
+      "expected": {
+        "statsmodels_ols_numpy": {
+          "diff": 0.00095667693782,
+          "raw_diff": 0.01,
+          "raw_se": 0.0030651264248,
+          "se": 0.0029239473616,
+          "theta": 0.30144410207,
+          "variance_reduction": 0.089998065652
+        }
+      },
+      "informational": {
+        "gbstats_agrees_with_expgate_method": false,
+        "gbstats_diff": 0.00095436910562,
+        "gbstats_se": 0.002923947371,
+        "gbstats_theta_pooled_sample": 0.30152102981,
+        "ols_homoskedastic_se": 0.0029275171322
+      },
+      "inputs": {
+        "control": {
+          "cov_corr": 0.3,
+          "cov_mean": 0.12,
+          "cov_sd": 0.3,
+          "mean": 0.1,
+          "n": 20000,
+          "successes": 2000,
+          "var": 0.09
+        },
+        "treatment": {
+          "cov_corr": 0.3,
+          "cov_mean": 0.15,
+          "cov_sd": 0.31,
+          "mean": 0.11,
+          "n": 20000,
+          "successes": 2200,
+          "var": 0.0979
+        }
+      },
+      "name": "proportion-outcome-imbalance"
+    }
+  ],
+  "comparison": "relative 1e-9 with an absolute floor of 1e-12 (see tests/test_golden.py)",
+  "generator": "tests/golden/generate.py",
+  "method": "cuped_effect (pooled within-arm slope)",
+  "references": {
+    "gbstats": "0.8.0",
+    "numpy": "1.26.4",
+    "statsmodels": "0.15.0"
+  }
+}

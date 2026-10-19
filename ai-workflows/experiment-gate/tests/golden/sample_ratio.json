@@ -1,0 +1,192 @@
+{
+  "cases": [
+    {
+      "expected": {
+        "scipy": {
+          "chi2": 0.0,
+          "p_value": 1.0
+        }
+      },
+      "inputs": {
+        "control_n": 5000,
+        "expected_treatment_share": 0.5,
+        "treatment_n": 5000
+      },
+      "name": "balanced"
+    },
+    {
+      "expected": {
+        "scipy": {
+          "chi2": 1.0,
+          "p_value": 0.31731050786
+        }
+      },
+      "inputs": {
+        "control_n": 4950,
+        "expected_treatment_share": 0.5,
+        "treatment_n": 5050
+      },
+      "name": "mild-imbalance"
+    },
+    {
+      "expected": {
+        "scipy": {
+          "chi2": 36.0,
+          "p_value": 1.9731752901e-09
+        }
+      },
+      "inputs": {
+        "control_n": 4700,
+        "expected_treatment_share": 0.5,
+        "treatment_n": 5300
+      },
+      "name": "imbalance"
+    },
+    {
+      "expected": {
+        "scipy": {
+          "chi2": 6.25,
+          "p_value": 0.012419330652
+        }
+      },
+      "inputs": {
+        "control_n": 7900,
+        "expected_treatment_share": 0.2,
+        "treatment_n": 2100
+      },
+      "name": "unequal-design"
+    },
+    {
+      "expected": {
+        "scipy": {
+          "chi2": 0.1100110011,
+          "p_value": 0.74013161156
+        }
+      },
+      "inputs": {
+        "control_n": 1000,
+        "expected_treatment_share": 0.9,
+        "treatment_n": 9100
+      },
+      "name": "unequal-design-treatment-heavy"
+    },
+    {
+      "expected": {
+        "scipy": {
+          "chi2": 0.0,
+          "p_value": 1.0
+        }
+      },
+      "inputs": {
+        "control_n": 1,
+        "expected_treatment_share": 0.5,
+        "treatment_n": 1
+      },
+      "name": "minimal-units"
+    },
+    {
+      "expected": {
+        "scipy": {
+          "chi2": 1.0,
+          "p_value": 0.31731050786
+        }
+      },
+      "inputs": {
+        "control_n": 0,
+        "expected_treatment_share": 0.5,
+        "treatment_n": 1
+      },
+      "name": "single-unit"
+    },
+    {
+      "expected": {
+        "scipy": {
+          "chi2": 5.5384615385,
+          "p_value": 0.018602929901
+        }
+      },
+      "inputs": {
+        "control_n": 7,
+        "expected_treatment_share": 0.5,
+        "treatment_n": 19
+      },
+      "name": "small-n"
+    },
+    {
+      "expected": {
+        "scipy": {
+          "chi2": 1.998001998,
+          "p_value": 0.1575067089
+        }
+      },
+      "inputs": {
+        "control_n": 1000000,
+        "expected_treatment_share": 0.5,
+        "treatment_n": 1002000
+      },
+      "name": "large-n-tiny-imbalance"
+    },
+    {
+      "expected": {
+        "scipy": {
+          "chi2": 22.167487685,
+          "p_value": 2.4986952147e-06
+        }
+      },
+      "inputs": {
+        "control_n": 50000,
+        "expected_treatment_share": 0.5,
+        "treatment_n": 51500
+      },
+      "name": "mismatch-small-p"
+    },
+    {
+      "expected": {
+        "scipy": {
+          "chi2": 190.47619048,
+          "p_value": 2.5025894914e-43
+        }
+      },
+      "inputs": {
+        "control_n": 40000,
+        "expected_treatment_share": 0.5,
+        "treatment_n": 44000
+      },
+      "name": "mismatch-tail"
+    },
+    {
+      "expected": {
+        "scipy": {
+          "chi2": 545.45454545,
+          "p_value": 1.2269265912e-120
+        }
+      },
+      "inputs": {
+        "control_n": 30000,
+        "expected_treatment_share": 0.5,
+        "treatment_n": 36000
+      },
+      "name": "mismatch-deep-tail"
+    },
+    {
+      "expected": {
+        "scipy": {
+          "chi2": 625.0,
+          "p_value": 6.1133934128e-138
+        }
+      },
+      "inputs": {
+        "control_n": 7000,
+        "expected_treatment_share": 0.2,
+        "treatment_n": 3000
+      },
+      "name": "mismatch-unequal-design"
+    }
+  ],
+  "comparison": "relative 1e-9 with an absolute floor of 1e-12 (see tests/test_golden.py)",
+  "generator": "tests/golden/generate.py",
+  "method": "sample_ratio_p_value (chi-square, 1 df)",
+  "references": {
+    "scipy": "1.14.1"
+  }
+}

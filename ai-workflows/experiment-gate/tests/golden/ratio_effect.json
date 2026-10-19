@@ -1,0 +1,326 @@
+{
+  "cases": [
+    {
+      "expected": {
+        "gbstats": {
+          "control": 10.064516129,
+          "diff": 0.24798387097,
+          "se": 0.32431873388,
+          "treatment": 10.3125
+        },
+        "numpy_linearization": {
+          "control": 10.064516129,
+          "diff": 0.24798387097,
+          "se": 0.32431873388,
+          "treatment": 10.3125
+        }
+      },
+      "inputs": {
+        "control": {
+          "corr": 0.62,
+          "den_mean": 3.1,
+          "den_sd": 2.4,
+          "n": 2000,
+          "num_mean": 31.2,
+          "num_sd": 40.5
+        },
+        "treatment": {
+          "corr": 0.6,
+          "den_mean": 3.2,
+          "den_sd": 2.5,
+          "n": 2000,
+          "num_mean": 33.0,
+          "num_sd": 41.0
+        }
+      },
+      "name": "ordinary"
+    },
+    {
+      "expected": {
+        "gbstats": {
+          "control": 6.0,
+          "diff": -0.047619047619,
+          "se": 0.15503549294,
+          "treatment": 5.9523809524
+        },
+        "numpy_linearization": {
+          "control": 6.0,
+          "diff": -0.047619047619,
+          "se": 0.15503549294,
+          "treatment": 5.9523809524
+        }
+      },
+      "inputs": {
+        "control": {
+          "corr": 0.4,
+          "den_mean": 2.0,
+          "den_sd": 1.1,
+          "n": 5000,
+          "num_mean": 12.0,
+          "num_sd": 15.0
+        },
+        "treatment": {
+          "corr": 0.5,
+          "den_mean": 2.1,
+          "den_sd": 1.2,
+          "n": 3000,
+          "num_mean": 12.5,
+          "num_sd": 16.0
+        }
+      },
+      "name": "unequal-n"
+    },
+    {
+      "expected": {
+        "gbstats": {
+          "control": 5.0,
+          "diff": -0.4,
+          "se": 0.04147431434,
+          "treatment": 4.6
+        },
+        "numpy_linearization": {
+          "control": 5.0,
+          "diff": -0.4,
+          "se": 0.04147431434,
+          "treatment": 4.6
+        }
+      },
+      "inputs": {
+        "control": {
+          "corr": 0.7,
+          "den_mean": 4.0,
+          "den_sd": 2.0,
+          "n": 4000,
+          "num_mean": 20.0,
+          "num_sd": 9.0
+        },
+        "treatment": {
+          "corr": 0.7,
+          "den_mean": 4.0,
+          "den_sd": 2.1,
+          "n": 4000,
+          "num_mean": 18.4,
+          "num_sd": 9.5
+        }
+      },
+      "name": "negative-effect"
+    },
+    {
+      "expected": {
+        "gbstats": {
+          "control": 2.5,
+          "diff": 0.25,
+          "se": 0.090031244577,
+          "treatment": 2.75
+        },
+        "numpy_linearization": {
+          "control": 2.5,
+          "diff": 0.25,
+          "se": 0.090031244577,
+          "treatment": 2.75
+        }
+      },
+      "inputs": {
+        "control": {
+          "corr": 0.0,
+          "den_mean": 2.0,
+          "den_sd": 1.0,
+          "n": 1000,
+          "num_mean": 5.0,
+          "num_sd": 3.0
+        },
+        "treatment": {
+          "corr": 0.0,
+          "den_mean": 2.0,
+          "den_sd": 1.0,
+          "n": 1000,
+          "num_mean": 5.5,
+          "num_sd": 3.1
+        }
+      },
+      "name": "uncorrelated"
+    },
+    {
+      "expected": {
+        "gbstats": {
+          "control": 3.3333333333,
+          "diff": 0.2,
+          "se": 0.15308352347,
+          "treatment": 3.5333333333
+        },
+        "numpy_linearization": {
+          "control": 3.3333333333,
+          "diff": 0.2,
+          "se": 0.15308352347,
+          "treatment": 3.5333333333
+        }
+      },
+      "inputs": {
+        "control": {
+          "corr": -0.5,
+          "den_mean": 3.0,
+          "den_sd": 1.5,
+          "n": 800,
+          "num_mean": 10.0,
+          "num_sd": 6.0
+        },
+        "treatment": {
+          "corr": -0.4,
+          "den_mean": 3.0,
+          "den_sd": 1.4,
+          "n": 900,
+          "num_mean": 10.6,
+          "num_sd": 6.2
+        }
+      },
+      "name": "negative-correlation"
+    },
+    {
+      "expected": {
+        "gbstats": {
+          "control": 4.0,
+          "diff": 0.1,
+          "se": 0.0093730109001,
+          "treatment": 4.1
+        },
+        "numpy_linearization": {
+          "control": 4.0,
+          "diff": 0.1,
+          "se": 0.0093730109001,
+          "treatment": 4.1
+        }
+      },
+      "inputs": {
+        "control": {
+          "corr": 0.99,
+          "den_mean": 2.0,
+          "den_sd": 1.2,
+          "n": 3000,
+          "num_mean": 8.0,
+          "num_sd": 5.0
+        },
+        "treatment": {
+          "corr": 0.99,
+          "den_mean": 2.0,
+          "den_sd": 1.2,
+          "n": 3000,
+          "num_mean": 8.2,
+          "num_sd": 5.1
+        }
+      },
+      "name": "high-correlation"
+    },
+    {
+      "expected": {
+        "gbstats": {
+          "control": 2.0,
+          "diff": 0.5,
+          "se": 0.59773879468,
+          "treatment": 2.5
+        },
+        "numpy_linearization": {
+          "control": 2.0,
+          "diff": 0.5,
+          "se": 0.59773879468,
+          "treatment": 2.5
+        }
+      },
+      "inputs": {
+        "control": {
+          "corr": 0.3,
+          "den_mean": 2.0,
+          "den_sd": 0.5,
+          "n": 3,
+          "num_mean": 4.0,
+          "num_sd": 1.0
+        },
+        "treatment": {
+          "corr": -0.2,
+          "den_mean": 2.0,
+          "den_sd": 0.4,
+          "n": 4,
+          "num_mean": 5.0,
+          "num_sd": 1.5
+        }
+      },
+      "name": "small-n"
+    },
+    {
+      "expected": {
+        "gbstats": {
+          "control": 10.0,
+          "diff": 1.0,
+          "se": 0.14636939571,
+          "treatment": 11.0
+        },
+        "numpy_linearization": {
+          "control": 10.0,
+          "diff": 1.0,
+          "se": 0.14636939571,
+          "treatment": 11.0
+        }
+      },
+      "inputs": {
+        "control": {
+          "corr": 0.3,
+          "den_mean": 0.05,
+          "den_sd": 0.02,
+          "n": 6000,
+          "num_mean": 0.5,
+          "num_sd": 0.4
+        },
+        "treatment": {
+          "corr": 0.3,
+          "den_mean": 0.05,
+          "den_sd": 0.02,
+          "n": 6000,
+          "num_mean": 0.55,
+          "num_sd": 0.42
+        }
+      },
+      "name": "small-denominator-mean"
+    },
+    {
+      "expected": {
+        "gbstats": {
+          "control": 5.0,
+          "diff": 0.15,
+          "se": 0.14645853082,
+          "treatment": 5.15
+        },
+        "numpy_linearization": {
+          "control": 5.0,
+          "diff": 0.15,
+          "se": 0.14645853082,
+          "treatment": 5.15
+        }
+      },
+      "inputs": {
+        "control": {
+          "corr": 0.2,
+          "den_mean": 2.0,
+          "den_sd": 0.5,
+          "n": 200,
+          "num_mean": 10.0,
+          "num_sd": 2.0
+        },
+        "treatment": {
+          "corr": 0.1,
+          "den_mean": 2.0,
+          "den_sd": 0.6,
+          "n": 20000,
+          "num_mean": 10.3,
+          "num_sd": 30.0
+        }
+      },
+      "name": "unequal-variances"
+    }
+  ],
+  "comparison": "relative 1e-9 with an absolute floor of 1e-12 (see tests/test_golden.py)",
+  "generator": "tests/golden/generate.py",
+  "method": "ratio_effect (delta method)",
+  "references": {
+    "gbstats": "0.8.0",
+    "numpy": "1.26.4"
+  }
+}

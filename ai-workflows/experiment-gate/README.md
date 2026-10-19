@@ -265,6 +265,115 @@ seed (`expgate/generator.py`):
 | `cuped` | `HOLD` (a revenue lift that looks significant only because of a covariate imbalance) |
 | `early-regression` | `ROLLBACK` (primary) at an interim look, a quarter of the way to the planned sample size |
 
+## Cross-checks against reference libraries
+
+Every estimator in `expgate/stats.py` is compared with an independent implementation on fixed
+inputs. The references' answers are committed as JSON in
+[`tests/golden/`](tests/golden/), so the default test suite
+(`tests/test_golden.py`) checks them using only the standard library. The generator,
+`tests/golden/generate.py`, needs the pinned libraries in `tests/golden/requirements.txt` and
+Python 3.10 (`confseq` 0.0.11, its latest release, has no wheels for newer interpreters; `gbstats`
+0.8.0 pins `numpy<2` and `pandas<2`). A CI job (`golden vectors` in `expgate-ci.yml`) regenerates
+the files and fails on any difference.
+
+```sh
+python3.10 -m venv .venv && .venv/bin/pip install -r tests/golden/requirements.txt
+.venv/bin/python tests/golden/generate.py             # rewrites tests/golden/*.json
+```
+
+Pinned references: scipy 1.14.1, statsmodels 0.15.0, gbstats 0.8.0, confseq 0.0.11, numpy 1.26.4,
+pandas 1.5.3. All are used for development and CI only; none is imported by `expgate`, listed as a
+dependency, or shipped in the wheel. Licenses, from each distribution's metadata and bundled
+license file: gbstats MIT (Copyright 2024 GrowthBook, Inc.), confseq MIT, statsmodels BSD-3-Clause,
+scipy, numpy and pandas BSD. All permit this use. That finding covers the PyPI distributions we
+install, not other parts of the GrowthBook repository.
+
+| Method (`expgate.stats`) | Reference | Compared at | Result |
+|---|---|---|---|
+| `proportion_effect` (unpooled Wald) | statsmodels `test_proportions_2indep` and `confint_proportions_2indep` (`method="wald"`), gbstats `ProportionStatistic` | 1e-9 relative | agrees |
+| `mean_effect` (Welch) | scipy `ttest_ind_from_stats(equal_var=False)`, gbstats `SampleMeanStatistic` | 1e-9 relative | agrees |
+| `ratio_effect` (delta method) | gbstats `RatioStatistic`; linearization recomputed from raw per-unit data with numpy | 1e-9 relative | agrees |
+| `cuped_effect` | OLS of `y ~ treated + x` on raw per-unit data (statsmodels) with the variance of `y - theta x` per arm (numpy); gbstats `RegressionAdjustedStatistic` where the method is the same | 1e-9 relative | agrees; gbstats differs by design, see below |
+| `sample_ratio_p_value` | scipy `chisquare` | 1e-9 relative | disagreed in the tail; fixed |
+| `minimum_detectable_effect` | scipy `norm.isf` and `norm.ppf`; statsmodels `NormalIndPower().power` at that effect equals the requested power | 1e-9 relative | agrees |
+| `z_for` | scipy `norm.isf` | 1e-9 relative | disagreed for `alpha` below about 1e-9; fixed |
+| mixture critical value at a fixed mixing ratio | scipy `quad` for the half-normal mixture integral and `brentq` for its root | 1e-9 relative | agrees |
+| `sequential_multiplier` | confseq `normal_mixture_bound` (one-sided), mixing variance tuned with scipy `minimize_scalar` to be narrowest at the planned size | 1e-6 relative | agrees to 2.6e-7 at worst |
+
+Vectors cover ordinary cases and boundaries: small samples, success rates at 0, at 1 and within
+1e-5 of them, very unequal variances, negative effects, covariate imbalance, covariate
+correlations of 0, 0.95 and -0.7, tiny and huge scales, unequal arms, and sample-ratio
+mismatches from mild to a p-value of 1e-138. They are stored to eleven significant digits (seven
+for the sequential boundary), so last-bit differences between platforms cannot change the
+committed bytes.
+
+**Tolerances.** Closed-form results must agree to 1e-9 relative, with no absolute floor except
+for the two CUPED fields that are exactly 0 in expgate and rounding noise (about 1e-17) in a
+regression on raw data: `theta` and `variance_reduction` also pass within 1e-12. Observed
+agreement was within 1e-10 everywhere (the largest, in CUPED, is cancellation in the raw-data
+reference). The sequential boundary is compared at 1e-6 relative because both sides iterate:
+confseq solves for the boundary numerically and the mixing variance comes from a
+one-dimensional minimizer on an objective that is flat at its minimum. The two agreed to 2.6e-7
+at worst across 35 combinations of `alpha` (0.001 to 0.2) and planned-to-current information
+ratio (0.1 to 10); a wrong boundary would be off by far more (the fixed-horizon value at
+`alpha = 0.05` is 40% lower).
+
+**Disagreements found, and fixed.**
+
+- The sample-ratio p-value was computed as `2 * (1 - cdf(z))`. The subtraction loses digits
+  below about 1e-7 (a split of 4,700 to 5,300 reported 1.9731754e-9, 5.6e-8 relative error) and
+  returns exactly 0 once `z` exceeds about 8.3, so a severe mismatch reported `p = 0.0` where
+  scipy gives 2.5e-43 (40,000 against 44,000 units). The tail now uses `erfc`. The gate decision
+  changes only for an `srm_alpha` below the true p-value, which the exact 0 used to force to
+  `INVALID`.
+- `z_for` computed `inv_cdf(1 - alpha)`, which rounds `1 - alpha` to a multiple of 1.1e-16: a
+  relative error of 1e-4 in `alpha` at 1e-12, which is 4.4e-7 in the critical value (1.9e-9 at
+  1e-10). Below `alpha = 1e-6` it now uses `-inv_cdf(alpha)`.
+
+Both fixes apply only below a tail probability of 1e-6. Above it the original expressions are
+kept, so a record made by 0.1.0 still replays to identical values; only records whose
+sample-ratio p-value is below 1e-6 or whose `alpha` is below 1e-6 can replay with different
+digits.
+
+**Deliberate differences from the references.** These are method choices, not defects. The
+vectors record the other side where it helps (the `informational` blocks are not asserted).
+
+- *Proportions: unpooled variance.* statsmodels' `proportions_ztest` pools the variance under
+  the null of no difference. expgate uses the unpooled (Wald) standard error because the same
+  error builds the bounds around a non-zero estimate. For 100/1,000 against 150/1,000 the
+  unpooled z is 3.3903 and the pooled z is 3.3806. The tests compare against the unpooled
+  form (`method="wald"`).
+- *Means: normal critical values.* A Welch t-test uses Student's t with Welch-Satterthwaite
+  degrees of freedom; expgate uses the normal quantile at every sample size, as the estimators
+  are documented to be large-sample. The standard errors agree; the one-sided 0.05 critical
+  values do not at small `n` (1.645 against 5.08 for arms of 2 and 3 units, 1.645 against 1.650
+  at 100 and 400).
+- *CUPED: the slope.* expgate uses the pooled within-arm slope, the coefficient on `x` in
+  `y ~ treated + x`. gbstats takes the slope of `y` on `x` over the pooled sample, ignoring arm.
+  The two are equal when the arms' covariate means are equal. Otherwise the pooled sample also
+  picks up the association between treatment and covariate: in the `covariate-imbalance` vector
+  the slopes are 0.81128 and 0.81220 and the adjusted differences 0.29098 and 0.29024; in the
+  `uncorrelated` vector, where the correlation within each arm is 0, expgate's slope is 0 and
+  gbstats' is 0.0031. Vectors with equal covariate means are compared against gbstats; all are
+  compared against the regression.
+- *CUPED: the standard error.* expgate sums each arm's variance of `y - theta x` over its own
+  units and treats `theta` as known (see the section above). The OLS standard error of the
+  treatment coefficient pools residual variance across arms and includes the estimation error
+  of `theta`; it is slightly larger (0.09687 against 0.09675 in the imbalance vector, 1.134
+  against 1.007 with 4 and 3 units).
+- *Sequential: other mixtures.* gbstats ships a two-sided sequential test (Waudby-Smith et al.
+  2023, Gaussian mixture with a fixed tuning parameter) and confseq other boundaries. expgate's
+  is the one-sided half-normal mixture, so only confseq's one-sided `normal_mixture_bound` is a
+  reference for it. That function's own tuning rule is a closed-form approximation of the
+  optimal mixing variance, and the multiplier it gives differs from expgate's optimized one by
+  up to 0.8% (spot check at `alpha` 0.01 to 0.05 and information ratios 0.25 to 4). Both are
+  valid; the vectors give confseq the optimized mixing variance so that only the boundary is
+  compared.
+
+What this shows and does not: the estimators implement the referenced formulas on these fixed
+inputs. It does not show that a method is appropriate for a real experiment, and the vectors
+are synthetic, not live or production evidence.
+
 ## Limitations
 
 The simulation figures above describe synthetic experiments, not measured product
