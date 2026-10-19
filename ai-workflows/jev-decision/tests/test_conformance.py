@@ -71,21 +71,45 @@ SOURCE_VECTOR = "evaluation-replay-gated"
 MARKDOWN_EDITS = {"evaluation-markdown-edited": lambda data: data + b"\n"}
 
 
-def compare_evaluation_directory(kind, directory, committed, fresh, source=None):
-    """Compare a committed evaluation vector with a fresh generation, allowing only the platform
-    difference of metric floats (evaluation.json compared with the verifier's tolerance) and what
-    follows from it: the evaluation.json hash in provenance.json and the digest line of EVALUATION.md.
+EVALUATION_RULE_FILES = ("evaluation.json", "EVALUATION.md", "provenance.json")
 
-    EVALUATION.md must equal the fresh Markdown apart from that digest line, and for valid vectors must
-    equal exactly what the renderer produces from the committed report and cases and the committed
-    report's actual digest. For tampered and invalid vectors the digest line is not normalized at all:
-    EVALUATION.md must equal the committed source vector's Markdown plus the vector's named edit,
-    byte for byte. Both derived hashes in provenance.json must be the SHA-256 of the committed
-    files, checked independently. Everything else is byte-exact.
+
+def check_derived_hashes(name, directory, files):
+    """provenance.json's hashes of evaluation.json and EVALUATION.md must be those files' SHA-256, except
+    where the vector deliberately leaves a stale one. Returns provenance.json with those two values masked."""
+    provenance = json.loads(files["provenance.json"])
+    outputs = provenance.get("outputs", {})
+    for filename in ("evaluation.json", "EVALUATION.md"):
+        if filename not in outputs:
+            continue
+        recorded, outputs[filename]["sha256"] = outputs[filename]["sha256"], "X"
+        data = files.get(filename)
+        if data is None:
+            continue
+        if directory in STALE_BY_DESIGN and STALE_BY_DESIGN[directory][0] == filename:
+            data = STALE_BY_DESIGN[directory][1](data)
+        assert recorded == hashlib.sha256(data).hexdigest(), f"{name}: provenance hash of {filename}"
+    return provenance
+
+
+def compare_evaluation_directory(kind, directory, committed, fresh, source=None, fresh_source=None):
+    """Compare a committed evaluation vector with a fresh generation, allowing only the platform
+    difference of metric floats and what follows from it. Returns the filenames covered by a rule
+    instead of byte equality.
+
+    - evaluation.json: compared with the verifier's tolerance.
+    - EVALUATION.md, valid vectors: equal to the fresh Markdown apart from its digest line, and the
+      committed one exactly the rendering of the committed report and cases with the committed report's
+      actual digest. Tampered and invalid vectors: the digest line is not normalized; in BOTH trees the
+      Markdown equals that tree's own source vector's Markdown plus the vector's named edit, byte for byte.
+    - provenance.json: equal apart from the two hashes derived from the files above; in BOTH trees those
+      two hashes are the SHA-256 of that tree's files (checked independently), except for the deliberate
+      stale hash.
+    - every other file is byte-equal.
     """
     name = f"{kind}/{directory}"
     for filename in committed:
-        if filename not in ("evaluation.json", "EVALUATION.md", "provenance.json"):
+        if filename not in EVALUATION_RULE_FILES:
             assert committed[filename] == fresh[filename], f"{name}/{filename}"
     if "evaluation.json" in committed:
         assert _close(json.loads(fresh["evaluation.json"]), json.loads(committed["evaluation.json"]),
@@ -94,25 +118,14 @@ def compare_evaluation_directory(kind, directory, committed, fresh, source=None)
         assert DIGEST_LINE.sub(rb"\1X\2", committed["EVALUATION.md"]) == DIGEST_LINE.sub(
             rb"\1X\2", fresh["EVALUATION.md"]), f"{name}/EVALUATION.md"
     elif "EVALUATION.md" in committed:
-        assert source is not None, f"{name}: needs the committed source vector"
-        expected_markdown = MARKDOWN_EDITS.get(directory, lambda data: data)(source["EVALUATION.md"])
-        assert committed["EVALUATION.md"] == expected_markdown, f"{name}/EVALUATION.md differs from the source vector"
-    provenance, fresh_provenance = json.loads(committed["provenance.json"]), json.loads(fresh["provenance.json"])
-    derived = {}
-    for document in (provenance, fresh_provenance):
-        outputs = document.get("outputs", {})
-        for filename in ("evaluation.json", "EVALUATION.md"):
-            if filename in outputs:
-                derived.setdefault(id(document), {})[filename] = outputs[filename]["sha256"]
-                outputs[filename]["sha256"] = "X"
-    assert provenance == fresh_provenance, f"{name}/provenance.json"
-    for filename, recorded in derived.get(id(provenance), {}).items():
-        data = committed.get(filename)
-        if data is None:
-            continue
-        if directory in STALE_BY_DESIGN and STALE_BY_DESIGN[directory][0] == filename:
-            data = STALE_BY_DESIGN[directory][1](data)
-        assert recorded == hashlib.sha256(data).hexdigest(), f"{name}: provenance hash of {filename}"
+        assert source is not None and fresh_source is not None, f"{name}: needs the source vector of each tree"
+        edit = MARKDOWN_EDITS.get(directory, lambda data: data)
+        assert committed["EVALUATION.md"] == edit(source["EVALUATION.md"]), \
+            f"{name}/EVALUATION.md (committed) differs from the source vector plus its named edit"
+        assert fresh["EVALUATION.md"] == edit(fresh_source["EVALUATION.md"]), \
+            f"{name}/EVALUATION.md (fresh) differs from the source vector plus its named edit"
+    assert check_derived_hashes(name, directory, committed) == check_derived_hashes(name, directory, fresh), \
+        f"{name}/provenance.json"
     if kind == "valid":
         digest = hashlib.sha256(committed["evaluation.json"]).hexdigest()
         # evaluation.json and cases.jsonl are written with sorted keys; the Markdown lists questions in
@@ -128,6 +141,42 @@ def compare_evaluation_directory(kind, directory, committed, fresh, source=None)
             cases.append(row)
         rendered = render_markdown(report, digest, cases)
         assert committed["EVALUATION.md"] == rendered.encode("utf-8"), f"{name}/EVALUATION.md is not the rendering"
+    return {filename for filename in committed if filename in EVALUATION_RULE_FILES}
+
+
+def read_committed_tree():
+    committed = {}
+    for kind in (*EXIT_CODES, "."):
+        base = CONFORMANCE if kind == "." else CONFORMANCE / kind
+        for path in (base.rglob("*") if kind != "." else [CONFORMANCE / "manifest.json"]):
+            if path.is_file():
+                committed[str(path.relative_to(CONFORMANCE))] = path.read_bytes()
+    return committed
+
+
+def compare_trees(committed, fresh):
+    """Assert the fresh tree equals the committed one under the rules above; return the covered paths."""
+    assert sorted(committed) == sorted(fresh), "the file sets differ"
+    directories = {}
+    covered = set()
+    for name in fresh:
+        parts = Path(name).parts
+        if len(parts) == 3 and parts[1].startswith("evaluation-"):
+            directories.setdefault(parts[:2], []).append(parts[2])
+        else:
+            assert committed[name] == fresh[name], name
+    assert len(directories) == 12
+    source_key = ("valid", SOURCE_VECTOR)
+
+    def files_of(tree, key):
+        return {f: tree[f"{key[0]}/{key[1]}/{f}"] for f in directories[key]}
+
+    for key in directories:
+        for filename in compare_evaluation_directory(
+                key[0], key[1], files_of(committed, key), files_of(fresh, key),
+                files_of(committed, source_key), files_of(fresh, source_key)):
+            covered.add(f"{key[0]}/{key[1]}/{filename}")
+    return covered
 
 
 class ManifestTests(unittest.TestCase):
@@ -197,29 +246,38 @@ class ManifestTests(unittest.TestCase):
         self.assertGreater(counts["bytes"], 20)
 
     def test_committed_tree_equals_a_fresh_generation(self):
-        fresh = load_generator().generate()
-        committed = {}
-        for kind in (*EXIT_CODES, "."):
-            base = CONFORMANCE if kind == "." else CONFORMANCE / kind
-            for path in (base.rglob("*") if kind != "." else [CONFORMANCE / "manifest.json"]):
-                if path.is_file():
-                    committed[str(path.relative_to(CONFORMANCE))] = path.read_bytes()
-        self.assertEqual(sorted(committed), sorted(fresh))
-        directories = {}
-        for name in fresh:
-            parts = Path(name).parts
-            if len(parts) == 3 and parts[1].startswith("evaluation-"):
-                directories.setdefault(parts[:2], []).append(parts[2])
-            else:
-                self.assertEqual(committed[name], fresh[name], name)
-        self.assertEqual(len(directories), 12)
-        loaded = {key: {f: (CONFORMANCE / key[0] / key[1] / f).read_bytes() for f in filenames}
-                  for key, filenames in directories.items()}
-        source = loaded[("valid", SOURCE_VECTOR)]
-        for (kind, directory), filenames in directories.items():
-            compare_evaluation_directory(
-                kind, directory, loaded[(kind, directory)],
-                {f: fresh[f"{kind}/{directory}/{f}"] for f in filenames}, source)
+        compare_trees(read_committed_tree(), load_generator().generate())
+
+    def test_every_fresh_file_is_byte_equal_or_covered_by_a_checked_rule(self):
+        committed, fresh = read_committed_tree(), load_generator().generate()
+        covered = compare_trees(committed, fresh)
+        self.assertEqual(len(fresh), len(committed))
+        unequal = {name for name in fresh if committed[name] != fresh[name]}
+        self.assertLessEqual(unequal, covered, "files that differ but have no rule")
+        self.assertTrue(covered)
+        for name in covered:
+            self.assertIn(Path(name).name, EVALUATION_RULE_FILES)
+        # A difference outside the rules is not silently skipped.
+        for victim in ("valid/evaluation-replay-gated/cases.jsonl", "tampered/answer-v2-id-edited-resealed.json",
+                       "manifest.json", "valid/answer-v2-jev.canonical"):
+            changed = dict(fresh)
+            changed[victim] = fresh[victim] + b" "
+            with self.subTest(victim=victim), self.assertRaises(AssertionError):
+                compare_trees(committed, changed)
+        missing = dict(fresh)
+        del missing["manifest.json"]
+        with self.assertRaises(AssertionError):
+            compare_trees(committed, missing)
+
+    def test_a_changed_named_edit_in_the_generator_is_caught(self):
+        committed = read_committed_tree()
+        generator = load_generator()
+        with unittest.mock.patch.object(generator, "append_newline", lambda data: data + b"\n\n"):
+            fresh = generator.generate()
+        name = "tampered/evaluation-markdown-edited/EVALUATION.md"
+        self.assertNotEqual(committed[name], fresh[name])
+        with self.assertRaises(AssertionError):
+            compare_trees(committed, fresh)
 
     def test_substituted_markdown_with_a_matching_provenance_hash_is_caught(self):
         kind, directory = "valid", "evaluation-replay-gated"
@@ -246,7 +304,7 @@ class ManifestTests(unittest.TestCase):
         for kind, directory in (("tampered", "evaluation-responses-edited"), ("invalid", "evaluation-cases-unparseable")):
             base = CONFORMANCE / kind / directory
             files = {path.name: path.read_bytes() for path in base.iterdir()}
-            compare_evaluation_directory(kind, directory, files, dict(files), source)  # control
+            compare_evaluation_directory(kind, directory, files, dict(files), source, source)  # control
             forged = dict(files)
             forged["EVALUATION.md"] = DIGEST_LINE.sub(rb"\g<1>" + b"0" * 64 + rb"\g<2>", files["EVALUATION.md"])
             self.assertNotEqual(forged["EVALUATION.md"], files["EVALUATION.md"])
@@ -254,7 +312,7 @@ class ManifestTests(unittest.TestCase):
             provenance["outputs"]["EVALUATION.md"]["sha256"] = hashlib.sha256(forged["EVALUATION.md"]).hexdigest()
             forged["provenance.json"] = json.dumps(provenance, sort_keys=True, separators=(",", ":")).encode("utf-8")
             with self.subTest(directory=directory), self.assertRaises(AssertionError):
-                compare_evaluation_directory(kind, directory, forged, dict(files), source)
+                compare_evaluation_directory(kind, directory, forged, dict(files), source, source)
 
     def test_provenance_normalization_covers_only_the_two_derived_hashes(self):
         kind, directory = "valid", "evaluation-replay-gated"

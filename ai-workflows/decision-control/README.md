@@ -218,11 +218,34 @@ correlated or selectively observed cases do not establish deployed safety,
 calibrated provider probabilities or legal compliance.
 
 SDK entry points are `EvaluationCase`, `load_cases(path)`,
-`evaluate_cases(cases, policy, requirements=None)`, `write_evaluation(report, out)`
-and `replay_evaluation(envelope)`. Evaluation evidence is distinct from the
-executed-decision records below. Both checksums detect corruption, not forgery.
+`evaluate_cases(cases, policy, requirements=None, schema_version=2)`,
+`write_evaluation(report, out)` and `replay_evaluation(envelope)`. Evaluation
+evidence is distinct from the executed-decision records below. Both checksums
+detect corruption, not forgery.
 
-## Record schema v3 (v1/v2 readable)
+Reports are `schema_version: 2`: the `sha256` covers the report in RFC 8785 (JCS)
+canonical form, and `replay-evaluation` rejects duplicate object keys (exit 2).
+Schema 1 reports, digested as Python sorted compact JSON, still replay under their
+original rules (`evaluate_cases(..., schema_version=1)` reproduces one). Replay
+picks the rule from the report's own `schema_version`; unknown versions exit 2.
+
+Replay recomputes every metric and compares it with the recorded report exactly,
+for both schemas (no tolerance). That is portable because every floating-point
+operation involved is correctly rounded by IEEE 754 and so gives identical bits on
+every platform: integer-to-float division (`numerator / denominator`), `+ - *` and
+`/` on floats, and `math.sqrt`. `denominator ** 2` is exact integer arithmetic, and
+the 95% normal quantile is a fixed literal. Nothing calls a platform-libm function
+(`log`, `exp`, `erf`, float `pow`) or an inverse-CDF routine, whose last digits can
+differ between libm builds. A unit test reads `evaluation.py` and fails if it uses
+anything from `math` other than `sqrt` (including through `import math as m` or
+`from math import ...`), imports a statistics or numeric library, calls `pow`, or uses
+`**` other than `denominator ** 2`. It cannot prove types, so it does not catch a
+float passed as `denominator`. The committed vectors are generated on one machine and replayed by CI on
+Linux, which exercises the claim; no regeneration happens in CI. Decision records contain no derived floats
+(probabilities and thresholds are copied inputs), so record replay has no
+floating-point recomputation.
+
+## Record schema v4 (v1-v3 readable)
 
 An export contains `record` and `sha256`. The record includes:
 
@@ -236,17 +259,47 @@ An export contains `record` and `sha256`. The record includes:
 
 The full record is checksummed, including review and execution history. Replay
 rejects inconsistent verdicts, illegal transitions, unauthorized recorded reviewers
-and results that disagree with the frozen action. Schema 3 additionally validates
-the policy digest and forbids proposer review/cancellation of REVIEW decisions.
-New decisions use `schema_version: 3`; a CANCELLED event has `event`, `at`,
-`reviewer` and `note` fields. Other event shapes remain unchanged.
+and results that disagree with the frozen action. Schema 3 and later additionally
+validate the policy digest and forbid proposer review/cancellation of REVIEW decisions.
+New decisions use `schema_version: 4`, which differs from schema 3 only in
+canonicalization: the record `sha256` and `policy_sha256` are digests of RFC 8785
+(JCS) canonical bytes, and replay rejects duplicate object keys (exit 2). JCS writes
+a whole-number float such as `1.0` as `1`, so never rely on the int/float
+distinction in records; integers beyond 2^53-1, NaN/Infinity and unpaired surrogates
+exit 2. A CANCELLED event has `event`, `at`, `reviewer` and `note` fields.
+Other event shapes remain unchanged.
 
-Archived v1/v2 evidence and stored decisions remain valid under their original
-rules, which have no proposer separation check. They do not gain invented identity
-provenance on replay. Cancelling a stored v1 decision explicitly promotes that record
+Archived v1, v2 and v3 evidence and stored decisions remain valid under their original
+rules: v1/v2 have no proposer separation check, and v1-v3 digest Python sorted
+compact JSON (see below). They do not gain invented identity provenance on replay.
+Existing stored v3 decisions stay v3 (including after `approve` or `cancel`); only new
+submissions are v4. Cancelling a stored v1 decision explicitly promotes that record
 to v2, preserving its inputs and prior approval. Unknown schema versions are
-rejected rather than silently reinterpreted. Policy-evaluation reports use their
-own unchanged schema.
+rejected (exit 2) rather than silently reinterpreted. Policy-evaluation reports use
+their own schema (1 or 2, above).
+
+### JSON Schemas and conformance vectors
+
+Every record and evaluation version the readers accept has a JSON Schema 2020-12
+file shipped as package data: `decisioncontrol/schema/record.v{1,2,3,4}.json` and
+`evaluation.v{1,2}.json`. They describe the exported envelope (`record`/`report` plus
+`sha256`), state the canonicalization and the covered fields in `$comment`, and set
+`additionalProperties: false` where the readers reject unknown keys. A schema cannot
+express the replay rules (recomputed verdict, lifecycle, reviewer authorization);
+only `replay` checks those. Load them with
+`importlib.resources.files("decisioncontrol") / "schema"`.
+
+`conformance/` holds vectors and `manifest.json` (`format: 1`; each vector names its
+verify command, expected exit code, schema documents and digests): `valid/` replays with
+exit 0 and carries the exact canonical bytes and digests of each checksum;
+`tampered/` replays with exit 1 (stale checksums, and edits with a recomputed
+checksum such as proposer self-approval or an edited frozen policy that replay still
+detects); `invalid/` exits 2 (duplicate keys, NaN, unsafe integers, unknown schema
+or fields). `python3 conformance/generate.py` regenerates the tree deterministically;
+a unit test fails if the committed files differ. The vectors are synthetic software
+fixtures, not live or adoption evidence. A checksum recomputed over a self-consistent
+edit that obeys every replay rule (for example, adding yourself to the frozen
+reviewers) is undetectable; that needs signatures.
 
 Supply the probability of the proposed choice, not an unrelated provider confidence
 score. The host owns provider adaptation, model/question identity and threshold
@@ -272,9 +325,10 @@ or turn model recommendations into trusted permissions.
   Repeating execution of the same executed decision returns its stored result.
   This is **local atomicity**, not exactly-once execution of external actions.
 * Exported envelopes contain SHA-256 over canonical JSON. Replay checks corruption,
-  recomputes the frozen policy evaluation and validates lifecycle evidence. Canonical
-  JSON uses sorted keys, `separators=(",", ":")`, `ensure_ascii=False`, UTF-8, and
-  lowercase hexadecimal SHA-256. Replay neither calls a model nor executes an action. Checksums are not signatures:
+  recomputes the frozen policy evaluation and validates lifecycle evidence. Schemas
+  record v4 and evaluation v2 use RFC 8785 (JCS) via the bundled `decisioncontrol.jcs`;
+  older schemas use `json.dumps` with sorted keys, `separators=(",", ":")`,
+  `ensure_ascii=False`, UTF-8. Digests are lowercase hexadecimal SHA-256. Replay neither calls a model nor executes an action. Checksums are not signatures:
   attackers can recompute them. Records are not provider attestations, identity
   proof, calibrated model evidence or proof of outside-world execution.
 * Protect database files, exports and notes using operating-system permissions;
@@ -291,6 +345,11 @@ store versions are refused before creating tables. Journal mode is unchanged.
 python -m unittest discover -s tests
 ```
 
+Schema validation tests need the dev-only `jsonschema` package and skip when it is
+absent; CI installs pinned versions (see `decision-control-ci.yml`) and also checks
+that the records written by `decision-control demo` validate against the shipped
+schemas.
+
 The package has no runtime dependencies or sibling-project imports. Setuptools is
 an installation/build dependency. Repository CI uses the registered
 `decision-control-ci.yml`; [CONTRIBUTING.md](CONTRIBUTING.md) describes scope.
@@ -301,8 +360,9 @@ an installation/build dependency. Repository CI uses the registered
 
 Behavioral tests cover restart-safe review, concurrent local execution, rollback,
 stale decisions, separation of duties, corrupt queue rows, idempotent rejection,
-retryable output failures, and v1/v2/v3 replay. CI builds and validates the wheel,
-installs it into a fresh environment, then runs demo, decision replay, an adverse
-fixture evaluation, evaluation replay, and a rejected self-approval outside the
+retryable output failures, v1-v4 replay, RFC 8785 test vectors and every conformance
+vector. CI builds and validates the wheel, installs it into a fresh environment, then
+runs demo, decision replay, an adverse fixture evaluation, evaluation replay, a rejected
+self-approval, the packaged schemas and the conformance vectors outside the
 source tree. These are software checks on hand-authored fixtures, not live-model,
 calibration, adoption or production evidence. PyPI publication is a separate step.

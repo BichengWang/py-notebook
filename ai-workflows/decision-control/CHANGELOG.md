@@ -4,6 +4,32 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Exported record schema 4 and `evaluation.json` schema 2: checksums (and the record
+  `policy_sha256`) are SHA-256 of RFC 8785 (JCS) canonical bytes, via the bundled
+  standard-library `decisioncontrol.jcs` (vectors in `tests/jcs_vectors.json`).
+  Replay of schema 4/2 rejects duplicate object keys, non-finite numbers, integers
+  beyond 2^53-1 and unpaired surrogates (exit 2).
+- JSON Schema 2020-12 files for record v1-v4 and evaluation v1-v2, shipped as package
+  data under `decisioncontrol/schema/`.
+- Conformance vectors with `manifest.json` and a deterministic generator under
+  `conformance/`: valid, tampered (including recomputed-checksum self-approval and
+  frozen-policy edits) and invalid vectors for every supported schema version.
+- CI validates `decision-control demo` and `evaluate` output against the shipped
+  schemas with pinned dev-only `jsonschema`, runs the vectors, and the wheel smoke
+  check verifies packaged schemas and replays the vectors with the installed script.
+- `evaluate_cases(..., schema_version=2)` selects the report schema.
+
+### Changed
+- New decisions are stored as schema 4 (separation-of-duties rules unchanged from
+  schema 3); new evaluations are schema 2. Records and reports of earlier schemas stay
+  readable and verifiable under their original canonicalization; stored schema 3
+  decisions keep schema 3 through review, cancellation and export.
+- A record or report with an unsupported or non-integer `schema_version` now exits 2
+  before its checksum is examined (previously a bad checksum could exit 1 first).
+
 ## [0.1.0] - 2026-10-13
 
 ### Added

@@ -2,19 +2,24 @@
 
 No model is called and no action is executed. Wilson intervals assume independent
 Bernoulli observations; synthetic or correlated cases do not validate deployment.
+Report schema 1 digests Python's sorted compact JSON; schema 2 digests RFC 8785
+(JCS) canonical bytes and rejects duplicate object keys when parsing.
 """
 
 from dataclasses import dataclass
-import hashlib
 import json
 import math
 from pathlib import Path
 
 from ._outputs import staged_output
-from .evidence import RecordMismatch, _canonical
+from .evidence import RecordMismatch, canonical_bytes, digest, parse_json
 from .models import DecisionError, Recommendation, RoutingPolicy, Ticket, Verdict, _fields, _probability, _text
 from .policy import evaluate
 
+
+LEGACY_REPORT_SCHEMA = 1
+REPORT_SCHEMA = 2
+REPORT_SCHEMAS = (LEGACY_REPORT_SCHEMA, REPORT_SCHEMA)
 
 METRICS = (
     "auto_allow_rate", "unsafe_auto_allow_rate", "auto_route_error_rate",
@@ -147,13 +152,17 @@ def _gates(metrics, count, requirements):
     return gates
 
 
-def evaluate_cases(cases, policy: RoutingPolicy, requirements=None) -> dict:
+def evaluate_cases(cases, policy: RoutingPolicy, requirements=None,
+                   schema_version: int = REPORT_SCHEMA) -> dict:
     """Evaluate policy recommendations, not real execution or unauthenticated reviewers.
 
     Unsafe automatic allowance means ALLOW despite a negative safety label or a
     required-review label. Incorrect approval means an observed APPROVED outcome
     on a REVIEW case with a negative safety label or an incorrect destination.
+    ``schema_version`` selects the report schema; replay of schema 1 reports needs 1.
     """
+    if type(schema_version) is not int or schema_version not in REPORT_SCHEMAS:
+        raise DecisionError("unsupported evaluation schema_version")
     if not isinstance(policy, RoutingPolicy):
         raise DecisionError("policy must be a RoutingPolicy")
     requirements = _requirements(requirements)
@@ -207,34 +216,53 @@ def evaluate_cases(cases, policy: RoutingPolicy, requirements=None) -> dict:
     }
     gates = _gates(metrics, count, requirements)
     disposition = "UNGATED" if requirements is None else ("PASS" if all(g["passed"] for g in gates) else "FAIL")
-    return {"schema_version": 1, "kind": "policy_evaluation", "source": "supplied_recommendations",
+    return {"schema_version": schema_version, "kind": "policy_evaluation", "source": "supplied_recommendations",
             "cases": count, "confidence_level": 0.95, "policy": policy.to_dict(),
             "requirements": requirements, "metrics": metrics, "gates": gates,
             "disposition": disposition, "case_results": results}
+
+
+def _report_schema(report):
+    """Return a supported report schema or reject before any digest is computed."""
+    version = report.get("schema_version") if isinstance(report, dict) else None
+    if type(version) is not int or version not in REPORT_SCHEMAS:
+        raise DecisionError("unsupported evaluation schema_version")
+    return version
+
+
+def parse_envelope(text):
+    """Parse an evaluation file; schema 2 rejects duplicate object keys."""
+    value, duplicates = parse_json(text)
+    if duplicates:
+        report = value.get("report") if isinstance(value, dict) else None
+        version = report.get("schema_version") if isinstance(report, dict) else None
+        if type(version) is int and version >= REPORT_SCHEMA:
+            raise DecisionError("duplicate object keys are not allowed in evaluation schema 2")
+    return value
 
 
 def replay_evaluation(envelope: dict) -> dict:
     """Check the complete report and independently recompute metrics/gates from frozen cases."""
     raw = _fields(envelope, {"report", "sha256"})
     report = raw["report"]
-    digest = raw["sha256"]
-    if (not isinstance(digest, str) or len(digest) != 64
-            or any(character not in "0123456789abcdef" for character in digest)):
+    expected = raw["sha256"]
+    if (not isinstance(expected, str) or len(expected) != 64
+            or any(character not in "0123456789abcdef" for character in expected)):
         raise DecisionError("sha256 must be a lowercase hexadecimal SHA-256 digest")
-    if hashlib.sha256(_canonical(report)).hexdigest() != digest:
+    jcs = _report_schema(report) >= REPORT_SCHEMA
+    if digest(report, jcs=jcs) != expected:
         raise RecordMismatch("evaluation checksum mismatch")
     report = _fields(report, {"schema_version", "kind", "source", "cases", "confidence_level", "policy",
                               "requirements", "metrics", "gates", "disposition", "case_results"})
-    if type(report["schema_version"]) is not int or report["schema_version"] != 1:
-        raise DecisionError("unsupported evaluation schema_version")
     if not isinstance(report["case_results"], list):
         raise DecisionError("case_results must be a list")
     cases = []
     for row in report["case_results"]:
         row = _fields(row, {"case", "evaluation", "auto_allow_unsafe", "auto_route_incorrect", "approval_incorrect"})
         cases.append(EvaluationCase.from_dict(row["case"]))
-    recomputed = evaluate_cases(cases, RoutingPolicy.from_dict(report["policy"]), report["requirements"])
-    if _canonical(recomputed) != _canonical(report):
+    recomputed = evaluate_cases(cases, RoutingPolicy.from_dict(report["policy"]), report["requirements"],
+                                report["schema_version"])
+    if canonical_bytes(recomputed, jcs=jcs) != canonical_bytes(report, jcs=jcs):
         raise RecordMismatch("evaluation report disagrees with its frozen cases, policy, or requirements")
     return {"valid": True, "cases": recomputed["cases"], "disposition": recomputed["disposition"]}
 
@@ -269,13 +297,12 @@ def render_evaluation(report, digest):
 
 def write_evaluation(report: dict, out) -> dict:
     """Preserve a complete, replayable report in a new or empty output directory."""
-    digest = hashlib.sha256(_canonical(report)).hexdigest()
-    envelope = {"report": report, "sha256": digest}
+    envelope = {"report": report, "sha256": digest(report, jcs=_report_schema(report) >= REPORT_SCHEMA)}
     replay_evaluation(envelope)
     with staged_output(out) as directory:
         with (directory / "evaluation.json").open("x", encoding="utf-8") as stream:
             json.dump(envelope, stream, indent=2, ensure_ascii=False, allow_nan=False)
             stream.write("\n")
         with (directory / "EVALUATION.md").open("x", encoding="utf-8") as stream:
-            stream.write(render_evaluation(report, digest))
+            stream.write(render_evaluation(report, envelope["sha256"]))
     return envelope

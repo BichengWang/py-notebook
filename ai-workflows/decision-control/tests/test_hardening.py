@@ -11,6 +11,8 @@ import unittest
 from unittest.mock import patch
 from decisioncontrol import DecisionError, Recommendation, RoutingPolicy, StateError, TicketStore, evaluate_cases, load_cases, write_evaluation, export_record, replay, __version__
 from decisioncontrol.cli import main
+from decisioncontrol.jcs import canonicalize
+from dc_support import as_schema3, python_json_v1, rehash_record
 from decisioncontrol.demo import run_demo
 
 class HardeningTests(unittest.TestCase):
@@ -138,19 +140,20 @@ class HardeningTests(unittest.TestCase):
         self.assertEqual(error.exception.code, 2)
         self.assertEqual(self.store.pending(), [])
 
-    def test_schema_three_freezes_policy_digest_and_producer(self):
+    def test_schema_four_freezes_policy_digest_and_producer(self):
         self.policy = RoutingPolicy('策略', ('support', 'legal'), ('legal',), ('alice', 'bob'))
         record = self.submit()
-        self.assertEqual(record['schema_version'], 3)
+        self.assertEqual(record['schema_version'], 4)
         self.assertEqual(record['proposed_by'], 'alice')
         self.assertEqual(record['produced_by'], {'name': 'decisioncontrol', 'version': __version__})
-        digest = hashlib.sha256(json.dumps(record['policy'], sort_keys=True,
-            separators=(',', ':'), ensure_ascii=False).encode('utf-8')).hexdigest()
+        digest = hashlib.sha256(canonicalize(record['policy'])).hexdigest()
         self.assertEqual(record['policy_sha256'], digest)
         self.assertEqual(self.store.get(record['id']), record)
         approved = self.store.approve(record['id'], 'bob', 'checked')
         self.assertEqual(approved['policy_sha256'], digest)
-        self.assertTrue(replay(export_record(approved))['valid'])
+        envelope = export_record(approved)
+        self.assertEqual(envelope['sha256'], hashlib.sha256(canonicalize(approved)).hexdigest())
+        self.assertTrue(replay(envelope)['valid'])
 
     def test_replay_rejects_self_review_and_policy_digest_even_after_rehash(self):
         record = self.submit()
@@ -168,18 +171,101 @@ class HardeningTests(unittest.TestCase):
                 forged[field][-1]['reviewer'] = value
             else:
                 forged[field] = value
-            envelope = {'record': forged, 'sha256': hashlib.sha256(json.dumps(forged,
-                sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode()).hexdigest()}
+            envelope = rehash_record({'record': forged, 'sha256': ''})
             with self.subTest(field=field), self.assertRaises(DecisionError):
                 replay(envelope)
 
-    def test_schema_three_cancellation_retains_schema_and_blocks_proposer_after_approval(self):
+    def test_schema_three_records_keep_python_json_rules(self):
+        record = self.submit()
+        approved = self.store.approve(record['id'], 'bob', 'checked')
+        legacy = as_schema3(approved)
+        envelope = rehash_record({'record': legacy, 'sha256': ''})
+        self.assertEqual(envelope['sha256'], hashlib.sha256(python_json_v1(legacy)).hexdigest())
+        self.assertEqual(replay(envelope)['status'], 'READY')
+        with sqlite3.connect(self.db) as connection:
+            connection.execute('UPDATE decisions SET record = ? WHERE id = ?',
+                               (json.dumps(legacy), record['id']))
+        stored = self.store.get(record['id'])
+        self.assertEqual(stored['schema_version'], 3)
+        self.assertEqual(export_record(stored), envelope)
+        cancelled = self.store.cancel(record['id'], 'bob', 'withdraw')
+        self.assertEqual(cancelled['schema_version'], 3)
+        self.assertEqual(replay(export_record(cancelled))['status'], 'CANCELLED')
+        self.assertEqual(self.call('approve', record['id'], '--reviewer', 'alice')[0], 1)
+        forged = deepcopy(legacy)
+        forged['review']['reviewer'] = 'alice'
+        with self.assertRaises(DecisionError):
+            replay(rehash_record({'record': forged, 'sha256': ''}))
+
+    def submit_whole_probability(self):
+        policy = RoutingPolicy('p-one', ('support', 'legal'), ('legal',), ('alice', 'bob'), 1.0)
+        return self.store.submit(Recommendation('reassign_ticket', 't1', 'legal', 1.0, 'fixture', 'q1'),
+                                 policy, proposed_by='alice')
+
+    def test_canonical_forms_differ_where_floats_are_whole_numbers(self):
+        record = self.submit_whole_probability()
+        self.assertEqual(record['policy']['min_probability'], 1.0)
+        self.assertNotEqual(canonicalize(record['policy']), python_json_v1(record['policy']))
+        self.assertEqual(record['policy_sha256'], hashlib.sha256(canonicalize(record['policy'])).hexdigest())
+        envelope = export_record(record)
+        self.assertEqual(envelope['sha256'], hashlib.sha256(canonicalize(record)).hexdigest())
+        self.assertNotEqual(envelope['sha256'], hashlib.sha256(python_json_v1(record)).hexdigest())
+        wrong_form = deepcopy(envelope)
+        wrong_form['sha256'] = hashlib.sha256(python_json_v1(record)).hexdigest()
+        with self.assertRaises(DecisionError):
+            replay(wrong_form)
+        legacy = as_schema3(record)
+        self.assertNotEqual(legacy['policy_sha256'], record['policy_sha256'])
+        self.assertTrue(replay(rehash_record({'record': legacy, 'sha256': ''}))['valid'])
+        legacy['policy_sha256'] = record['policy_sha256']
+        with self.assertRaises(DecisionError):
+            replay(rehash_record({'record': legacy, 'sha256': ''}))
+
+    def test_schema_four_replay_rejects_duplicate_keys_and_non_finite_numbers(self):
+        record = self.submit()
+        envelope = export_record(record)
+        text = json.dumps(envelope)
+        duplicate = text.replace('"status": "PENDING_REVIEW"', '"status": "READY", "status": "PENDING_REVIEW"', 1)
+        self.assertNotEqual(duplicate, text)
+        path = self.root / 'duplicate.json'
+        path.write_text(duplicate, encoding='utf-8')
+        with contextlib.redirect_stderr(io.StringIO()) as error:
+            self.assertEqual(main(['replay', '--record', str(path)]), 2)
+        self.assertIn('duplicate', error.getvalue())
+        with sqlite3.connect(self.db) as connection:
+            connection.execute('UPDATE decisions SET record = ? WHERE id = ?',
+                               (self.duplicate_status(record), record['id']))
+        with self.assertRaisesRegex(DecisionError, 'duplicate'):
+            self.store.get(record['id'])
+        nan = text.replace('"probability": 0.95', '"probability": NaN', 1)
+        self.assertNotEqual(nan, text)
+        path.write_text(nan, encoding='utf-8')
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(main(['replay', '--record', str(path)]), 2)
+
+    def duplicate_status(self, record):
+        text = json.dumps(record, separators=(',', ':'))
+        needle = '"status":"PENDING_REVIEW"'
+        self.assertIn(needle, text)
+        return text.replace(needle, '"status":"READY",' + needle, 1)
+
+    def test_schema_three_replay_still_accepts_duplicate_keys_last_wins(self):
+        record = as_schema3(self.store.approve(self.submit()['id'], 'bob', 'checked'))
+        envelope = rehash_record({'record': record, 'sha256': ''})
+        text = json.dumps(envelope).replace('"status": "READY"', '"status": "PENDING_REVIEW", "status": "READY"', 1)
+        self.assertNotEqual(text, json.dumps(envelope))
+        path = self.root / 'legacy-duplicate.json'
+        path.write_text(text, encoding='utf-8')
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(main(['replay', '--record', str(path)]), 0)
+
+    def test_schema_four_cancellation_retains_schema_and_blocks_proposer_after_approval(self):
         record = self.submit()
         approved = self.store.approve(record['id'], 'bob', 'checked')
         self.assertEqual(self.call('cancel', record['id'], '--reviewer', 'alice', '--note', 'stop')[0], 1)
         self.assertEqual(self.store.get(record['id']), approved)
         cancelled = self.store.cancel(record['id'], 'bob', 'stop')
-        self.assertEqual(cancelled['schema_version'], 3)
+        self.assertEqual(cancelled['schema_version'], 4)
         self.assertEqual(cancelled['policy_sha256'], record['policy_sha256'])
         self.assertEqual(replay(export_record(cancelled))['status'], 'CANCELLED')
 

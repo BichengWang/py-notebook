@@ -41,5 +41,8 @@ decision-control = "decisioncontrol.cli:main"
 where = ["."]
 include = ["decisioncontrol", "decisioncontrol.*"]
 
+[tool.setuptools.package-data]
+decisioncontrol = ["schema/*.json"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
