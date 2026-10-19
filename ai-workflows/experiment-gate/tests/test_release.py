@@ -6,6 +6,7 @@ from contextlib import redirect_stderr
 from pathlib import Path
 
 from expgate.decision import evaluate
+from expgate.jcs import canonicalize
 from expgate.run import main
 
 def example():
@@ -119,9 +120,9 @@ class RecordReleaseTest(unittest.TestCase):
         summary = example()
         summary['description'] = '例子'
         record = evaluate(summary)
-        expected = hashlib.sha256(json.dumps(summary, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode('utf-8')).hexdigest()
+        expected = hashlib.sha256(canonicalize(summary)).hexdigest()
         self.assertEqual(record['input_sha256'], expected)
-        self.assertEqual(record['schema_version'], 2)
+        self.assertEqual(record['schema_version'], 3)
         self.assertEqual(record['produced_by'], {'name': 'expgate', 'version': __version__})
         self.assertEqual(record['input'], summary)
         self.assertEqual(verify_record(record), [])
@@ -210,7 +211,7 @@ class RecordReleaseTest(unittest.TestCase):
 
     def test_invalid_record_shapes_exit_2(self):
         record = evaluate(example())
-        cases = [[], {**record, 'schema_version': 3},
+        cases = [[], {**record, 'schema_version': 4},
                  {**record, 'schema_version': '2'},
                  {**record, 'input': []},
                  {**record, 'produced_by': {}},

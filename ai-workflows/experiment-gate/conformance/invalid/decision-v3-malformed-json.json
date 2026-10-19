@@ -1,0 +1,63 @@
+{
+  "decision": "SHIP",
+  "experiment": "win",
+  "expgate_version": "0.1.0",
+  "input": {
+    "arms": {
+      "control": {
+        "metrics": {
+          "conversion": {
+            "successes": 3104
+          },
+          "latency_ms": {
+            "mean": 39.992859,
+            "sd": 12.062652
+          },
+          "refund_rate": {
+            "successes": 640
+          }
+        },
+        "units": 30000
+      },
+      "treatment": {
+        "metrics": {
+          "conversion": {
+            "successes": 3362
+          },
+          "latency_ms": {
+            "mean": 40.023932,
+            "sd": 11.976637
+          },
+          "refund_rate": {
+            "successes": 605
+          }
+        },
+        "units": 30000
+      }
+    },
+    "assignment": {
+      "expected_treatment_share": 0.5
+    },
+    "description": "Candidate lifts conversion with no guardrail cost",
+    "experiment": "win",
+    "metrics": {
+      "conversion": {
+        "direction": "increase",
+        "role": "primary",
+        "type": "proportion"
+      },
+      "latency_ms": {
+        "direction": "decrease",
+        "margin": 2.0,
+        "role": "guardrail",
+        "type": "mean"
+      },
+      "refund_rate": {
+        "direction": "decrease",
+        "margin": 0.003,
+        "role": "guardrail",
+        "type": "proportion"
+      }
+    },
+    "seed": 20260924
+  },

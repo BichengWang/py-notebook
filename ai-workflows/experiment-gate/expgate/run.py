@@ -66,9 +66,14 @@ def render_markdown(report: dict, digest: str) -> str:
     return "\n".join(L) + "\n"
 
 
+def record_bytes(report: dict) -> bytes:
+    """The exact ``decision.json`` bytes; pretty-printed, so unrelated to the canonical input digest."""
+    return json.dumps({"expgate_version": __version__, **report}, indent=2, sort_keys=True, ensure_ascii=False).encode("utf-8")
+
+
 def write_record(report: dict, out: Path) -> str:
     out.mkdir(parents=True, exist_ok=True)
-    blob = json.dumps({"expgate_version": __version__, **report}, indent=2, sort_keys=True, ensure_ascii=False).encode("utf-8")
+    blob = record_bytes(report)
     digest = hashlib.sha256(blob).hexdigest()
     (out / "decision.json").write_bytes(blob)
     (out / "DECISION.md").write_text(render_markdown(report, digest), encoding="utf-8")

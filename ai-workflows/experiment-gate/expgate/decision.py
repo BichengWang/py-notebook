@@ -37,9 +37,10 @@ import copy
 import math
 
 from . import __version__
-from .records import input_digest
+from .records import EXACT_TAIL, SCHEMA_VERSION, SUPPORTED_SCHEMAS, input_digest
 
 from . import stats
+from .jcs import canonicalize
 
 DECISIONS = ("SHIP", "HOLD", "ROLLBACK", "INVALID")
 _DIRECTIONS = {"increase": 1.0, "decrease": -1.0}
@@ -205,14 +206,23 @@ def _validate(summary: dict) -> None:
             raise ValueError(f"metric {name!r}: supply the covariate in both arms or in neither")
 
 
-def evaluate(summary: dict) -> dict:
-    """Return a JSON-serializable decision report for an experiment summary."""
+def evaluate(summary: dict, *, schema_version: int = SCHEMA_VERSION) -> dict:
+    """Return a JSON-serializable decision report for an experiment summary.
+
+    ``schema_version`` selects the record schema, and with it the canonical encoding of the input
+    digest (2: ``python-json-v1``, 3: RFC 8785) and the tail formulas (2: those of 0.1.0, 3: accurate
+    ``erfc`` / ``-inv_cdf(alpha)``). Only the verifier needs a non-default value, to replay schema-2
+    records.
+    """
+    if schema_version not in SUPPORTED_SCHEMAS:
+        raise ValueError(f"cannot produce schema_version {schema_version!r}")
     _validate(summary)
     policy = {"alpha": 0.05, "srm_alpha": 0.001, "power": 0.8, **summary.get("policy", {})}
     control, treatment = summary["arms"]["control"], summary["arms"]["treatment"]
     share = summary.get("assignment", {}).get("expected_treatment_share", 0.5)
 
-    srm_p = stats.sample_ratio_p_value(control["units"], treatment["units"], share)
+    exact_tail = EXACT_TAIL[schema_version]
+    srm_p = stats.sample_ratio_p_value(control["units"], treatment["units"], share, exact_tail=exact_tail)
     srm = {"control_units": control["units"], "treatment_units": treatment["units"],
            "expected_treatment_share": share, "p_value": srm_p,
            "pass": srm_p >= policy["srm_alpha"]}
@@ -227,7 +237,8 @@ def evaluate(summary: dict) -> dict:
         z_primary = stats.sequential_multiplier(alpha_primary, planned / units)
         z_guard = stats.sequential_multiplier(alpha_guard, planned / units)
     else:
-        z_primary, z_guard = stats.z_for(alpha_primary), stats.z_for(alpha_guard)
+        z_primary = stats.z_for(alpha_primary, exact_tail=exact_tail)
+        z_guard = stats.z_for(alpha_guard, exact_tail=exact_tail)
 
     rows, reasons = [], []
     primary_status = None
@@ -292,10 +303,12 @@ def evaluate(summary: dict) -> dict:
         if sequential is not None and sequential["information_fraction"] >= 1:
             reasons.append("planned sample size reached without a decision")
 
-    report = {"schema_version": 2, "produced_by": {"name": "expgate", "version": __version__},
-              "input": copy.deepcopy(summary), "input_sha256": input_digest(summary),
+    report = {"schema_version": schema_version, "produced_by": {"name": "expgate", "version": __version__},
+              "input": copy.deepcopy(summary), "input_sha256": input_digest(summary, schema_version),
               "experiment": summary.get("experiment", "unnamed"), "decision": decision, "reasons": reasons,
               "policy": policy, "sample_ratio": srm, "metrics": rows}
     if sequential is not None:
         report["sequential"] = sequential
+    if schema_version == 3:
+        canonicalize(report)  # ValueError: e.g. inputs near 1e308 overflow a statistic to infinity
     return report

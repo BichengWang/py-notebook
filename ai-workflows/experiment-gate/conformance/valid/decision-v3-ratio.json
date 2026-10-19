@@ -1,0 +1,92 @@
+{
+  "decision": "SHIP",
+  "experiment": "ratio-example",
+  "expgate_version": "0.1.0",
+  "input": {
+    "arms": {
+      "control": {
+        "metrics": {
+          "revenue_per_session": {
+            "corr": 0.6,
+            "denominator": {
+              "mean": 3.1,
+              "sd": 2.4
+            },
+            "numerator": {
+              "mean": 31.0,
+              "sd": 40.0
+            }
+          }
+        },
+        "units": 10000
+      },
+      "treatment": {
+        "metrics": {
+          "revenue_per_session": {
+            "corr": 0.6,
+            "denominator": {
+              "mean": 3.1,
+              "sd": 2.4
+            },
+            "numerator": {
+              "mean": 32.5,
+              "sd": 40.0
+            }
+          }
+        },
+        "units": 10000
+      }
+    },
+    "description": "Hand-written ratio example, not product evidence.",
+    "experiment": "ratio-example",
+    "metrics": {
+      "revenue_per_session": {
+        "direction": "increase",
+        "role": "primary",
+        "type": "ratio"
+      }
+    }
+  },
+  "input_sha256": "104d9c62974a3e879dc5d5f8b0f5956153bb0b2de72e956c987f7b446701333f",
+  "metrics": [
+    {
+      "control": 10.0,
+      "diff": 0.48387096774193594,
+      "direction": "increase",
+      "improvement": 0.48387096774193594,
+      "improvement_bounds": [
+        0.24367070276737265,
+        0.7240712327164992
+      ],
+      "mde": 0.36310338534953945,
+      "mde_basis": "fixed_horizon_normal_approximation",
+      "metric": "revenue_per_session",
+      "role": "primary",
+      "se": 0.146031392118303,
+      "status": "IMPROVED",
+      "treatment": 10.483870967741936,
+      "type": "ratio",
+      "z": 1.6448536269514722
+    }
+  ],
+  "policy": {
+    "alpha": 0.05,
+    "power": 0.8,
+    "srm_alpha": 0.001
+  },
+  "produced_by": {
+    "name": "expgate",
+    "version": "0.1.0"
+  },
+  "reasons": [
+    "primary metric improved and all guardrails are non-inferior"
+  ],
+  "sample_ratio": {
+    "control_units": 10000,
+    "expected_treatment_share": 0.5,
+    "p_value": 1.0,
+    "pass": true,
+    "treatment_units": 10000
+  },
+  "schema_version": 3
+}

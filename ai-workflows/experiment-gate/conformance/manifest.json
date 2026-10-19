@@ -1,0 +1,843 @@
+{
+  "format": 1,
+  "package": "expgate",
+  "vectors": [
+    {
+      "path": "valid/decision-v3-ship.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "expgate/schema/decision.v3.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/input_sha256",
+          "covers": "/input",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/decision-v3-ship.input.canonical"
+        }
+      ],
+      "note": "schema 3: SHIP on the win scenario; input digest is rfc8785"
+    },
+    {
+      "path": "valid/decision-v3-hold.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "expgate/schema/decision.v3.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/input_sha256",
+          "covers": "/input",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/decision-v3-hold.input.canonical"
+        }
+      ],
+      "note": "schema 3: HOLD on the flat scenario; input digest is rfc8785"
+    },
+    {
+      "path": "valid/decision-v3-rollback.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "expgate/schema/decision.v3.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/input_sha256",
+          "covers": "/input",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/decision-v3-rollback.input.canonical"
+        }
+      ],
+      "note": "schema 3: ROLLBACK on the guardrail-breach scenario; input digest is rfc8785"
+    },
+    {
+      "path": "valid/decision-v3-srm.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "expgate/schema/decision.v3.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/input_sha256",
+          "covers": "/input",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/decision-v3-srm.input.canonical"
+        }
+      ],
+      "note": "schema 3: INVALID decision (sample-ratio mismatch) on the srm scenario; input digest is rfc8785"
+    },
+    {
+      "path": "valid/decision-v3-cuped.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "expgate/schema/decision.v3.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/input_sha256",
+          "covers": "/input",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/decision-v3-cuped.input.canonical"
+        }
+      ],
+      "note": "schema 3: CUPED-adjusted mean metric with covariates; input digest is rfc8785"
+    },
+    {
+      "path": "valid/decision-v3-sequential.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "expgate/schema/decision.v3.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/input_sha256",
+          "covers": "/input",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/decision-v3-sequential.input.canonical"
+        }
+      ],
+      "note": "schema 3: interim look of a sequentially monitored test; input digest is rfc8785"
+    },
+    {
+      "path": "valid/decision-v3-ratio.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "expgate/schema/decision.v3.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/input_sha256",
+          "covers": "/input",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/decision-v3-ratio.input.canonical"
+        }
+      ],
+      "note": "schema 3: ratio metric from examples/ratio.json; input digest is rfc8785"
+    },
+    {
+      "path": "valid/decision-v3-jcs-edge.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "expgate/schema/decision.v3.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/input_sha256",
+          "covers": "/input",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/decision-v3-jcs-edge.input.canonical"
+        }
+      ],
+      "note": "schema 3: input with integral floats, 1e-7 exponents, escapes and members whose UTF-16 order differs from code point order; input digest is rfc8785"
+    },
+    {
+      "path": "valid/decision-v2-ship.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "expgate/schema/decision.v2.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/input_sha256",
+          "covers": "/input",
+          "exclude": [],
+          "canonicalization": "python-json-v1",
+          "canonical_file": "valid/decision-v2-ship.input.canonical"
+        }
+      ],
+      "note": "schema 2: SHIP on the win scenario; input digest is python-json-v1"
+    },
+    {
+      "path": "valid/decision-v2-hold.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "expgate/schema/decision.v2.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/input_sha256",
+          "covers": "/input",
+          "exclude": [],
+          "canonicalization": "python-json-v1",
+          "canonical_file": "valid/decision-v2-hold.input.canonical"
+        }
+      ],
+      "note": "schema 2: HOLD on the flat scenario; input digest is python-json-v1"
+    },
+    {
+      "path": "valid/decision-v2-rollback.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "expgate/schema/decision.v2.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/input_sha256",
+          "covers": "/input",
+          "exclude": [],
+          "canonicalization": "python-json-v1",
+          "canonical_file": "valid/decision-v2-rollback.input.canonical"
+        }
+      ],
+      "note": "schema 2: ROLLBACK on the guardrail-breach scenario; input digest is python-json-v1"
+    },
+    {
+      "path": "valid/decision-v2-regression.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "expgate/schema/decision.v2.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/input_sha256",
+          "covers": "/input",
+          "exclude": [],
+          "canonicalization": "python-json-v1",
+          "canonical_file": "valid/decision-v2-regression.input.canonical"
+        }
+      ],
+      "note": "schema 2: ROLLBACK on the regression scenario; input digest is python-json-v1"
+    },
+    {
+      "path": "valid/decision-v2-srm.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "expgate/schema/decision.v2.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/input_sha256",
+          "covers": "/input",
+          "exclude": [],
+          "canonicalization": "python-json-v1",
+          "canonical_file": "valid/decision-v2-srm.input.canonical"
+        }
+      ],
+      "note": "schema 2: INVALID decision (sample-ratio mismatch) on the srm scenario; input digest is python-json-v1"
+    },
+    {
+      "path": "valid/decision-v2-sequential.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "expgate/schema/decision.v2.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/input_sha256",
+          "covers": "/input",
+          "exclude": [],
+          "canonicalization": "python-json-v1",
+          "canonical_file": "valid/decision-v2-sequential.input.canonical"
+        }
+      ],
+      "note": "schema 2: interim look of a sequentially monitored test; input digest is python-json-v1"
+    },
+    {
+      "path": "valid/decision-v2-jcs-edge.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "expgate/schema/decision.v2.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/input_sha256",
+          "covers": "/input",
+          "exclude": [],
+          "canonicalization": "python-json-v1",
+          "canonical_file": "valid/decision-v2-jcs-edge.input.canonical"
+        }
+      ],
+      "note": "schema 2: input with integral floats, 1e-7 exponents, escapes and members whose UTF-16 order differs from code point order; input digest is python-json-v1"
+    },
+    {
+      "path": "tampered/decision-v3-input-edited.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "expgate/schema/decision.v3.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "schema 3, ship vector: treatment successes +400 in input, input_sha256 left stale"
+    },
+    {
+      "path": "tampered/decision-v3-input-redigested.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "expgate/schema/decision.v3.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "schema 3, ship vector: treatment successes +400 in input and input_sha256 recomputed; the stored decision and metrics no longer replay"
+    },
+    {
+      "path": "tampered/decision-v3-decision-edited.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "expgate/schema/decision.v3.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "schema 3, ship vector: decision changed from SHIP to HOLD, input digest still consistent"
+    },
+    {
+      "path": "tampered/decision-v3-metric-edited.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "expgate/schema/decision.v3.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "schema 3, ship vector: primary metric lower bound +0.01, input digest still consistent"
+    },
+    {
+      "path": "tampered/decision-v3-digest-python-json-v1.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "expgate/schema/decision.v3.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "schema 3, jcs-edge vector: input_sha256 computed with python-json-v1 instead of rfc8785"
+    },
+    {
+      "path": "tampered/decision-v2-input-edited.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "expgate/schema/decision.v2.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "schema 2, ship vector: treatment successes +400 in input, input_sha256 left stale"
+    },
+    {
+      "path": "tampered/decision-v2-input-redigested.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "expgate/schema/decision.v2.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "schema 2, ship vector: treatment successes +400 in input and input_sha256 recomputed; the stored decision and metrics no longer replay"
+    },
+    {
+      "path": "tampered/decision-v2-decision-edited.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "expgate/schema/decision.v2.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "schema 2, ship vector: decision changed from SHIP to HOLD, input digest still consistent"
+    },
+    {
+      "path": "tampered/decision-v2-metric-edited.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "expgate/schema/decision.v2.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "schema 2, ship vector: primary metric lower bound +0.01, input digest still consistent"
+    },
+    {
+      "path": "tampered/decision-v2-digest-rfc8785.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "expgate/schema/decision.v2.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "schema 2, jcs-edge vector: input_sha256 computed with rfc8785 instead of python-json-v1"
+    },
+    {
+      "path": "invalid/decision-v3-malformed-json.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "schema 3, ship vector: file cut off after the input member"
+    },
+    {
+      "path": "invalid/decision-v3-unknown-schema.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "expgate/schema/decision.v3.json",
+          "schema_valid": false
+        }
+      ],
+      "note": "schema 3, ship vector: schema_version set to 4"
+    },
+    {
+      "path": "invalid/decision-v3-missing-input.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "expgate/schema/decision.v3.json",
+          "schema_valid": false
+        }
+      ],
+      "note": "schema 3, ship vector: input member removed"
+    },
+    {
+      "path": "invalid/decision-v3-non-finite.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "schema 3, ship vector: input.assignment.expected_treatment_share is the literal NaN (not JSON); python-json-v1 digest recomputed"
+    },
+    {
+      "path": "invalid/decision-v2-malformed-json.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "schema 2, ship vector: file cut off after the input member"
+    },
+    {
+      "path": "invalid/decision-v2-unknown-schema.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "expgate/schema/decision.v2.json",
+          "schema_valid": false
+        }
+      ],
+      "note": "schema 2, ship vector: schema_version set to 4"
+    },
+    {
+      "path": "invalid/decision-v2-missing-input.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "expgate/schema/decision.v2.json",
+          "schema_valid": false
+        }
+      ],
+      "note": "schema 2, ship vector: input member removed"
+    },
+    {
+      "path": "invalid/decision-v2-non-finite.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "schema 2, ship vector: input.assignment.expected_treatment_share is the literal NaN (not JSON); python-json-v1 digest recomputed"
+    },
+    {
+      "path": "invalid/decision-v3-duplicate-key.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "expgate/schema/decision.v3.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "schema 3, ship vector: a first \"decision\": \"HOLD\" member precedes the real one; the later value wins in lenient parsers and the document would otherwise verify"
+    },
+    {
+      "path": "invalid/decision-v3-duplicate-key-in-input.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "expgate/schema/decision.v3.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "schema 3, ship vector: input.arms.control repeats \"units\" (first 1, then the real value)"
+    },
+    {
+      "path": "invalid/decision-v3-integer-out-of-range.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "expgate/schema/decision.v3.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "schema 3, ship vector: input.arms.control.units set to 2^60, outside the RFC 8785 safe integer range (digest cannot be computed)"
+    },
+    {
+      "path": "invalid/decision-v3-unsafe-integer-in-ignored-member.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "expgate/schema/decision.v3.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "schema 3, ship vector: an unknown top-level member \"note\" holds 2^53; the verifier ignores the member but RFC 8785 cannot encode the document"
+    },
+    {
+      "path": "invalid/decision-v1-legacy.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "experiment-gate-verify",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "schema 1: no schema_version, embedded input or digest (ship vector with those members removed); inspectable but cannot be verified"
+    }
+  ]
+}

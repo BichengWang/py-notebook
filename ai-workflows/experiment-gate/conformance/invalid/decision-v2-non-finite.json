@@ -1,0 +1,146 @@
+{
+  "decision": "SHIP",
+  "experiment": "win",
+  "expgate_version": "0.1.0",
+  "input": {
+    "arms": {
+      "control": {
+        "metrics": {
+          "conversion": {
+            "successes": 3104
+          },
+          "latency_ms": {
+            "mean": 39.992859,
+            "sd": 12.062652
+          },
+          "refund_rate": {
+            "successes": 640
+          }
+        },
+        "units": 30000
+      },
+      "treatment": {
+        "metrics": {
+          "conversion": {
+            "successes": 3362
+          },
+          "latency_ms": {
+            "mean": 40.023932,
+            "sd": 11.976637
+          },
+          "refund_rate": {
+            "successes": 605
+          }
+        },
+        "units": 30000
+      }
+    },
+    "assignment": {
+      "expected_treatment_share": NaN
+    },
+    "description": "Candidate lifts conversion with no guardrail cost",
+    "experiment": "win",
+    "metrics": {
+      "conversion": {
+        "direction": "increase",
+        "role": "primary",
+        "type": "proportion"
+      },
+      "latency_ms": {
+        "direction": "decrease",
+        "margin": 2.0,
+        "role": "guardrail",
+        "type": "mean"
+      },
+      "refund_rate": {
+        "direction": "decrease",
+        "margin": 0.003,
+        "role": "guardrail",
+        "type": "proportion"
+      }
+    },
+    "seed": 20260924
+  },
+  "input_sha256": "88214cd72ed111a603c451b3410461a8f9319ba944ba1ed8104b7af329628192",
+  "metrics": [
+    {
+      "control": 0.10346666666666667,
+      "diff": 0.008599999999999997,
+      "direction": "increase",
+      "improvement": 0.008599999999999997,
+      "improvement_bounds": [
+        0.004435898437750559,
+        0.012764101562249434
+      ],
+      "mde": 0.006294744822001735,
+      "mde_basis": "fixed_horizon_normal_approximation",
+      "metric": "conversion",
+      "role": "primary",
+      "se": 0.002531593993544018,
+      "status": "IMPROVED",
+      "treatment": 0.11206666666666666,
+      "type": "proportion",
+      "z": 1.6448536269514715
+    },
+    {
+      "control": 39.992859,
+      "diff": 0.03107299999999924,
+      "direction": "decrease",
+      "improvement": -0.03107299999999924,
+      "improvement_bounds": [
+        -0.22342507006355286,
+        0.16127907006355438
+      ],
+      "margin": 2.0,
+      "mde": 0.2749492951983726,
+      "mde_basis": "fixed_horizon_normal_approximation",
+      "metric": "latency_ms",
+      "role": "guardrail",
+      "se": 0.09814061461373896,
+      "status": "NON_INFERIOR",
+      "treatment": 40.023932,
+      "type": "mean",
+      "z": 1.9599639845400534
+    },
+    {
+      "control": 0.021333333333333333,
+      "diff": -0.0011666666666666665,
+      "direction": "decrease",
+      "improvement": 0.0011666666666666665,
+      "improvement_bounds": [
+        -0.0011144876500897571,
+        0.0034478209834230902
+      ],
+      "margin": 0.003,
+      "mde": 0.00326069675997599,
+      "mde_basis": "fixed_horizon_normal_approximation",
+      "metric": "refund_rate",
+      "role": "guardrail",
+      "se": 0.0011638756297308924,
+      "status": "NON_INFERIOR",
+      "treatment": 0.020166666666666666,
+      "type": "proportion",
+      "z": 1.9599639845400534
+    }
+  ],
+  "policy": {
+    "alpha": 0.05,
+    "power": 0.8,
+    "srm_alpha": 0.001
+  },
+  "produced_by": {
+    "name": "expgate",
+    "version": "0.1.0"
+  },
+  "reasons": [
+    "primary metric improved and all guardrails are non-inferior"
+  ],
+  "sample_ratio": {
+    "control_units": 30000,
+    "expected_treatment_share": 0.5,
+    "p_value": 1.0,
+    "pass": true,
+    "treatment_units": 30000
+  },
+  "schema_version": 2
+}

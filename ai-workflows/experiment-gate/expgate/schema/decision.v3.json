@@ -1,0 +1,218 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/BichengWang/ai-decision-system/schema/expgate/decision.v3.json",
+  "title": "experiment-gate decision.json, schema 3",
+  "$comment": "Canonicalization: RFC 8785 (JCS). input_sha256 is the lowercase hex SHA-256 of the canonical bytes of /input; no other field is digested. Integers and floats are one number type under JCS, so the integer constraints below cannot distinguish 100 from 100.0; the verifier additionally requires Python integers for counts. The verifier rejects duplicate object keys and non-finite numbers in schema 3 documents, which a schema cannot express. Replay compares computed statistics (p_value, diff, se, improvement, improvement_bounds, z, mde, adjustment numbers) within a relative 1e-9 (1e-12 absolute where the replayed value is 0) and everything else exactly; the verifier also rejects any member anywhere in the document that RFC 8785 cannot encode (integers beyond 2^53-1, overflowed floats, lone surrogates). Rules that relate several fields (exactly one primary metric, successes <= units, arm metrics matching the declared metrics, every derived field equal to a replay of /input) belong to the replay and are not repeated here. Unknown top-level members are ignored by the verifier and therefore allowed; every other object is closed.",
+  "type": "object",
+  "required": ["schema_version", "produced_by", "input", "input_sha256", "experiment", "decision", "reasons", "policy", "sample_ratio", "metrics"],
+  "properties": {
+    "schema_version": {"const": 3},
+    "expgate_version": {"type": "string"},
+    "produced_by": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {"name": {"const": "expgate"}, "version": {"type": "string"}}
+    },
+    "input": {"$ref": "#/$defs/input"},
+    "input_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "experiment": {"type": "string"},
+    "decision": {"enum": ["SHIP", "HOLD", "ROLLBACK", "INVALID"]},
+    "reasons": {"type": "array", "items": {"type": "string"}},
+    "policy": {
+      "type": "object",
+      "required": ["alpha", "srm_alpha", "power"],
+      "properties": {
+        "alpha": {"$ref": "#/$defs/open_unit_interval"},
+        "srm_alpha": {"$ref": "#/$defs/open_unit_interval"},
+        "power": {"$ref": "#/$defs/open_unit_interval"},
+        "sequential": {"$ref": "#/$defs/sequential_policy"}
+      },
+      "additionalProperties": false
+    },
+    "sample_ratio": {
+      "type": "object",
+      "required": ["control_units", "treatment_units", "expected_treatment_share", "p_value", "pass"],
+      "properties": {
+        "control_units": {"type": "integer", "minimum": 1},
+        "treatment_units": {"type": "integer", "minimum": 1},
+        "expected_treatment_share": {"$ref": "#/$defs/open_unit_interval"},
+        "p_value": {"type": "number", "minimum": 0, "maximum": 1},
+        "pass": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "sequential": {
+      "type": "object",
+      "required": ["planned_units", "units", "information_fraction"],
+      "properties": {
+        "planned_units": {"type": "integer", "minimum": 2},
+        "units": {"type": "integer", "minimum": 2},
+        "information_fraction": {"type": "number", "exclusiveMinimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "metrics": {"type": "array", "items": {"$ref": "#/$defs/metric_row"}}
+  },
+  "$defs": {
+    "open_unit_interval": {"type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1},
+    "correlation": {"type": "number", "minimum": -1, "maximum": 1},
+    "non_negative": {"type": "number", "minimum": 0},
+    "sequential_policy": {
+      "type": "object",
+      "required": ["planned_units"],
+      "properties": {"planned_units": {"type": "integer", "minimum": 2}},
+      "additionalProperties": false
+    },
+    "input": {
+      "type": "object",
+      "required": ["metrics", "arms"],
+      "properties": {
+        "experiment": {"type": "string", "minLength": 1},
+        "description": {},
+        "seed": {},
+        "metrics": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {"$ref": "#/$defs/metric_spec"}
+        },
+        "policy": {
+          "type": "object",
+          "properties": {
+            "alpha": {"$ref": "#/$defs/open_unit_interval"},
+            "srm_alpha": {"$ref": "#/$defs/open_unit_interval"},
+            "power": {"$ref": "#/$defs/open_unit_interval"},
+            "sequential": {"$ref": "#/$defs/sequential_policy"}
+          },
+          "additionalProperties": false
+        },
+        "assignment": {
+          "type": "object",
+          "properties": {"expected_treatment_share": {"$ref": "#/$defs/open_unit_interval"}},
+          "additionalProperties": false
+        },
+        "arms": {
+          "type": "object",
+          "required": ["control", "treatment"],
+          "properties": {
+            "control": {"$ref": "#/$defs/arm"},
+            "treatment": {"$ref": "#/$defs/arm"}
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "metric_spec": {
+      "type": "object",
+      "required": ["type", "role", "direction"],
+      "properties": {
+        "type": {"enum": ["proportion", "mean", "ratio"]},
+        "role": {"enum": ["primary", "guardrail"]},
+        "direction": {"enum": ["increase", "decrease"]},
+        "margin": {"$ref": "#/$defs/non_negative"}
+      },
+      "if": {"type": "object", "properties": {"role": {"const": "guardrail"}}, "required": ["role"]},
+      "then": {"type": "object", "required": ["margin"]},
+      "additionalProperties": false
+    },
+    "arm": {
+      "type": "object",
+      "required": ["units", "metrics"],
+      "properties": {
+        "units": {"type": "integer", "minimum": 1},
+        "metrics": {
+          "type": "object",
+          "additionalProperties": {
+            "oneOf": [
+              {"$ref": "#/$defs/proportion_stat"},
+              {"$ref": "#/$defs/mean_stat"},
+              {"$ref": "#/$defs/ratio_stat"}
+            ]
+          }
+        }
+      }
+    },
+    "covariate": {
+      "type": "object",
+      "required": ["mean", "sd", "corr"],
+      "properties": {
+        "mean": {"type": "number"},
+        "sd": {"type": "number", "exclusiveMinimum": 0},
+        "corr": {"$ref": "#/$defs/correlation"}
+      },
+      "additionalProperties": false
+    },
+    "proportion_stat": {
+      "type": "object",
+      "required": ["successes"],
+      "properties": {
+        "successes": {"type": "integer", "minimum": 0},
+        "covariate": {"$ref": "#/$defs/covariate"}
+      },
+      "additionalProperties": false
+    },
+    "mean_stat": {
+      "type": "object",
+      "required": ["mean", "sd"],
+      "properties": {
+        "mean": {"type": "number"},
+        "sd": {"$ref": "#/$defs/non_negative"},
+        "covariate": {"$ref": "#/$defs/covariate"}
+      },
+      "additionalProperties": false
+    },
+    "ratio_stat": {
+      "type": "object",
+      "required": ["numerator", "denominator", "corr"],
+      "properties": {
+        "numerator": {
+          "type": "object",
+          "required": ["mean", "sd"],
+          "properties": {"mean": {"type": "number"}, "sd": {"$ref": "#/$defs/non_negative"}},
+          "additionalProperties": false
+        },
+        "denominator": {
+          "type": "object",
+          "required": ["mean", "sd"],
+          "properties": {"mean": {"type": "number", "exclusiveMinimum": 0}, "sd": {"$ref": "#/$defs/non_negative"}},
+          "additionalProperties": false
+        },
+        "corr": {"$ref": "#/$defs/correlation"}
+      },
+      "additionalProperties": false
+    },
+    "metric_row": {
+      "type": "object",
+      "required": ["metric", "role", "type", "direction", "control", "treatment", "diff", "se", "improvement", "improvement_bounds", "z", "mde", "mde_basis", "status"],
+      "properties": {
+        "metric": {"type": "string"},
+        "role": {"enum": ["primary", "guardrail"]},
+        "type": {"enum": ["proportion", "mean", "ratio"]},
+        "direction": {"enum": ["increase", "decrease"]},
+        "control": {"type": "number"},
+        "treatment": {"type": "number"},
+        "diff": {"type": "number"},
+        "se": {"type": "number"},
+        "improvement": {"type": "number"},
+        "improvement_bounds": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 2},
+        "z": {"type": "number"},
+        "mde": {"type": "number"},
+        "mde_basis": {"enum": ["fixed_horizon_normal_approximation", "current_look_normal_approximation"]},
+        "margin": {"$ref": "#/$defs/non_negative"},
+        "status": {"enum": ["IMPROVED", "DEGRADED", "INCONCLUSIVE", "BREACH", "NON_INFERIOR"]},
+        "adjustment": {
+          "type": "object",
+          "required": ["method", "theta", "raw_diff", "raw_se", "variance_reduction"],
+          "properties": {
+            "method": {"const": "cuped"},
+            "theta": {"type": "number"},
+            "raw_diff": {"type": "number"},
+            "raw_se": {"type": "number"},
+            "variance_reduction": {"type": "number"}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

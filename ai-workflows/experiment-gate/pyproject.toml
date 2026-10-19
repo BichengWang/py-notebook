@@ -38,6 +38,9 @@ experiment-gate-verify = "expgate.verify:main"
 [tool.setuptools.dynamic]
 version = {attr = "expgate.__version__"}
 
+[tool.setuptools.package-data]
+expgate = ["schema/*.json"]
+
 [tool.setuptools.packages.find]
 include = ["expgate", "expgate.*"]
 
