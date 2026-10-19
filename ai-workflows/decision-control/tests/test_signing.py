@@ -293,13 +293,75 @@ class SigningTests(unittest.TestCase):
         command = run.call_args.args[0]
         self.assertEqual(command[:2], ["/bin/cosign", "verify-blob-attestation"])
         self.assertIn("https://github.com/BichengWang/ai-decision-system/predicate/decisioncontrol/record/v4", command)
-        self.assertEqual(command[-1], str(self.record))
+        self.assertEqual(Path(command[-1]).name, self.record.name)
+        self.assertNotEqual(Path(command[-1]), self.record)
         completed = mock.Mock(returncode=1, stderr="no matching signatures")
         with mock.patch("decisioncontrol.signing.shutil.which", return_value="/bin/cosign"), \
                 mock.patch("decisioncontrol.signing.subprocess.run", return_value=completed):
             code, _, error = self.call("replay", "--record", str(self.record), *flags)
         self.assertEqual(code, 1)
         self.assertIn("no matching signatures", error)
+
+    def test_sigstore_verifies_the_same_bytes_that_replay_consumes(self):
+        """A file swapped back to the signed bytes after the read must not satisfy cosign."""
+        import hashlib
+        signed = self.record.read_bytes()
+        document = json.loads(signed)
+        document["record"]["id"] = "00000000-0000-4000-8000-000000000000"
+        forged = json.dumps(rehash_record(document), indent=2).encode() + b"\n"
+        self.assertEqual(self.call("replay", "--record", str(self.record))[0], 0)
+        bundle = self.root / "record.sigstore.json"
+        bundle.write_text("{}", encoding="utf-8")
+        flags = ["--require-signature", "--sigstore-bundle", str(bundle), "--certificate-identity", "id",
+                 "--certificate-oidc-issuer", "issuer"]
+        seen = []
+
+        def fake_cosign(command, **kwargs):
+            blob = Path(command[-1])
+            seen.append((blob, stat.S_IMODE(blob.parent.stat().st_mode), stat.S_IMODE(blob.stat().st_mode)))
+            ok = hashlib.sha256(blob.read_bytes()).digest() == hashlib.sha256(signed).digest()
+            return mock.Mock(returncode=0 if ok else 1, stderr="" if ok else "digest mismatch")
+
+        real_describe = attestation.describe
+
+        def swap_back_after_read(*args, **kwargs):
+            self.record.write_bytes(signed)  # cosign's later read of the path would see signed bytes
+            return real_describe(*args, **kwargs)
+
+        self.record.write_bytes(forged)
+        self.assertEqual(self.call("replay", "--record", str(self.record))[0], 0)  # forged but self-consistent
+        with mock.patch("decisioncontrol.signing.shutil.which", return_value="/bin/cosign"), \
+                mock.patch("decisioncontrol.signing.subprocess.run", side_effect=fake_cosign), \
+                mock.patch("decisioncontrol.attestation.describe", side_effect=swap_back_after_read):
+            code, out, error = self.call("replay", "--record", str(self.record), *flags)
+        self.assertEqual(code, 1, out)
+        self.assertIn("digest mismatch", error)
+        blob, directory_mode, file_mode = seen[0]
+        self.assertNotEqual(blob, self.record)
+        self.assertEqual((directory_mode, file_mode), (0o700, 0o600))
+        self.assertFalse(blob.exists())
+        # Unswapped signed bytes still verify through the private copy.
+        self.record.write_bytes(signed)
+        with mock.patch("decisioncontrol.signing.shutil.which", return_value="/bin/cosign"), \
+                mock.patch("decisioncontrol.signing.subprocess.run", side_effect=fake_cosign):
+            self.assertEqual(self.call("replay", "--record", str(self.record), *flags)[0], 0)
+
+    def test_hmac_verifies_and_replays_one_snapshot(self):
+        signed = self.record.read_bytes()
+        document = json.loads(signed)
+        document["record"]["id"] = "00000000-0000-4000-8000-000000000000"
+        forged = json.dumps(rehash_record(document), indent=2).encode() + b"\n"
+        self.record.write_bytes(forged)
+        real_describe = attestation.describe
+
+        def swap_back_after_read(*args, **kwargs):
+            self.record.write_bytes(signed)
+            return real_describe(*args, **kwargs)
+
+        with mock.patch("decisioncontrol.attestation.describe", side_effect=swap_back_after_read):
+            self.assertEqual(self.replay()[0], 1)
+        self.record.write_bytes(signed)
+        self.assertEqual(self.replay()[0], 0)
 
     def test_predicate_command_writes_the_attest_blob_predicate(self):
         pred = self.root / "pred.json"

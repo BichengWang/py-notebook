@@ -353,6 +353,13 @@ decision-control replay --record record.json --require-signature \
   --certificate-identity "$SIGNER_IDENTITY" --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
+The certificate identity includes the signing ref, for example
+`https://github.com/OWNER/REPO/.github/workflows/decision-control-ci.yml@refs/heads/main`
+(a pull request signs as `@refs/pull/N/merge`); verifying a record signed on another ref
+needs exactly that identity. The verifier hands `cosign` a private copy (mode 0600, in a
+fresh temporary directory) of the same bytes it parses and replays, so swapping the file
+mid-verification cannot make the two disagree.
+
 Verification shells out to `cosign verify-blob-attestation`; the package never signs
 with Sigstore and has no dependency on it. CI exercises this keylessly in a
 `sigstore` job (skipped for fork and Dependabot pull requests, which get no OIDC token).

@@ -5,7 +5,9 @@ re-hashes the embedded checksum still fails ``--require-signature``. HMAC proves
 a shared secret, not an identity; Sigstore verification is delegated to an external ``cosign``.
 """
 import json
+import os
 from pathlib import Path
+import tempfile
 
 from . import signing
 from .evaluation import REPORT_SCHEMAS
@@ -61,7 +63,8 @@ def render_envelope(envelope: dict) -> str:
 def require_signature(record: Path, data: bytes, document, kind: str, options) -> None:
     """Raise SignatureError (exit 1) or KeyFileError (exit 2) unless the file is signed as required.
 
-    ``options`` carries key, signature, sigstore_bundle, certificate_identity and
+    ``data`` is the one snapshot of the file's bytes; the caller parses and replays only those
+    bytes. ``options`` carries key, signature, sigstore_bundle, certificate_identity and
     certificate_oidc_issuer; exactly one of key or sigstore_bundle is set.
     """
     _, version = describe(document, kind)
@@ -84,5 +87,11 @@ def require_signature(record: Path, data: bytes, document, kind: str, options) -
     bundle = Path(options.sigstore_bundle)
     if not bundle.is_file():
         raise signing.SignatureError(f"unsigned: no Sigstore bundle at {bundle}")
-    signing.verify_sigstore(record, bundle, expected, options.certificate_identity,
-                            options.certificate_oidc_issuer)
+    # cosign verifies a private copy of the very bytes the caller parsed, not the path, which
+    # could be swapped between the caller's read and cosign's.
+    with tempfile.TemporaryDirectory(prefix="decisioncontrol-") as directory:
+        snapshot = Path(directory) / record.name
+        with open(snapshot, "xb", opener=lambda path, flags: os.open(path, flags, 0o600)) as stream:
+            stream.write(data)
+        signing.verify_sigstore(snapshot, bundle, expected, options.certificate_identity,
+                                options.certificate_oidc_issuer)
