@@ -3,16 +3,23 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import lru_cache
-from math import exp, log, sqrt
+from math import erfc, exp, log, sqrt
 from statistics import NormalDist
 
 _N = NormalDist()
+
+# Below this tail probability, ``1 - p`` rounds away too many digits of ``p`` (relative error is about
+# 1e-16 / p, so 1e-10 here and 1e-9 at 1e-7). Above it the original expressions are kept, so a record
+# produced by an earlier version replays to the same bytes.
+_TAIL_PROBABILITY = 1e-6
 
 
 def z_for(alpha: float) -> float:
     """Critical value for a one-sided test at level ``alpha``."""
     if not 0.0 < alpha < 1.0:
         raise ValueError("alpha must be in (0, 1)")
+    if alpha < _TAIL_PROBABILITY:
+        return -_N.inv_cdf(alpha)
     return _N.inv_cdf(1.0 - alpha)
 
 
@@ -215,4 +222,7 @@ def sample_ratio_p_value(control_n: int, treatment_n: int, expected_treatment_sh
     exp_c = total - exp_t
     chi2 = (treatment_n - exp_t) ** 2 / exp_t + (control_n - exp_c) ** 2 / exp_c
     # With one degree of freedom, chi2 = z**2, so the p-value is two-sided normal.
-    return 2.0 * (1.0 - _N.cdf(sqrt(chi2)))
+    p = 2.0 * (1.0 - _N.cdf(sqrt(chi2)))
+    if p < _TAIL_PROBABILITY:
+        p = erfc(sqrt(chi2 / 2.0))  # the same tail without the cancellation; no underflow to 0 until ~1e-308
+    return p

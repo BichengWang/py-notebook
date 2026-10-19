@@ -40,6 +40,27 @@ class StatsTest(unittest.TestCase):
         self.assertLess(stats.sample_ratio_p_value(4700, 5300, 0.5), 1e-8)
         self.assertAlmostEqual(stats.sample_ratio_p_value(2000, 8000, 0.8), 1.0)
 
+    def test_sample_ratio_tail_keeps_its_digits(self):
+        # 1 - cdf(z) rounds to 0 for z > 8.3 and loses digits well before that. The reference
+        # values are scipy.stats.chi2.sf (tests/golden/sample_ratio.json covers more).
+        self.assertAlmostEqual(stats.sample_ratio_p_value(40000, 44000, 0.5) / 2.502589491e-43, 1.0, places=9)
+        self.assertAlmostEqual(stats.sample_ratio_p_value(4700, 5300, 0.5) / 1.97317529e-09, 1.0, places=7)
+        self.assertGreater(stats.sample_ratio_p_value(30000, 36000, 0.5), 0.0)
+
+    def test_ordinary_probabilities_are_unchanged_from_0_1_0(self):
+        # Records replay with the running version, so outside the tail the original expressions
+        # must give the same bits, not just the same value to 1e-9.
+        n = statistics.NormalDist()
+        chi2 = (5050 - 5000) ** 2 / 5000 * 2
+        self.assertEqual(stats.sample_ratio_p_value(4950, 5050, 0.5), 2.0 * (1.0 - n.cdf(math.sqrt(chi2))))
+        for alpha in (0.5, 0.05, 0.01, 1e-5):
+            self.assertEqual(stats.z_for(alpha), n.inv_cdf(1.0 - alpha))
+
+    def test_critical_value_for_tiny_alpha(self):
+        # 1 - alpha rounds to a multiple of 1.1e-16, which is a 1e-4 relative error in alpha = 1e-12.
+        self.assertAlmostEqual(stats.z_for(1e-12) / 7.034483825, 1.0, places=9)
+        self.assertAlmostEqual(stats.z_for(1e-10) / 6.361340902, 1.0, places=9)
+
     def test_rejects_invalid_inputs(self):
         with self.assertRaises(ValueError):
             stats.proportion_effect(11, 10, 1, 10)
