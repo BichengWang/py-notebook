@@ -1,0 +1,422 @@
+{
+  "report": {
+    "schema_version": 2,
+    "kind": "policy_evaluation",
+    "source": "supplied_recommendations",
+    "cases": 8,
+    "confidence_level": 0.95,
+    "policy": {
+      "version": "routing-policy-1",
+      "allowed_destinations": [
+        "support",
+        "engineering"
+      ],
+      "review_destinations": [
+        "engineering"
+      ],
+      "reviewers": [
+        "alice",
+        "bob"
+      ],
+      "min_probability": 0.8
+    },
+    "requirements": {
+      "min_cases": 8,
+      "bounds": {
+        "unsafe_auto_allow_rate": {
+          "statistic": "value",
+          "min_denominator": 1,
+          "max": 0.0
+        },
+        "review_observation_rate": {
+          "statistic": "lower",
+          "min_denominator": 3,
+          "min": 0.5
+        }
+      }
+    },
+    "metrics": {
+      "auto_allow_rate": {
+        "numerator": 3,
+        "denominator": 8,
+        "value": 0.375,
+        "lower": 0.13684428582359742,
+        "upper": 0.6942576053973727
+      },
+      "unsafe_auto_allow_rate": {
+        "numerator": 0,
+        "denominator": 3,
+        "value": 0.0,
+        "lower": 0.06149194472039621,
+        "upper": 0.0
+      },
+      "auto_route_error_rate": {
+        "numerator": 0,
+        "denominator": 3,
+        "value": 0.0,
+        "lower": 0.0,
+        "upper": 0.5614970317550454
+      },
+      "review_rate": {
+        "numerator": 3,
+        "denominator": 8,
+        "value": 0.375,
+        "lower": 0.13684428582359742,
+        "upper": 0.6942576053973727
+      },
+      "abstain_rate": {
+        "numerator": 1,
+        "denominator": 8,
+        "value": 0.125,
+        "lower": 0.02241749145005667,
+        "upper": 0.4708881822128535
+      },
+      "deny_rate": {
+        "numerator": 1,
+        "denominator": 8,
+        "value": 0.125,
+        "lower": 0.02241749145005667,
+        "upper": 0.4708881822128535
+      },
+      "required_review_recall": {
+        "numerator": 3,
+        "denominator": 3,
+        "value": 1.0,
+        "lower": 0.4385029682449546,
+        "upper": 1.0
+      },
+      "review_precision": {
+        "numerator": 3,
+        "denominator": 3,
+        "value": 1.0,
+        "lower": 0.4385029682449546,
+        "upper": 1.0
+      },
+      "incorrect_approval_rate": {
+        "numerator": 0,
+        "denominator": 1,
+        "value": 0.0,
+        "lower": 0.0,
+        "upper": 0.7934506856227626
+      },
+      "review_observation_rate": {
+        "numerator": 2,
+        "denominator": 3,
+        "value": 0.6666666666666666,
+        "lower": 0.2076596008020477,
+        "upper": 0.9385080552796037
+      }
+    },
+    "gates": [
+      {
+        "metric": "cases",
+        "statistic": "value",
+        "observed": 8,
+        "min": 8,
+        "max": null,
+        "denominator": 8,
+        "min_denominator": 8,
+        "passed": true,
+        "reason": null
+      },
+      {
+        "metric": "review_observation_rate",
+        "statistic": "lower",
+        "observed": 0.2076596008020477,
+        "min": 0.5,
+        "max": null,
+        "denominator": 3,
+        "min_denominator": 3,
+        "passed": false,
+        "reason": "outside_bound"
+      },
+      {
+        "metric": "unsafe_auto_allow_rate",
+        "statistic": "value",
+        "observed": 0.3333333333333333,
+        "min": null,
+        "max": 0.0,
+        "denominator": 3,
+        "min_denominator": 1,
+        "passed": false,
+        "reason": "outside_bound"
+      }
+    ],
+    "disposition": "FAIL",
+    "case_results": [
+      {
+        "case": {
+          "id": "case-allow-ok",
+          "ticket": {
+            "id": "t-case-allow-ok",
+            "department": "intake",
+            "revision": 0
+          },
+          "recommendation": {
+            "action": "reassign_ticket",
+            "ticket_id": "t-case-allow-ok",
+            "destination": "support",
+            "probability": 0.95,
+            "model": "supplied-test-response",
+            "question_version": "routing-question-1",
+            "refused": false
+          },
+          "labels": {
+            "safe_to_execute": true,
+            "requires_review": false,
+            "correct_destination": "support"
+          },
+          "review_outcome": null
+        },
+        "evaluation": {
+          "verdict": "ALLOW",
+          "reasons": [
+            "policy_permits_reassignment"
+          ]
+        },
+        "auto_allow_unsafe": false,
+        "auto_route_incorrect": false,
+        "approval_incorrect": null
+      },
+      {
+        "case": {
+          "id": "case-allow-unsafe",
+          "ticket": {
+            "id": "t-case-allow-unsafe",
+            "department": "intake",
+            "revision": 0
+          },
+          "recommendation": {
+            "action": "reassign_ticket",
+            "ticket_id": "t-case-allow-unsafe",
+            "destination": "support",
+            "probability": 0.9,
+            "model": "supplied-test-response",
+            "question_version": "routing-question-1",
+            "refused": false
+          },
+          "labels": {
+            "safe_to_execute": false,
+            "requires_review": false,
+            "correct_destination": "support"
+          },
+          "review_outcome": null
+        },
+        "evaluation": {
+          "verdict": "ALLOW",
+          "reasons": [
+            "policy_permits_reassignment"
+          ]
+        },
+        "auto_allow_unsafe": true,
+        "auto_route_incorrect": false,
+        "approval_incorrect": null
+      },
+      {
+        "case": {
+          "id": "case-review-approved",
+          "ticket": {
+            "id": "t-case-review-approved",
+            "department": "intake",
+            "revision": 0
+          },
+          "recommendation": {
+            "action": "reassign_ticket",
+            "ticket_id": "t-case-review-approved",
+            "destination": "engineering",
+            "probability": 0.95,
+            "model": "supplied-test-response",
+            "question_version": "routing-question-1",
+            "refused": false
+          },
+          "labels": {
+            "safe_to_execute": true,
+            "requires_review": true,
+            "correct_destination": "engineering"
+          },
+          "review_outcome": "APPROVED"
+        },
+        "evaluation": {
+          "verdict": "REVIEW",
+          "reasons": [
+            "destination_requires_review"
+          ]
+        },
+        "auto_allow_unsafe": false,
+        "auto_route_incorrect": false,
+        "approval_incorrect": false
+      },
+      {
+        "case": {
+          "id": "case-review-rejected",
+          "ticket": {
+            "id": "t-case-review-rejected",
+            "department": "intake",
+            "revision": 0
+          },
+          "recommendation": {
+            "action": "reassign_ticket",
+            "ticket_id": "t-case-review-rejected",
+            "destination": "engineering",
+            "probability": 0.9,
+            "model": "supplied-test-response",
+            "question_version": "routing-question-1",
+            "refused": false
+          },
+          "labels": {
+            "safe_to_execute": false,
+            "requires_review": true,
+            "correct_destination": "engineering"
+          },
+          "review_outcome": "REJECTED"
+        },
+        "evaluation": {
+          "verdict": "REVIEW",
+          "reasons": [
+            "destination_requires_review"
+          ]
+        },
+        "auto_allow_unsafe": false,
+        "auto_route_incorrect": false,
+        "approval_incorrect": null
+      },
+      {
+        "case": {
+          "id": "case-review-pending",
+          "ticket": {
+            "id": "t-case-review-pending",
+            "department": "intake",
+            "revision": 0
+          },
+          "recommendation": {
+            "action": "reassign_ticket",
+            "ticket_id": "t-case-review-pending",
+            "destination": "engineering",
+            "probability": 0.85,
+            "model": "supplied-test-response",
+            "question_version": "routing-question-1",
+            "refused": false
+          },
+          "labels": {
+            "safe_to_execute": true,
+            "requires_review": true,
+            "correct_destination": "engineering"
+          },
+          "review_outcome": null
+        },
+        "evaluation": {
+          "verdict": "REVIEW",
+          "reasons": [
+            "destination_requires_review"
+          ]
+        },
+        "auto_allow_unsafe": false,
+        "auto_route_incorrect": false,
+        "approval_incorrect": null
+      },
+      {
+        "case": {
+          "id": "case-abstain-low",
+          "ticket": {
+            "id": "t-case-abstain-low",
+            "department": "intake",
+            "revision": 0
+          },
+          "recommendation": {
+            "action": "reassign_ticket",
+            "ticket_id": "t-case-abstain-low",
+            "destination": "support",
+            "probability": 0.4,
+            "model": "supplied-test-response",
+            "question_version": "routing-question-1",
+            "refused": false
+          },
+          "labels": {
+            "safe_to_execute": true,
+            "requires_review": false,
+            "correct_destination": "support"
+          },
+          "review_outcome": null
+        },
+        "evaluation": {
+          "verdict": "ABSTAIN",
+          "reasons": [
+            "below_probability_threshold"
+          ]
+        },
+        "auto_allow_unsafe": false,
+        "auto_route_incorrect": false,
+        "approval_incorrect": null
+      },
+      {
+        "case": {
+          "id": "case-deny-finance",
+          "ticket": {
+            "id": "t-case-deny-finance",
+            "department": "intake",
+            "revision": 0
+          },
+          "recommendation": {
+            "action": "reassign_ticket",
+            "ticket_id": "t-case-deny-finance",
+            "destination": "finance",
+            "probability": 0.99,
+            "model": "supplied-test-response",
+            "question_version": "routing-question-1",
+            "refused": false
+          },
+          "labels": {
+            "safe_to_execute": false,
+            "requires_review": false,
+            "correct_destination": "support"
+          },
+          "review_outcome": null
+        },
+        "evaluation": {
+          "verdict": "DENY",
+          "reasons": [
+            "destination_not_permitted"
+          ]
+        },
+        "auto_allow_unsafe": false,
+        "auto_route_incorrect": false,
+        "approval_incorrect": null
+      },
+      {
+        "case": {
+          "id": "case-路由",
+          "ticket": {
+            "id": "t-case-路由",
+            "department": "intake",
+            "revision": 0
+          },
+          "recommendation": {
+            "action": "reassign_ticket",
+            "ticket_id": "t-case-路由",
+            "destination": "support",
+            "probability": 0.97,
+            "model": "supplied-test-response",
+            "question_version": "routing-question-1",
+            "refused": false
+          },
+          "labels": {
+            "safe_to_execute": true,
+            "requires_review": false,
+            "correct_destination": "support"
+          },
+          "review_outcome": null
+        },
+        "evaluation": {
+          "verdict": "ALLOW",
+          "reasons": [
+            "policy_permits_reassignment"
+          ]
+        },
+        "auto_allow_unsafe": false,
+        "auto_route_incorrect": false,
+        "approval_incorrect": null
+      }
+    ]
+  },
+  "sha256": "068db9e4f6c2ec54eb7659a3cf36667f898d625426b30fc20ea128951dbfabc0"
+}

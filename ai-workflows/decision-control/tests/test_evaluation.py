@@ -1,6 +1,6 @@
 from copy import deepcopy
-from dataclasses import replace
 import hashlib
+from dataclasses import replace
 import json
 from pathlib import Path
 import tempfile
@@ -8,6 +8,10 @@ import unittest
 
 from decisioncontrol import (DecisionError, EvaluationCase, Recommendation, RoutingPolicy, Ticket,
                              evaluate_cases, load_cases, replay_evaluation, write_evaluation)
+from decisioncontrol.evaluation import parse_envelope
+from decisioncontrol.evidence import RecordMismatch
+from decisioncontrol.jcs import canonicalize
+from dc_support import python_json_v1, rehash_report
 
 
 class PolicyEvaluationTests(unittest.TestCase):
@@ -22,9 +26,7 @@ class PolicyEvaluationTests(unittest.TestCase):
                               safe, required, correct or destination, outcome)
 
     def envelope(self, report):
-        return {"report": report, "sha256": hashlib.sha256(json.dumps(
-            report, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
-            allow_nan=False).encode()).hexdigest()}
+        return rehash_report({"report": report, "sha256": ""})
 
     def test_metrics_use_their_own_exposure_denominators(self):
         cases = [
@@ -179,9 +181,49 @@ class PolicyEvaluationTests(unittest.TestCase):
         with self.assertRaises(DecisionError):
             replay_evaluation(self.envelope(changed))
 
+    def test_schema_two_digest_is_rfc8785_and_schema_one_keeps_python_json(self):
+        cases = [self.case("one"), self.case("two", "engineering", outcome="APPROVED")]
+        current = evaluate_cases(cases, self.policy)
+        legacy = evaluate_cases(cases, self.policy, schema_version=1)
+        self.assertEqual((current["schema_version"], legacy["schema_version"]), (2, 1))
+        self.assertEqual({**current, "schema_version": 1}, legacy)
+        self.assertNotEqual(canonicalize(current), python_json_v1(current))
+        for report, form in ((current, canonicalize), (legacy, python_json_v1)):
+            envelope = {"report": report, "sha256": hashlib.sha256(form(report)).hexdigest()}
+            self.assertEqual(replay_evaluation(envelope)["cases"], 2)
+            with tempfile.TemporaryDirectory() as tmp:
+                self.assertEqual(write_evaluation(report, Path(tmp) / "out")["sha256"], envelope["sha256"])
+        wrong = {"report": current, "sha256": hashlib.sha256(python_json_v1(current)).hexdigest()}
+        with self.assertRaises(RecordMismatch):
+            replay_evaluation(wrong)
+        wrong = {"report": legacy, "sha256": hashlib.sha256(canonicalize(legacy)).hexdigest()}
+        with self.assertRaises(RecordMismatch):
+            replay_evaluation(wrong)
+
+    def test_unsupported_schema_is_rejected_for_producer_and_replay(self):
+        with self.assertRaises(DecisionError):
+            evaluate_cases([self.case("one")], self.policy, schema_version=3)
+        report = evaluate_cases([self.case("one")], self.policy)
+        report["schema_version"] = 3
+        with self.assertRaises(DecisionError) as raised:
+            replay_evaluation(self.envelope(report))
+        self.assertNotIsInstance(raised.exception, RecordMismatch)
+
+    def test_schema_two_parse_rejects_duplicate_keys_but_schema_one_does_not(self):
+        for schema, rejected in ((2, True), (1, False)):
+            report = evaluate_cases([self.case("one")], self.policy, schema_version=schema)
+            text = json.dumps(self.envelope(report))
+            duplicate = text.replace('"kind": "policy_evaluation"', '"kind": "x", "kind": "policy_evaluation"', 1)
+            self.assertNotEqual(text, duplicate)
+            if rejected:
+                with self.assertRaisesRegex(DecisionError, "duplicate"):
+                    parse_envelope(duplicate)
+            else:
+                self.assertEqual(replay_evaluation(parse_envelope(duplicate))["cases"], 1)
+
     def test_future_evaluation_schema_is_not_silently_reinterpreted(self):
         report = evaluate_cases([self.case("one")], self.policy)
-        report["schema_version"] = 2
+        report["schema_version"] = 3
         with self.assertRaises(DecisionError):
             replay_evaluation(self.envelope(report))
 

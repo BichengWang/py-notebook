@@ -1,0 +1,1 @@
+{"allowed_destinations":["support","engineering"],"min_probability":1,"review_destinations":["engineering"],"reviewers":["alice","bob"],"version":"路由策略-1"}
