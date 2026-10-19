@@ -15,8 +15,9 @@ accelerate==1.15.0
     #   airllm
 aiohappyeyeballs==2.6.1
     # via aiohttp
-aiohttp==3.14.3
+aiohttp==3.14.5
     # via
+    #   -r requirements.in
     #   bilibili-api
     #   fsspec
 aiosignal==1.4.0
@@ -1079,7 +1080,7 @@ xxhash==3.5.0
     # via
     #   datasets
     #   wandb
-yarl==1.19.0
+yarl==1.25.1
     # via aiohttp
 yfinance==0.2.55
     # via -r requirements.in
