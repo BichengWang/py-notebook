@@ -1,0 +1,123 @@
+{
+  "cases": [
+    {
+      "expected": {
+        "scipy": {
+          "mde": 0.11119853625
+        }
+      },
+      "informational": {
+        "statsmodels_power_at_scipy_mde": 0.8
+      },
+      "inputs": {
+        "power": 0.8,
+        "se": 0.04472135955,
+        "z": 1.644853627
+      },
+      "name": "ordinary"
+    },
+    {
+      "expected": {
+        "scipy": {
+          "mde": 0.74662423488
+        }
+      },
+      "informational": {
+        "statsmodels_power_at_scipy_mde": 0.9
+      },
+      "inputs": {
+        "power": 0.9,
+        "se": 0.17078251277,
+        "z": 3.0902323062
+      },
+      "name": "unequal-arms"
+    },
+    {
+      "expected": {
+        "scipy": {
+          "mde": 1.3104873173
+        }
+      },
+      "informational": {
+        "statsmodels_power_at_scipy_mde": 0.8
+      },
+      "inputs": {
+        "power": 0.8,
+        "se": 0.52704627669,
+        "z": 1.644853627
+      },
+      "name": "small-n"
+    },
+    {
+      "expected": {
+        "scipy": {
+          "mde": 0.019194833807
+        }
+      },
+      "informational": {
+        "statsmodels_power_at_scipy_mde": 0.95
+      },
+      "inputs": {
+        "power": 0.95,
+        "se": 0.003,
+        "z": 4.7534243088
+      },
+      "name": "strict-alpha"
+    },
+    {
+      "expected": {
+        "scipy": {
+          "mde": 0.067329698686
+        }
+      },
+      "informational": {
+        "statsmodels_power_at_scipy_mde": 0.5
+      },
+      "inputs": {
+        "power": 0.5,
+        "se": 0.08,
+        "z": 0.84162123357
+      },
+      "name": "low-power"
+    },
+    {
+      "expected": {
+        "scipy": {
+          "mde": 0.40401570326
+        }
+      },
+      "informational": {
+        "statsmodels_power_at_scipy_mde": 0.999
+      },
+      "inputs": {
+        "power": 0.999,
+        "se": 0.08,
+        "z": 1.9599639845
+      },
+      "name": "high-power"
+    },
+    {
+      "expected": {
+        "scipy": {
+          "mde": 0.06425859147
+        }
+      },
+      "informational": {
+        "statsmodels_power_at_scipy_mde": 0.2
+      },
+      "inputs": {
+        "power": 0.2,
+        "se": 0.08,
+        "z": 1.644853627
+      },
+      "name": "power-below-half"
+    }
+  ],
+  "comparison": "relative 1e-9 with an absolute floor of 1e-12 (see tests/test_golden.py)",
+  "generator": "tests/golden/generate.py",
+  "method": "minimum_detectable_effect",
+  "references": {
+    "scipy": "1.14.1",
+    "statsmodels": "0.15.0"
+  }
+}

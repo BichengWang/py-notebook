@@ -1,0 +1,288 @@
+{
+  "cases": [
+    {
+      "expected": {
+        "gbstats": {
+          "diff": 0.05,
+          "se": 0.014747881204
+        },
+        "statsmodels": {
+          "diff": 0.05,
+          "se": 0.014747881204,
+          "z": 3.3903175181
+        }
+      },
+      "informational": {
+        "pooled_z_proportions_ztest": 3.3806170189
+      },
+      "inputs": {
+        "control_n": 1000,
+        "control_successes": 100,
+        "treatment_n": 1000,
+        "treatment_successes": 150
+      },
+      "name": "ordinary"
+    },
+    {
+      "expected": {
+        "gbstats": {
+          "diff": 0.0091666666667,
+          "se": 0.0039047121047
+        },
+        "statsmodels": {
+          "diff": 0.0091666666667,
+          "se": 0.0039047121047,
+          "z": 2.347590916
+        }
+      },
+      "informational": {
+        "pooled_z_proportions_ztest": 2.3170962057
+      },
+      "inputs": {
+        "control_n": 10000,
+        "control_successes": 1200,
+        "treatment_n": 24000,
+        "treatment_successes": 3100
+      },
+      "name": "ordinary-unequal-n"
+    },
+    {
+      "expected": {
+        "gbstats": {
+          "diff": -0.05,
+          "se": 0.014747881204
+        },
+        "statsmodels": {
+          "diff": -0.05,
+          "se": 0.014747881204,
+          "z": -3.3903175181
+        }
+      },
+      "informational": {
+        "pooled_z_proportions_ztest": -3.3806170189
+      },
+      "inputs": {
+        "control_n": 1000,
+        "control_successes": 150,
+        "treatment_n": 1000,
+        "treatment_successes": 100
+      },
+      "name": "negative-effect"
+    },
+    {
+      "expected": {
+        "gbstats": {
+          "diff": 0.15,
+          "se": 0.15692354826
+        },
+        "statsmodels": {
+          "diff": 0.15,
+          "se": 0.15692354826,
+          "z": 0.95587948182
+        }
+      },
+      "informational": {
+        "pooled_z_proportions_ztest": 0.90829510623
+      },
+      "inputs": {
+        "control_n": 10,
+        "control_successes": 1,
+        "treatment_n": 12,
+        "treatment_successes": 3
+      },
+      "name": "small-n"
+    },
+    {
+      "expected": {
+        "gbstats": {
+          "diff": -0.41666666667,
+          "se": 0.34777733404
+        },
+        "statsmodels": {
+          "diff": -0.41666666667,
+          "se": 0.34777733404,
+          "z": -1.1980845957
+        }
+      },
+      "informational": {
+        "pooled_z_proportions_ztest": -1.1023963796
+      },
+      "inputs": {
+        "control_n": 3,
+        "control_successes": 2,
+        "treatment_n": 4,
+        "treatment_successes": 1
+      },
+      "name": "small-n-tiny-arms"
+    },
+    {
+      "expected": {
+        "gbstats": {
+          "diff": 0.5,
+          "se": 0.1767766953
+        },
+        "statsmodels": {
+          "diff": 0.5,
+          "se": 0.1767766953,
+          "z": 2.8284271247
+        }
+      },
+      "informational": {
+        "pooled_z_proportions_ztest": 2.3094010768
+      },
+      "inputs": {
+        "control_n": 8,
+        "control_successes": 4,
+        "treatment_n": 8,
+        "treatment_successes": 8
+      },
+      "name": "one-arm-all-successes"
+    },
+    {
+      "expected": {
+        "gbstats": {
+          "diff": 0.05,
+          "se": 0.028136571694
+        },
+        "statsmodels": {
+          "diff": 0.05,
+          "se": 0.028136571694,
+          "z": 1.7770466333
+        }
+      },
+      "informational": {
+        "pooled_z_proportions_ztest": 1.6031511027
+      },
+      "inputs": {
+        "control_n": 50,
+        "control_successes": 0,
+        "treatment_n": 60,
+        "treatment_successes": 3
+      },
+      "name": "one-arm-no-successes"
+    },
+    {
+      "expected": {
+        "gbstats": {
+          "diff": 2e-05,
+          "se": 1.9999749998e-05
+        },
+        "statsmodels": {
+          "diff": 2e-05,
+          "se": 1.9999749998e-05,
+          "z": 1.0000125002
+        }
+      },
+      "informational": {
+        "pooled_z_proportions_ztest": 1.0000100002
+      },
+      "inputs": {
+        "control_n": 100000,
+        "control_successes": 1,
+        "treatment_n": 100000,
+        "treatment_successes": 3
+      },
+      "name": "rare-events"
+    },
+    {
+      "expected": {
+        "gbstats": {
+          "diff": -2e-05,
+          "se": 1.9999749998e-05
+        },
+        "statsmodels": {
+          "diff": -2e-05,
+          "se": 1.9999749998e-05,
+          "z": -1.0000125002
+        }
+      },
+      "informational": {
+        "pooled_z_proportions_ztest": -1.0000100002
+      },
+      "inputs": {
+        "control_n": 100000,
+        "control_successes": 99999,
+        "treatment_n": 100000,
+        "treatment_successes": 99997
+      },
+      "name": "near-one"
+    },
+    {
+      "expected": {
+        "gbstats": {
+          "diff": -0.0004,
+          "se": 7.7442882178e-05
+        },
+        "statsmodels": {
+          "diff": -0.0004,
+          "se": 7.7442882178e-05,
+          "z": -5.1650970206
+        }
+      },
+      "informational": {
+        "pooled_z_proportions_ztest": -5.1647525659
+      },
+      "inputs": {
+        "control_n": 100000,
+        "control_successes": 99990,
+        "treatment_n": 100000,
+        "treatment_successes": 99950
+      },
+      "name": "near-one-negative"
+    },
+    {
+      "expected": {
+        "gbstats": {
+          "diff": 1e-06,
+          "se": 0.00070710678119
+        },
+        "statsmodels": {
+          "diff": 1e-06,
+          "se": 0.00070710678119,
+          "z": 0.0014142135624
+        }
+      },
+      "informational": {
+        "pooled_z_proportions_ztest": 0.0014142135624
+      },
+      "inputs": {
+        "control_n": 1000000,
+        "control_successes": 500000,
+        "treatment_n": 1000000,
+        "treatment_successes": 500001
+      },
+      "name": "tiny-difference"
+    },
+    {
+      "expected": {
+        "gbstats": {
+          "diff": 0.8,
+          "se": 0.013416407865
+        },
+        "statsmodels": {
+          "diff": 0.8,
+          "se": 0.013416407865,
+          "z": 59.6284794
+        }
+      },
+      "informational": {
+        "pooled_z_proportions_ztest": 35.77708764
+      },
+      "inputs": {
+        "control_n": 1000,
+        "control_successes": 100,
+        "treatment_n": 1000,
+        "treatment_successes": 900
+      },
+      "name": "large-effect"
+    }
+  ],
+  "comparison": "relative 1e-9 with an absolute floor of 1e-12 (see tests/test_golden.py)",
+  "generator": "tests/golden/generate.py",
+  "method": "proportion_effect (unpooled Wald)",
+  "references": {
+    "gbstats": "0.8.0",
+    "scipy": "1.14.1",
+    "statsmodels": "0.15.0"
+  }
+}

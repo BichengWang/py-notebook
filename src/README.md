@@ -20,7 +20,7 @@ Start with `src/agents/` and `src/rl-system/` for decision flows; use `src/ml/` 
 
 The recommended running env is conda env to avoid some windows crash or compile issue. UV (`uv sync`) is the faster path once Python is available.
 
-Python **3.10+** (`pyproject.toml`). Apple Silicon TensorFlow still often needs **3.9** (see Conda / M1 below).
+Python **3.11+** (`pyproject.toml`; 3.10 was dropped so the lockfile can resolve patched `keras` releases). The Conda / M1 notes below describe Python 3.9 and predate this floor.
 
 ## Directory Structure
 
@@ -94,9 +94,13 @@ pip install -r requirements.txt
 ### Refresh Dependencies
 
 ```shell
-pip install "pip-tools>=4.2.0"
-pip-compile --no-emit-index-url requirements.in
+make compile                              # requirements.txt (CI constraints) from requirements.in
+uv lock                                   # uv.lock from pyproject.toml
 ```
+
+`requirements.txt` is compiled for Linux and Python 3.11 with `uv pip compile`, so it works from a Mac too.
+Security floors for transitive packages live in `requirements.in` and `[tool.uv] constraint-dependencies`
+in `pyproject.toml`; raise them when a new advisory lands.
 
 Optional: add current environment full requirements into file
 

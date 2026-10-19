@@ -137,4 +137,5 @@ covers the research material within its scope. [RELIA's license status](ai-workf
 grants no current rights; intended Apache-2.0 publication requires rights clearance.
 See [SECURITY](SECURITY.md), [CONTRIBUTING](CONTRIBUTING.md), [CITATION](CITATION.cff),
 [records](docs/DECISION_RECORDS.md), [releasing](docs/RELEASING.md),
-[plan](.plan/README.md) and [publication records](docs/publication/README.md).
+[pilot protocol template](docs/PILOT_PROTOCOL.md), [plan](.plan/README.md) and
+[publication records](docs/publication/README.md).

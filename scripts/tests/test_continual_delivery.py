@@ -107,6 +107,7 @@ class EvaluationTests(unittest.TestCase):
         failures = delivery.evaluate(changed, [receipt()], [])
         self.assertTrue(any("test (3.11)" in item for item in failures))
         self.assertTrue(any("test (3.13)" in item for item in failures))
+        self.assertTrue(any("golden vectors" in item for item in failures))
 
     def test_research_changes_require_baseline(self):
         paths = (
@@ -161,7 +162,7 @@ class EvaluationTests(unittest.TestCase):
     def test_manifest_change_requires_every_check(self):
         changed = pr(files=[{"path": "workspace.json"}])
         failures = delivery.evaluate(changed, [receipt()], [])
-        for name in ("RELIA required", "test (3.11)", "test (3.13)"):
+        for name in ("RELIA required", "test (3.11)", "test (3.13)", "golden vectors"):
             self.assertIn(f"required check {name} is missing, failing, or from the wrong workflow", failures)
         self.assertFalse(any("src baseline" in item for item in failures))
 
