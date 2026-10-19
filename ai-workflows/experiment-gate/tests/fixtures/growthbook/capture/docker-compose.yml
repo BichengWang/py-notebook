@@ -1,0 +1,36 @@
+# Dev-only capture stack. Not used by tests or the package; see ../README.md.
+# Pinned: GrowthBook 5.1.0 (the stable tag current on 2026-10-19), MongoDB 7.0.14, Postgres 16.4.
+name: gb-capture
+services:
+  mongo:
+    image: "mongo:7.0.14"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=password
+  warehouse:
+    image: "postgres:16.4"
+    environment:
+      - POSTGRES_USER=warehouse
+      - POSTGRES_PASSWORD=warehouse
+      - POSTGRES_DB=events
+  growthbook:
+    image: "growthbook/growthbook:5.1.0"
+    ports:
+      - "3000:3000"
+      - "3100:3100"
+    depends_on:
+      - mongo
+      - warehouse
+    environment:
+      - MONGODB_URI=mongodb://root:password@mongo:27017/growthbook?authSource=admin
+      - APP_ORIGIN=http://localhost:3000
+      - API_HOST=http://localhost:3100
+      - ENCRYPTION_KEY=0123456789abcdef0123456789abcdef
+      - JWT_SECRET=capture-only-jwt-secret
+      - DISABLE_TELEMETRY=true
+    configs:
+      - source: growthbook_config
+        target: /usr/local/src/app/config/config.yml
+configs:
+  growthbook_config:
+    file: ./config.yml
