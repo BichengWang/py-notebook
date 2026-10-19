@@ -60,8 +60,8 @@ is the record, not another platform.
 | Packages | `expgate`, `jevdecision`, `decisioncontrol` 0.1.0 tagged and GitHub-released 2026-10-13 (PR #224). 903 / 1,592 / 1,180 source lines; 76 / 105 / 98 tests pass locally (Python 3.15.0) |
 | PyPI | All three names returned 404 on 2026-10-18 and the release workflow's `pypi` job was skipped; the READMEs say "PyPI pending". On 2026-10-19 GitHub environment `pypi` (required reviewer BichengWang, tag patterns `experiment-gate/v*`, `jev-decision/v*`, `decision-control/v*`) and `PYPI_PUBLISH=true` were set; the owner registers the three pending publishers, and nothing has been published yet |
 | Verifiers | `experiment-gate-verify` and `decision-control replay` exit 1 on tampering in tests. Jev has no record-only verifier ([records table](../docs/DECISION_RECORDS.md#records-and-checks)), so P-009 holds for two of three packages |
-| Canonical form | Digests use Python `json.dumps(sort_keys=True, separators=(",", ":"), ensure_ascii=False)`. Python writes `5.0` and `1e-07`; JavaScript and RFC 8785 write `5` and `1e-7`. Every bundled expgate example contains integral floats such as `20.0`, so a non-Python verifier cannot recompute `input_sha256` today |
-| RELIA | Candidate 0.1.5, spec 0.1.3, 1,098 source lines, 38 tests; unreleased and human-gated. Its roadmap's September 2026 FTC comment (docket FTC-2026-1057, closed 2026-09-25) has no filing record in the repository |
+| Canonical form | Digests use Python `json.dumps(sort_keys=True, separators=(",", ":"), ensure_ascii=False)`. Python writes `5.0` and `1e-07`; JavaScript and RFC 8785 write `5` and `1e-7`. Every bundled expgate example contains integral floats such as `20.0`, so a non-Python verifier cannot recompute `input_sha256` today. RFC 8785 was adopted on 2026-10-19 for the next schema version of each affected record type; P-011 and P-017 implement it |
+| RELIA | Candidate 0.1.5, spec 0.1.3, 1,098 source lines, 38 tests; unreleased and human-gated. Its roadmap's September 2026 FTC comment (docket FTC-2026-1057, closed 2026-09-25) was filed as regulations.gov document FTC-2026-1057-0650 (received 2026-08-29, posted 2026-08-31) on the owner's confirmation; it does not contain the technical description the roadmap planned. Initial release anchor set by the owner: 2026-10-28 |
 | Workspace | `make workspace-check` passes (6 components); CI green on `main` |
 | Security | 100 open Dependabot alerts (2 critical, 48 high, 42 medium, 8 low): 99 in root `uv.lock`, 1 in `requirements.txt`, all from the legacy `src/` workbench (301 tracked files, 96 notebooks). CI does not exercise the merged airllm 4.0.0 and transformers 5.19.0 bumps |
 | Delivery loop | Last `continual-managed` PRs #218–#220 merged 2026-10-12. P-006–P-010 landed in human PR #224. No issues exist for P-011 onward |
@@ -114,6 +114,7 @@ gantt
   PyPI 0.1.0 (owner setup)               :p016, 2026-10-19, 5d
   Jev record-only verifier               :p017, 2026-10-19, 12d
   Workbench alert triage                 :p019, 2026-10-19, 13d
+  RELIA initial release (owner anchor)   :milestone, 2026-10-28, 0d
   section Phase 1
   Statistics golden vectors              :p013, 2026-11-02, 14d
   Schemas and conformance vectors        :p011, 2026-11-02, 21d
@@ -157,7 +158,7 @@ is not use, and interest is not adoption.
 | --- | --- |
 | Someone registers `expgate`, `jevdecision` or `decisioncontrol` on PyPI first; a pending publisher is invalidated if the name is taken | P-016 is the first owner action |
 | 100 open alerts in a governance repository read as negligence | P-019 upgrades or removes the vulnerable workbench dependencies until no critical or high alert is open; until then the README states the alerts are confined to the workbench |
-| A schema freeze locks in a canonical form other languages cannot reproduce | P-011 vectors carry canonical bytes; RFC 8785 adoption is decided before any schema is published |
+| A schema freeze locks in a canonical form other languages cannot reproduce | P-011 vectors carry canonical bytes in RFC 8785 form (adopted 2026-10-19), so another language's canonicalizer can be tested before any schema is published |
 | Signed records leak decision metadata to a public transparency log | Keyed (HMAC) signing is the default; Sigstore is opt-in and documented as public |
 | Adapters drift into a platform | Importers convert exported files only; no network clients, no services |
 | Single maintainer | One phase at a time; exit criteria, not PR counts, define done |
