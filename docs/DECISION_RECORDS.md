@@ -172,6 +172,19 @@ supported readers and replay rules; reject unknown schemas rather than silently
 reinterpret them. Historical records cannot gain missing inputs or identity
 provenance. The exceptions above describe today's actual compatibility boundary.
 
+Replay of derived floating-point values is compared with a relative tolerance of
+1e-9 (absolute floor 1e-12 where the expected value is exactly 0), in every
+verifier and for every schema version. Inputs, digests, strings, integers,
+booleans, dispositions and structure are compared exactly. The reason is that
+`math.log`, `math.exp`, `math.erf` and `NormalDist.inv_cdf` come from the platform
+libm, so a record produced on macOS can differ from a Linux recomputation in the
+last digits (a guardrail z of 1.9599639845400534 against 1.9599639845400536); 5 of 7
+bundled experiment-gate 0.1.0 records failed exact replay across platforms. The
+rule only widens acceptance, so nothing that verified before stops verifying.
+Decision-control replays exactly because it uses no libm functions. Digests stay
+exact: they cover the stored bytes, never a recomputation. Adopted in
+[decisions.md](../.plan/decisions.md).
+
 Digests detect change, not forgery or authorship: someone who edits an input can
 recompute its hash. Producer, model, proposer and reviewer identities are supplied
 metadata or caller-asserted labels. No record authenticates provider origin.
