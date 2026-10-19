@@ -13,7 +13,7 @@ from expgate import stats
 from expgate.decision import evaluate
 from expgate.generator import SCENARIOS, generate
 from expgate.run import main
-from expgate.verify import main as verify_main, verify_record
+from expgate.verify import main as verify_main
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "offer-ranker-v2.json"
 
@@ -749,49 +749,63 @@ class RecordsFromEarlierVersionsTest(unittest.TestCase):
     """Schema-2 records keep replaying with the formulas that produced them.
 
     ``tests/fixtures/records-0.1.0`` holds the decision.json of every scenario, written by 0.1.0
-    (``python -m expgate.run --all-scenarios``). The ``srm`` record carries ``p_value: 0.0``: the
-    0.1.0 tail rule underflows there, and the exact tail (``exact_tail=True``, for schema 3) would
-    write 2e-139 instead. Changing the default would make that record fail verification.
+    (``python -m expgate.run --all-scenarios``, macOS arm64, Python 3.11). The ``srm`` record
+    carries ``p_value: 0.0``: the 0.1.0 tail rule underflows there, and the exact tail
+    (``exact_tail=True``, for a later schema) would write 6.7e-49 instead. Changing the default
+    would change that record's replay.
+
+    The replay is compared field by field with floats at 1e-9 relative, not byte for byte
+    (``expgate.verify``): the last digits of ``exp``, ``log`` and the normal quantile differ between
+    platforms and interpreters, so a record written on macOS fails a byte comparison on Linux
+    (README, Limitations). A changed formula moves values by far more than 1e-9.
     """
 
     FIXTURES = Path(__file__).resolve().parent / "fixtures" / "records-0.1.0"
+    FIELDS = ("decision", "reasons", "metrics", "experiment", "policy", "sample_ratio", "sequential")
 
-    # The fixtures were written on Python 3.11 (3.13 gives the same bytes). The mixing variance of
-    # the sequential bound is found by a search over a function that is flat at its minimum, so
-    # one-ulp differences in the interpreter's float path move it by about 1e-9: Python 3.15 returns
-    # a mixing ratio that differs in the 9th digit, and the early-regression record (the only one
-    # with a sequential bound) then replays with a multiplier 1.3e-11 away. The record is checked
-    # exactly wherever the search lands where it did when the record was written.
-    SEQUENTIAL_SAME_AS_WRITTEN = stats.mixture_ratio(0.05).hex() == "0x1.ac50afae8bbe1p+2"
-
-    def paths(self):
+    def records(self):
         paths = sorted(self.FIXTURES.glob("*.json"))
         self.assertEqual({p.stem for p in paths}, set(SCENARIOS))
-        if not self.SEQUENTIAL_SAME_AS_WRITTEN:
-            paths = [p for p in paths if p.stem != "early-regression"]
-        return paths
+        return {p.stem: json.loads(p.read_text(encoding="utf-8")) for p in paths}
 
-    def test_every_scenario_record_still_verifies(self):
-        for path in self.paths():
-            with self.subTest(record=path.stem):
-                record = json.loads(path.read_text(encoding="utf-8"))
+    def assert_same(self, actual, expected, where):
+        if isinstance(expected, float) and isinstance(actual, float):
+            tolerance = 1e-9 * max(abs(actual), abs(expected))
+            self.assertLessEqual(abs(actual - expected), tolerance, f"{where}: {actual!r} != {expected!r}")
+        elif isinstance(expected, dict):
+            self.assertEqual(actual.keys(), expected.keys(), where)
+            for key in expected:
+                self.assert_same(actual[key], expected[key], f"{where}.{key}")
+        elif isinstance(expected, list):
+            self.assertEqual(len(actual), len(expected), where)
+            for index, (a, e) in enumerate(zip(actual, expected)):
+                self.assert_same(a, e, f"{where}[{index}]")
+        else:
+            self.assertEqual((type(actual), actual), (type(expected), expected), where)
+
+    def test_every_scenario_record_replays_with_the_same_values(self):
+        for name, record in self.records().items():
+            with self.subTest(record=name):
                 self.assertEqual(record["produced_by"], {"name": "expgate", "version": "0.1.0"})
-                self.assertEqual(verify_record(record), [])
-
-    def test_verify_command_exits_zero(self):
-        out, err = io.StringIO(), io.StringIO()
-        with redirect_stdout(out), redirect_stderr(err):
-            code = verify_main([str(path) for path in self.paths()])
-        self.assertEqual((code, err.getvalue()), (0, ""))
+                replay = evaluate(record["input"])
+                for field in self.FIELDS:
+                    self.assert_same(replay.get(field), record.get(field), field)
 
     def test_srm_record_keeps_the_schema_2_tail(self):
-        record = json.loads((self.FIXTURES / "srm.json").read_text(encoding="utf-8"))
-        sample_ratio = record["sample_ratio"]
+        sample_ratio = self.records()["srm"]["sample_ratio"]
         self.assertEqual(sample_ratio["p_value"], 0.0)
         args = (sample_ratio["control_units"], sample_ratio["treatment_units"],
                 sample_ratio["expected_treatment_share"])
         self.assertEqual(stats.sample_ratio_p_value(*args), 0.0)
         self.assertGreater(stats.sample_ratio_p_value(*args, exact_tail=True), 0.0)
+
+    def test_records_written_now_verify(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(run_cli("--all-scenarios", "--out", tmp)[0], 0)
+            out, err = io.StringIO(), io.StringIO()
+            with redirect_stdout(out), redirect_stderr(err):
+                code = verify_main([str(p) for p in sorted(Path(tmp).glob("*/decision.json"))])
+        self.assertEqual((code, err.getvalue()), (0, ""))
 
 
 if __name__ == "__main__":

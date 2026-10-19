@@ -20,9 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `alpha` below about 1e-9. The defaults are unchanged: schema-2 records, including every 0.1.0
   scenario record (now committed as test fixtures), replay with the formulas that produced them.
   The accurate tails are intended for the next decision schema.
-- Documented that records with `policy.sequential` replay byte for byte on Python 3.11 and 3.13
-  but not on 3.15, where the mixing-variance search lands about 1e-9 away (a multiplier
-  difference of 1.3e-11); no behavior change.
+- Documented that `expgate.verify` is exact only on the producing platform: records written on
+  macOS arm64 verify there but, on Linux, five of the seven 0.1.0 scenario records report a
+  last-digit `metrics` mismatch, and sequential records also differ between Python 3.15 and
+  3.11/3.13. No behavior change; the committed 0.1.0 fixtures are compared with a tolerance.
 
 ## [0.1.0] - 2026-10-13
 

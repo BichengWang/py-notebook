@@ -391,11 +391,15 @@ performance or calibration on live-model outcomes.
   bounds do. The guarantee is exact for normal estimates with known variance and holds only
   approximately at small samples. The sample-ratio check is not sequential: re-running it at
   every look raises its false alarm rate above `srm_alpha`.
-- Replaying a record that uses `policy.sequential` is exact only when the interpreter's float
-  arithmetic matches the producer's. The mixing variance comes from a search over an objective
-  that is flat at its minimum, so one-ulp differences move it by about 1e-9: a record written on
-  Python 3.11 replays on 3.13 byte for byte, but on Python 3.15 the multiplier differs by 1.3e-11
-  and `expgate.verify` reports a `metrics` mismatch. Fixed-horizon records are unaffected.
+- `expgate.verify` compares canonical JSON, so a replay is byte for byte only when the float
+  arithmetic matches the producer's. The last digits of `exp`, `log` and the normal quantile differ
+  between platforms: records the 0.1.0 scenarios wrote on macOS arm64 with Python 3.11 verify
+  there, but on Linux five of the seven report a `metrics` mismatch (last-digit differences, 1e-9
+  relative or less). Records with `policy.sequential` are more exposed: the mixing variance comes
+  from a search over an objective that is flat at its minimum, so one-ulp differences move it by
+  about 1e-9. On macOS Python 3.11 and 3.13 agree, 3.15 differs by 1.3e-11 in the multiplier.
+  Verify a record on the platform that produced it, or compare values with a tolerance as
+  `tests/test_expgate.py` does for the committed 0.1.0 fixtures.
 - CUPED is supported for one covariate per proportion or mean metric. There is no CUPED for
   ratio metrics, no multi-covariate adjustment, and no heterogeneous-effect analysis.
 - The delta method is a first-order approximation. It needs enough units that the
