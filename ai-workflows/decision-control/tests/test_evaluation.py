@@ -232,8 +232,11 @@ class FloatingPointPortabilityGuard(unittest.TestCase):
     """Replay compares recomputed metrics exactly; that is only portable without libm functions.
 
     Wilson bounds use integer counts, + - * / (correctly rounded IEEE 754) and math.sqrt
-    (correctly rounded); ``denominator ** 2`` is exact integer arithmetic. log, exp, erf, pow
-    on floats or an inverse CDF come from the platform libm and may differ in the last digits.
+    (correctly rounded); ``denominator ** 2`` is exact integer arithmetic (denominator is a
+    count). log, exp, erf, pow on floats or an inverse CDF come from the platform libm and may
+    differ in the last digits. The guard resolves ``import math as m`` and ``from math import``,
+    and allows ``**`` only as ``denominator ** 2``; it cannot prove types, so a float
+    ``denominator`` would not be caught.
     """
     BANNED_MODULES = {"statistics", "numpy", "scipy", "cmath", "random", "decimal", "fractions"}
     ALLOWED_MATH = {"sqrt"}
@@ -245,29 +248,53 @@ class FloatingPointPortabilityGuard(unittest.TestCase):
 
     def test_evaluation_module_only_uses_correctly_rounded_math(self):
         import ast
-        used = set()
-        for node in ast.walk(self.tree()):
+        tree = self.tree()
+        aliases, imported = set(), set()
+        for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 for alias in node.names:
-                    self.assertNotIn(alias.name.split(".")[0], self.BANNED_MODULES)
+                    root = alias.name.split(".")[0]
+                    self.assertNotIn(root, self.BANNED_MODULES)
+                    self.assertNotEqual(root, "importlib")
+                    if root == "math":
+                        aliases.add(alias.asname or "math")
             elif isinstance(node, ast.ImportFrom):
-                self.assertNotIn((node.module or "").split(".")[0], self.BANNED_MODULES)
-                if node.module == "math":
-                    used.update(alias.name for alias in node.names)
-            elif isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.value.id == "math":
+                root = (node.module or "").split(".")[0]
+                self.assertNotIn(root, self.BANNED_MODULES)
+                self.assertNotEqual(root, "importlib")
+                if root == "math":
+                    imported.update(alias.name for alias in node.names)
+                    self.assertTrue(all(alias.name in self.ALLOWED_MATH for alias in node.names),
+                                    "only math.sqrt may be imported by name")
+        self.assertTrue(aliases, "expected the math module to be imported")
+        used = set(imported)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.value.id in aliases:
                 used.add(node.attr)
-        self.assertTrue(used, "expected math.sqrt in the Wilson interval")
+            if isinstance(node, ast.Name) and node.id in aliases:
+                # Any use of the module object other than attribute access (e.g. getattr(m, ...)) is rejected.
+                parents = [p for p in ast.walk(tree) if any(child is node for child in ast.iter_child_nodes(p))]
+                self.assertTrue(all(isinstance(p, (ast.Attribute, ast.Import)) for p in parents),
+                                "math may only be used through attribute access")
+        self.assertIn("sqrt", used, "expected math.sqrt in the Wilson interval")
         self.assertLessEqual(used, self.ALLOWED_MATH, "evaluation replay must stay bit-portable")
 
-    def test_evaluation_module_has_no_float_power_or_pow_call(self):
+    def test_evaluation_module_has_no_float_power_or_dynamic_calls(self):
         import ast
         for node in ast.walk(self.tree()):
             if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
-                self.assertNotIn(node.func.id, {"pow"})
+                self.assertNotIn(node.func.id, {"pow", "getattr", "eval", "exec", "__import__"})
+            powers = []
             if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Pow):
-                # Only integer-literal exponents on integer counts are exact.
-                self.assertIsInstance(node.right, ast.Constant)
-                self.assertIs(type(node.right.value), int)
+                powers.append((node.left, node.right))
+            if isinstance(node, ast.AugAssign) and isinstance(node.op, ast.Pow):
+                powers.append((node.target, node.value))
+            for left, right in powers:
+                # The one exact case is the integer count squared (int ** 2 is integer arithmetic).
+                self.assertTrue(isinstance(left, ast.Name) and left.id == "denominator"
+                                and isinstance(right, ast.Constant) and right.value == 2
+                                and type(right.value) is int,
+                                f"line {node.lineno}: ** is only allowed as `denominator ** 2` on an integer count")
 
 
 if __name__ == "__main__":

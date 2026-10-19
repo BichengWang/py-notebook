@@ -236,9 +236,11 @@ every platform: integer-to-float division (`numerator / denominator`), `+ - *` a
 `/` on floats, and `math.sqrt`. `denominator ** 2` is exact integer arithmetic, and
 the 95% normal quantile is a fixed literal. Nothing calls a platform-libm function
 (`log`, `exp`, `erf`, float `pow`) or an inverse-CDF routine, whose last digits can
-differ between libm builds. A unit test fails if `evaluation.py` starts importing
-anything but `math.sqrt` from `math`, a statistics or numeric library, or a float
-power. The committed vectors are generated on one machine and replayed by CI on
+differ between libm builds. A unit test reads `evaluation.py` and fails if it uses
+anything from `math` other than `sqrt` (including through `import math as m` or
+`from math import ...`), imports a statistics or numeric library, calls `pow`, or uses
+`**` other than `denominator ** 2`. It cannot prove types, so it does not catch a
+float passed as `denominator`. The committed vectors are generated on one machine and replayed by CI on
 Linux, which exercises the claim; no regeneration happens in CI. Decision records contain no derived floats
 (probabilities and thresholds are copied inputs), so record replay has no
 floating-point recomputation.
