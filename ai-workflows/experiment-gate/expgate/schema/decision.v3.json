@@ -70,6 +70,7 @@
         "experiment": {"type": "string", "minLength": 1},
         "description": {},
         "seed": {},
+        "source": {"$ref": "#/$defs/source"},
         "metrics": {
           "type": "object",
           "minProperties": 1,
@@ -97,6 +98,32 @@
             "control": {"$ref": "#/$defs/arm"},
             "treatment": {"$ref": "#/$defs/arm"}
           }
+        }
+      },
+      "additionalProperties": false
+    },
+    "source": {
+      "$comment": "Provenance of an imported summary. Never an input to the decision; its reading.differences become reasons only when reading.decision differs from the replayed decision.",
+      "type": "object",
+      "required": ["format", "export_sha256"],
+      "properties": {
+        "format": {"enum": ["growthbook"]},
+        "export_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "experiment_id": {"type": "string", "minLength": 1},
+        "snapshot_id": {"type": "string", "minLength": 1},
+        "snapshot_updated": {"type": "string", "minLength": 1},
+        "stats_engine": {"enum": ["bayesian", "frequentist"]},
+        "reading": {
+          "type": "object",
+          "required": ["decision", "basis", "differences"],
+          "properties": {
+            "decision": {"enum": ["SHIP", "HOLD", "ROLLBACK", "INVALID"]},
+            "alpha": {"$ref": "#/$defs/open_unit_interval"},
+            "srm_alpha": {"$ref": "#/$defs/open_unit_interval"},
+            "basis": {"type": "array", "items": {"type": "string", "minLength": 1}},
+            "differences": {"type": "array", "items": {"type": "string", "minLength": 1}}
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
