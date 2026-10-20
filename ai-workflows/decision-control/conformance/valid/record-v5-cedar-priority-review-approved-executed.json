@@ -1,0 +1,156 @@
+{
+  "record": {
+    "schema_version": 5,
+    "produced_by": {
+      "name": "decisioncontrol",
+      "version": "0.1.0"
+    },
+    "proposed_by": "alice",
+    "policy_sha256": "7236899f82f6bdfbbd02fa56d431c87e8b80270d5e50c3c3e2b1ac4048d78240",
+    "id": "ce09612e-c721-4915-8663-2dd4786bb0d7",
+    "created_at": "2026-10-20T00:25:11.703136+00:00",
+    "recommendation": {
+      "action": "set_ticket_priority",
+      "ticket_id": "T-214",
+      "priority": "urgent",
+      "probability": 0.95,
+      "model": "recorded-fixture-not-a-provider",
+      "question_version": "routing-question-1",
+      "refused": false
+    },
+    "ticket": {
+      "id": "T-214",
+      "department": "support",
+      "revision": 0,
+      "priority": "high"
+    },
+    "policy": {
+      "version": "ticket-routing-fixture-1",
+      "allowed_destinations": [
+        "support",
+        "engineering",
+        "legal"
+      ],
+      "review_destinations": [
+        "engineering"
+      ],
+      "reviewers": [
+        "bob",
+        "carol"
+      ],
+      "min_probability": 0.8,
+      "allowed_priorities": [
+        "low",
+        "normal",
+        "high",
+        "urgent"
+      ],
+      "review_priorities": [
+        "urgent"
+      ]
+    },
+    "evaluation": {
+      "verdict": "REVIEW",
+      "reasons": [
+        "priority_requires_review"
+      ]
+    },
+    "status": "EXECUTED",
+    "review": {
+      "decision": "APPROVED",
+      "reviewer": "bob",
+      "note": "checked the frozen decision",
+      "at": "2026-10-20T00:25:11.746770+00:00"
+    },
+    "result": {
+      "id": "T-214",
+      "department": "support",
+      "revision": 1,
+      "priority": "urgent"
+    },
+    "events": [
+      {
+        "event": "SUBMITTED",
+        "at": "2026-10-20T00:25:11.703136+00:00"
+      },
+      {
+        "event": "APPROVED",
+        "at": "2026-10-20T00:25:11.746770+00:00"
+      },
+      {
+        "event": "EXECUTED",
+        "at": "2026-10-20T00:25:11.790216+00:00"
+      }
+    ],
+    "external_policy": {
+      "engine": "cedar",
+      "policies": {
+        "format": "cedar",
+        "text": "// Ticket-routing policy used to record the Cedar fixtures. Cedar answers Allow or Deny;\n// whether a human must review is decided by the built-in policy and the record combines them.\n\n@id(\"routers-reassign-to-open-destinations\")\npermit (\n    principal in Group::\"routers\",\n    action == Action::\"reassign_ticket\",\n    resource\n)\nwhen { context.requested == \"support\" || context.requested == \"engineering\" };\n\n@id(\"routers-set-priority\")\npermit (\n    principal in Group::\"routers\",\n    action == Action::\"set_ticket_priority\",\n    resource\n)\nwhen { [\"low\", \"normal\", \"high\", \"urgent\"].contains(context.requested) };\n\n@id(\"legal-tickets-stay-in-legal\")\nforbid (\n    principal,\n    action == Action::\"reassign_ticket\",\n    resource\n)\nwhen { context has current && context.current == \"legal\" };\n"
+      },
+      "entities": [
+        {
+          "uid": {
+            "type": "Group",
+            "id": "routers"
+          },
+          "attrs": {},
+          "parents": []
+        },
+        {
+          "uid": {
+            "type": "User",
+            "id": "alice"
+          },
+          "attrs": {},
+          "parents": [
+            {
+              "type": "Group",
+              "id": "routers"
+            }
+          ]
+        },
+        {
+          "uid": {
+            "type": "User",
+            "id": "bob"
+          },
+          "attrs": {},
+          "parents": [
+            {
+              "type": "Group",
+              "id": "routers"
+            }
+          ]
+        },
+        {
+          "uid": {
+            "type": "User",
+            "id": "mallory"
+          },
+          "attrs": {},
+          "parents": []
+        }
+      ],
+      "request": {
+        "principal": "User::\"alice\"",
+        "action": "Action::\"set_ticket_priority\"",
+        "resource": "Ticket::\"T-214\"",
+        "context": {
+          "requested": "urgent",
+          "proposal_sha256": "31f6b9b0765d82a36304e89d22a6b65c564fc1e139ffb4d641a2e1c992496fc3",
+          "current": "high"
+        }
+      },
+      "decision": "Allow",
+      "diagnostics": {
+        "reason": [
+          "routers-set-priority"
+        ],
+        "errors": []
+      }
+    },
+    "external_policy_sha256": "731e27296bc6a65aac932b2a8fac70f24362cc89e41de138b1d70d578892ec42"
+  },
+  "sha256": "5b7a4c01600a76d0147de01b8cdd9fc26ada89e46d69a13abc87f4617ff3eff8"
+}

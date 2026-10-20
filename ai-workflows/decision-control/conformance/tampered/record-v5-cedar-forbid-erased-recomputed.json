@@ -1,0 +1,135 @@
+{
+  "record": {
+    "schema_version": 5,
+    "produced_by": {
+      "name": "decisioncontrol",
+      "version": "0.1.0"
+    },
+    "proposed_by": "alice",
+    "policy_sha256": "7236899f82f6bdfbbd02fa56d431c87e8b80270d5e50c3c3e2b1ac4048d78240",
+    "id": "2369138f-dec8-4a14-b46e-c8d488d6b515",
+    "created_at": "2026-10-20T00:25:11.519571+00:00",
+    "recommendation": {
+      "action": "reassign_ticket",
+      "ticket_id": "T-213",
+      "destination": "support",
+      "probability": 0.95,
+      "model": "recorded-fixture-not-a-provider",
+      "question_version": "routing-question-1",
+      "refused": false
+    },
+    "ticket": {
+      "id": "T-213",
+      "department": "legal",
+      "revision": 0
+    },
+    "policy": {
+      "version": "ticket-routing-fixture-1",
+      "allowed_destinations": [
+        "support",
+        "engineering",
+        "legal"
+      ],
+      "review_destinations": [
+        "engineering"
+      ],
+      "reviewers": [
+        "bob",
+        "carol"
+      ],
+      "min_probability": 0.8,
+      "allowed_priorities": [
+        "low",
+        "normal",
+        "high",
+        "urgent"
+      ],
+      "review_priorities": [
+        "urgent"
+      ]
+    },
+    "evaluation": {
+      "verdict": "DENY",
+      "reasons": [
+        "cedar:forbid:legal-tickets-stay-in-legal"
+      ]
+    },
+    "status": "DENIED",
+    "review": null,
+    "result": null,
+    "events": [
+      {
+        "event": "SUBMITTED",
+        "at": "2026-10-20T00:25:11.519571+00:00"
+      }
+    ],
+    "external_policy": {
+      "engine": "cedar",
+      "policies": {
+        "format": "cedar",
+        "text": "// Ticket-routing policy used to record the Cedar fixtures. Cedar answers Allow or Deny;\n// whether a human must review is decided by the built-in policy and the record combines them.\n\n@id(\"routers-reassign-to-open-destinations\")\npermit (\n    principal in Group::\"routers\",\n    action == Action::\"reassign_ticket\",\n    resource\n)\nwhen { context.requested == \"support\" || context.requested == \"engineering\" };\n\n@id(\"routers-set-priority\")\npermit (\n    principal in Group::\"routers\",\n    action == Action::\"set_ticket_priority\",\n    resource\n)\nwhen { [\"low\", \"normal\", \"high\", \"urgent\"].contains(context.requested) };\n\n@id(\"legal-tickets-stay-in-legal\")\nforbid (\n    principal,\n    action == Action::\"reassign_ticket\",\n    resource\n)\nwhen { context has current && context.current == \"legal\" };\n"
+      },
+      "entities": [
+        {
+          "uid": {
+            "type": "Group",
+            "id": "routers"
+          },
+          "attrs": {},
+          "parents": []
+        },
+        {
+          "uid": {
+            "type": "User",
+            "id": "alice"
+          },
+          "attrs": {},
+          "parents": [
+            {
+              "type": "Group",
+              "id": "routers"
+            }
+          ]
+        },
+        {
+          "uid": {
+            "type": "User",
+            "id": "bob"
+          },
+          "attrs": {},
+          "parents": [
+            {
+              "type": "Group",
+              "id": "routers"
+            }
+          ]
+        },
+        {
+          "uid": {
+            "type": "User",
+            "id": "mallory"
+          },
+          "attrs": {},
+          "parents": []
+        }
+      ],
+      "request": {
+        "principal": "User::\"alice\"",
+        "action": "Action::\"reassign_ticket\"",
+        "resource": "Ticket::\"T-213\"",
+        "context": {
+          "requested": "support",
+          "proposal_sha256": "1d760daa1054e63a3eb7d023075b53573615627aaf400789acf385cf12e2f2d7",
+          "current": "legal"
+        }
+      },
+      "decision": "Deny",
+      "diagnostics": {
+        "reason": [],
+        "errors": []
+      }
+    },
+    "external_policy_sha256": "f2095ad82d10f36bf1fe80d04638cf9ff20822d8ef5554bd9f6a0ab79b79cbed"
+  },
+  "sha256": "c30369b668704bfbfb853766602948391c0c467c8907d799015113cc72bed2ca"
+}

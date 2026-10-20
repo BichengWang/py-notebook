@@ -31,18 +31,31 @@ id=$("$venv/bin/python" -c 'import json; print(json.load(open("submission.json")
 expect_code 1 "$cli" --db self.sqlite3 approve "$id" --reviewer local-reviewer --note checked
 expect_code 0 "$cli" --db self.sqlite3 show "$id" > unchanged.json
 "$venv/bin/python" -c 'import json; r=json.load(open("unchanged.json")); assert r["status"] == "PENDING_REVIEW" and r["review"] is None'
+# Second registered action type, through the same commands.
+expect_code 0 "$cli" --db priority.sqlite3 ticket-create --ticket-id T-100 --department support --priority normal > /dev/null
+expect_code 0 "$cli" --db priority.sqlite3 submit --proposal examples/proposal-priority.json \
+  --policy examples/policy-priorities.json --proposed-by local-proposer > priority-submission.json
+priority_id=$("$venv/bin/python" -c 'import json; print(json.load(open("priority-submission.json"))["id"])')
+expect_code 0 "$cli" --db priority.sqlite3 execute "$priority_id" > /dev/null
+expect_code 0 "$cli" --db priority.sqlite3 export "$priority_id" --out priority-record.json > /dev/null
+expect_code 0 "$cli" replay --record priority-record.json
+"$venv/bin/python" -c 'import json; r=json.load(open("priority-record.json"))["record"]; assert r["result"]["priority"] == "high" and r["recommendation"]["action"] == "set_ticket_priority"'
 "$venv/bin/python" - <<'PY'
 import json
 from importlib import resources
 names = sorted(path.name for path in (resources.files("decisioncontrol") / "schema").iterdir())
-expected = sorted([f"record.v{n}.json" for n in (1, 2, 3, 4)] + [f"evaluation.v{n}.json" for n in (1, 2)])
+expected = sorted([f"record.v{n}.json" for n in (1, 2, 3, 4, 5)] + [f"evaluation.v{n}.json" for n in (1, 2)])
 assert names == expected, names
 for name in names:
     assert json.loads((resources.files("decisioncontrol") / "schema" / name).read_text(encoding="utf-8"))["$id"].endswith("/" + name)
-assert json.load(open("demo/record-review.json"))["record"]["schema_version"] == 4
+assert json.load(open("demo/record-review.json"))["record"]["schema_version"] == 5
 assert json.load(open("gated/evaluation.json"))["report"]["schema_version"] == 2
 PY
 if [ -n "$conformance" ]; then
+  # Frozen OPA and Cedar decisions: digest-only without the tools (exit 0), refused when re-evaluation is required (exit 2).
+  frozen="$conformance/valid/record-v5-opa-reassign-allow-executed.json"
+  expect_code 0 env PATH=/nonexistent "$cli" replay --record "$frozen"
+  expect_code 2 env PATH=/nonexistent "$cli" replay --record "$frozen" --require-reevaluation
   # Replay every conformance vector with the installed console script.
   "$venv/bin/python" - "$cli" "$conformance" <<'PY'
 import json, subprocess, sys

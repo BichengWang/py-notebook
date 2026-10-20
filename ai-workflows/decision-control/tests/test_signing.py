@@ -52,8 +52,8 @@ class SigningTests(unittest.TestCase):
         import hashlib
         self.assertEqual(statement["subject"][0]["digest"]["sha256"], hashlib.sha256(self.record.read_bytes()).hexdigest())
         self.assertEqual(statement["predicateType"],
-                         "https://github.com/BichengWang/ai-decision-system/predicate/decisioncontrol/record/v4")
-        self.assertEqual(statement["predicate"], {"schema": load_schema("record.v4.json")["$id"]})
+                         "https://github.com/BichengWang/ai-decision-system/predicate/decisioncontrol/record/v5")
+        self.assertEqual(statement["predicate"], {"schema": load_schema("record.v5.json")["$id"]})
         self.assertEqual(envelope["signatures"][0]["keyid"], signing.key_id(signing.load_key(self.key)))
 
     def test_unchanged_behavior_without_the_flag(self):
@@ -102,7 +102,7 @@ class SigningTests(unittest.TestCase):
         key = signing.load_key(self.key)
         data = self.record.read_bytes()
         document = json.loads(data)
-        for kind, version in (("evaluation", 2), ("record", 3)):
+        for kind, version in (("evaluation", 2), ("record", 3), ("record", 4)):
             envelope = signing.sign(data, self.record.name, attestation.predicate_type(kind, version),
                                     attestation.predicate(kind, version), key)
             Path(str(self.record) + ".dsse.json").write_text(json.dumps(envelope), encoding="utf-8")
@@ -110,7 +110,7 @@ class SigningTests(unittest.TestCase):
                 code, _, error = self.replay()
                 self.assertEqual(code, 1)
                 self.assertIn("predicate type", error)
-        self.assertEqual(document["record"]["schema_version"], 4)
+        self.assertEqual(document["record"]["schema_version"], 5)
 
     def test_evaluation_envelope_cannot_vouch_for_a_record_and_back(self):
         out = self.root / "evaluation"
@@ -379,7 +379,7 @@ class SigningTests(unittest.TestCase):
             self.assertEqual(self.call("replay", "--record", str(self.record), *flags)[0], 0)
         command = run.call_args.args[0]
         self.assertEqual(command[:2], ["/bin/cosign", "verify-blob-attestation"])
-        self.assertIn("https://github.com/BichengWang/ai-decision-system/predicate/decisioncontrol/record/v4", command)
+        self.assertIn("https://github.com/BichengWang/ai-decision-system/predicate/decisioncontrol/record/v5", command)
         self.assertEqual(Path(command[-1]).name, self.record.name)
         self.assertNotEqual(Path(command[-1]), self.record)
         completed = mock.Mock(returncode=1, stderr="no matching signatures")
@@ -454,8 +454,8 @@ class SigningTests(unittest.TestCase):
         pred = self.root / "pred.json"
         code, out, _ = self.call("predicate", "--record", str(self.record), "--out", str(pred))
         self.assertEqual(code, 0)
-        self.assertEqual(json.loads(pred.read_text()), {"schema": load_schema("record.v4.json")["$id"]})
-        self.assertEqual(json.loads(out)["predicate_type"], attestation.predicate_type("record", 4))
+        self.assertEqual(json.loads(pred.read_text()), {"schema": load_schema("record.v5.json")["$id"]})
+        self.assertEqual(json.loads(out)["predicate_type"], attestation.predicate_type("record", 5))
         self.assertEqual(self.call("predicate", "--record", str(self.record), "--out", str(pred))[0], 2)
         document = json.loads(self.record.read_text())
         document["record"]["schema_version"] = 9

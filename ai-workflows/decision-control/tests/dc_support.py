@@ -30,9 +30,18 @@ def rehash_record(envelope):
     return envelope
 
 
-def as_schema3(record):
-    """Return a schema 3 copy of a schema 4 record, with python-json-v1 policy digest."""
+def as_schema4(record):
+    """Return a schema 4 copy of a schema 5 record: no external-policy members."""
     legacy = json.loads(json.dumps(record))
+    legacy["schema_version"] = 4
+    legacy.pop("external_policy", None)
+    legacy.pop("external_policy_sha256", None)
+    return legacy
+
+
+def as_schema3(record):
+    """Return a schema 3 copy of a schema 4 or 5 record, with python-json-v1 policy digest."""
+    legacy = as_schema4(record)
     legacy["schema_version"] = 3
     legacy["policy_sha256"] = hashlib.sha256(python_json_v1(legacy["policy"])).hexdigest()
     return legacy
@@ -44,7 +53,7 @@ def rehash_report(envelope):
     return envelope
 
 
-RECORD_VERSIONS = (1, 2, 3, 4)
+RECORD_VERSIONS = (1, 2, 3, 4, 5)
 EVALUATION_VERSIONS = (1, 2)
 ID_PREFIX = "https://github.com/BichengWang/ai-decision-system/schema/decisioncontrol/"
 

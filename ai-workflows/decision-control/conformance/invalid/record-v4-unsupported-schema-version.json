@@ -1,6 +1,6 @@
 {
   "record": {
-    "schema_version": 5,
+    "schema_version": 6,
     "id": "0f6d5c4b-3a29-4817-9605-000000000401",
     "created_at": "2026-01-15T09:00:00.000000+00:00",
     "recommendation": {
@@ -62,5 +62,5 @@
     "proposed_by": "alice",
     "policy_sha256": "44553b3f04e70b699703e1e13062185ecb09158f241e741bb60270898daafe66"
   },
-  "sha256": "35704b673322268b0563d50f0f5eea42c36c09a019e0780ce9f96018dd9b0937"
+  "sha256": "199a21799f1d200a1d5d1e475bccd68f097136971ec1c486ff3ac0566f30e297"
 }

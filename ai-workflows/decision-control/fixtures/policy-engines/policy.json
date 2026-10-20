@@ -1,0 +1,9 @@
+{
+  "version": "ticket-routing-fixture-1",
+  "allowed_destinations": ["support", "engineering", "legal"],
+  "review_destinations": ["engineering"],
+  "reviewers": ["bob", "carol"],
+  "min_probability": 0.8,
+  "allowed_priorities": ["low", "normal", "high", "urgent"],
+  "review_priorities": ["urgent"]
+}

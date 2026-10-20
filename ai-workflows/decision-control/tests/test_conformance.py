@@ -4,8 +4,10 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
 
 from decisioncontrol.jcs import canonicalize
@@ -40,12 +42,14 @@ def vector_file(vector, name="."):
     return base if name == "." else base / name
 
 
-def verify(vector):
+def verify(vector, *, path_env=None, extra=()):
     path = str(vector_file(vector))
     command = [path if part == "{path}" else part for part in vector["verify"]["command"]]
     assert command[0] == "decision-control", command
     environment = {**os.environ, "PYTHONPATH": str(PROJECT)}
-    return subprocess.run([sys.executable, "-m", "decisioncontrol", *command[1:]], cwd=CONFORMANCE,
+    if path_env is not None:
+        environment["PATH"] = path_env
+    return subprocess.run([sys.executable, "-m", "decisioncontrol", *command[1:], *extra], cwd=CONFORMANCE,
                           env=environment, capture_output=True, text=True, timeout=60)
 
 
@@ -78,7 +82,7 @@ class ManifestTests(unittest.TestCase):
                     self.assertTrue((PROJECT / document["schema"]).is_file())
                     name = Path(document["schema"]).name
                     coverage.add((vector["expect"], name))
-        for name in ("record.v4.json", "evaluation.v2.json"):
+        for name in ("record.v4.json", "record.v5.json", "evaluation.v2.json"):
             for expect in EXIT:
                 self.assertIn((expect, name), coverage)
         for name in ("record.v1.json", "record.v2.json", "record.v3.json", "evaluation.v1.json"):
@@ -119,6 +123,58 @@ class DocumentCoverageTests(unittest.TestCase):
                 else:
                     self.assertNotIn("documents", vector)
         self.assertGreaterEqual(parseable, 10)
+
+
+EXTERNAL = [vector for vector in MANIFEST["vectors"] if "record-v5-opa-" in vector["path"]
+            or "record-v5-cedar-" in vector["path"]]
+
+
+class PolicyEngineVectorTests(unittest.TestCase):
+    """Frozen OPA and Cedar decisions: digest-only without the tools, re-evaluated with them."""
+
+    def setUp(self):
+        self.empty = tempfile.TemporaryDirectory()
+        self.addCleanup(self.empty.cleanup)
+
+    def test_every_engine_has_valid_and_tampered_vectors(self):
+        for engine in ("opa", "cedar"):
+            kinds = {vector["expect"] for vector in EXTERNAL if f"record-v5-{engine}-" in vector["path"]}
+            self.assertEqual(kinds, {"valid", "tampered", "invalid"}, engine)
+
+    def test_valid_vectors_are_digest_only_when_no_tool_is_on_path(self):
+        checked = 0
+        for vector in EXTERNAL:
+            if vector["expect"] != "valid":
+                continue
+            with self.subTest(path=vector["path"]):
+                completed = verify(vector, path_env=self.empty.name)
+                self.assertEqual(completed.returncode, 0, completed.stderr)
+                external = json.loads(completed.stdout)["external_policy"]
+                self.assertEqual(external["verification"], "digest-only")
+                self.assertIn("policy NOT re-evaluated", completed.stderr)
+                strict = verify(vector, path_env=self.empty.name, extra=("--require-reevaluation",))
+                self.assertEqual(strict.returncode, 2, strict.stderr)
+                self.assertEqual(strict.stdout, "")
+                checked += 1
+        self.assertGreaterEqual(checked, 8)
+
+    def test_tampered_and_invalid_vectors_fail_without_any_tool(self):
+        for vector in EXTERNAL:
+            if vector["expect"] == "valid":
+                continue
+            with self.subTest(path=vector["path"]):
+                completed = verify(vector, path_env=self.empty.name)
+                self.assertEqual(completed.returncode, vector["verify"]["exit_code"], completed.stderr)
+
+    @unittest.skipUnless(shutil.which("opa") and shutil.which("cedar"), "opa and cedar are required")
+    def test_valid_vectors_are_reevaluated_when_the_tools_are_installed(self):
+        for vector in EXTERNAL:
+            if vector["expect"] != "valid":
+                continue
+            with self.subTest(path=vector["path"]):
+                completed = verify(vector, extra=("--require-reevaluation",))
+                self.assertEqual(completed.returncode, 0, completed.stderr)
+                self.assertEqual(json.loads(completed.stdout)["external_policy"]["verification"], "reevaluated")
 
 
 class VerifierTests(unittest.TestCase):

@@ -12,8 +12,10 @@ import math
 from pathlib import Path
 
 from ._outputs import staged_output
-from .evidence import RecordMismatch, canonical_bytes, digest, parse_json
-from .models import DecisionError, Recommendation, RoutingPolicy, Ticket, Verdict, _fields, _probability, _text
+from .actions import LEGACY_ACTIONS_SCHEMA as ACTIONS_SCHEMA
+from .evidence import canonical_bytes, digest, parse_json
+from .models import (DecisionError, Recommendation, RecordMismatch, RoutingPolicy, Ticket, Verdict,
+                     _fields, _probability, _text)
 from .policy import evaluate
 
 
@@ -60,8 +62,8 @@ class EvaluationCase:
     def from_dict(cls, value):
         raw = _fields(value, {"id", "ticket", "recommendation", "labels"}, {"review_outcome"})
         labels = _fields(raw["labels"], {"safe_to_execute", "requires_review", "correct_destination"})
-        return cls(raw["id"], Ticket.from_dict(raw["ticket"]),
-                   Recommendation.from_dict(raw["recommendation"]), **labels,
+        return cls(raw["id"], Ticket.from_dict(raw["ticket"], ACTIONS_SCHEMA),
+                   Recommendation.from_dict(raw["recommendation"], ACTIONS_SCHEMA), **labels,
                    review_outcome=raw.get("review_outcome"))
 
 
@@ -165,6 +167,8 @@ def evaluate_cases(cases, policy: RoutingPolicy, requirements=None,
         raise DecisionError("unsupported evaluation schema_version")
     if not isinstance(policy, RoutingPolicy):
         raise DecisionError("policy must be a RoutingPolicy")
+    if policy.allowed_priorities:
+        raise DecisionError("evaluation reports score reassign_ticket only; use a policy without priorities")
     requirements = _requirements(requirements)
     seen = set()
     results = []
@@ -176,7 +180,7 @@ def evaluate_cases(cases, policy: RoutingPolicy, requirements=None,
         if case.id in seen:
             raise DecisionError(f"duplicate case id: {case.id}")
         seen.add(case.id)
-        evaluation = evaluate(case.recommendation, case.ticket, policy)
+        evaluation = evaluate(case.recommendation, case.ticket, policy, schema=ACTIONS_SCHEMA)
         verdict = evaluation.verdict
         verdict_counts[verdict] += 1
         automatic = verdict == Verdict.ALLOW
@@ -260,7 +264,7 @@ def replay_evaluation(envelope: dict) -> dict:
     for row in report["case_results"]:
         row = _fields(row, {"case", "evaluation", "auto_allow_unsafe", "auto_route_incorrect", "approval_incorrect"})
         cases.append(EvaluationCase.from_dict(row["case"]))
-    recomputed = evaluate_cases(cases, RoutingPolicy.from_dict(report["policy"]), report["requirements"],
+    recomputed = evaluate_cases(cases, RoutingPolicy.from_dict(report["policy"], ACTIONS_SCHEMA), report["requirements"],
                                 report["schema_version"])
     if canonical_bytes(recomputed, jcs=jcs) != canonical_bytes(report, jcs=jcs):
         raise RecordMismatch("evaluation report disagrees with its frozen cases, policy, or requirements")
