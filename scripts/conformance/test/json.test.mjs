@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { JsonSyntaxError, RawNumber, deepEqual, parseJson, rawNumber, resolvePointer } from "../checks/json.mjs";
+import { JsonSyntaxError, RawNumber, parseJson, rawNumber, resolvePointer } from "../checks/json.mjs";
 
 test("parses RFC 8259 values", () => {
   assert.deepEqual(parseJson(' {"a": [1, 2.5, -0, 1e3, "x\\u00e9\\n", true, false, null], "b": {}} '), {
@@ -40,16 +40,6 @@ test("raw number mode keeps the literal", () => {
   const value = parseJson("[1.0, 1e-07, -0, 12345678901234567890]", { number: rawNumber });
   assert.deepEqual(value.map((item) => item.text), ["1.0", "1e-07", "-0", "12345678901234567890"]);
   assert.ok(value[0] instanceof RawNumber);
-});
-
-test("deepEqual ignores member order and distinguishes types", () => {
-  assert.ok(deepEqual(parseJson('{"a":1,"b":[1,{"c":null}]}'), parseJson('{"b":[1,{"c":null}],"a":1}')));
-  assert.ok(!deepEqual(parseJson('{"a":1}'), parseJson('{"a":1,"b":2}')));
-  assert.ok(!deepEqual(parseJson('{"a":1}'), parseJson('{"a":"1"}')));
-  assert.ok(!deepEqual(parseJson("[1,2]"), parseJson("[1,2,3]")));
-  assert.ok(!deepEqual(parseJson("[]"), parseJson("{}")));
-  assert.ok(!deepEqual(parseJson("null"), parseJson("{}")));
-  assert.ok(deepEqual(parseJson("12345678901234567890"), parseJson("12345678901234567890")));
 });
 
 test("resolves RFC 6901 pointers", () => {

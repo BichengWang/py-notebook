@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 import Ajv2020Module from "ajv/dist/2020.js";
 import addFormatsModule from "ajv-formats";
 import { canonicalizeRfc8785, serializePythonJsonV1 } from "./canonical.mjs";
-import { decodeUtf8, deepEqual, parseJson, rawNumber, resolvePointer, JsonSyntaxError } from "./json.mjs";
+import { decodeUtf8, parseJson, rawNumber, resolvePointer, JsonSyntaxError } from "./json.mjs";
 
 const Ajv2020 = Ajv2020Module.default ?? Ajv2020Module;
 const addFormats = addFormatsModule.default ?? addFormatsModule;
@@ -254,29 +254,20 @@ export async function checkManifest(manifestFile, { root, recorder, validateMani
           report(recorder, kind, name, recorded, actual, `SHA-256 of ${digest.covers_file}`);
           continue;
         }
-        const document = await readStrict(readBytes, documentFile);
+        // python-json-v1 distinguishes 0 from 0.0 and -0.0 from 0.0, so the document keeps its number tokens.
+        const legacy = digest.canonicalization === "python-json-v1";
+        const document = await readStrict(readBytes, documentFile, legacy ? { number: rawNumber } : {});
         const recorded = readDigest(document, digest.value);
         const value = withoutMembers(resolvePointer(document, digest.covers), digest.exclude ?? []);
         const canonicalFile = contained(conformanceDir, digest.canonical_file, "canonical_file");
         referenced.add(canonicalFile);
         const canonicalBytes = await readBytes(canonicalFile);
-        if (digest.canonicalization === "rfc8785") {
-          const recomputed = canonicalizeRfc8785(value);
-          if (!recomputed.equals(canonicalBytes)) {
-            throw new Error(`${digest.canonical_file} is not the RFC 8785 form of ${digest.covers || "the document"}: ${firstDifference(canonicalBytes, recomputed)}`);
-          }
-          report(recorder, kind, name, recorded, sha256(recomputed), `SHA-256 of RFC 8785 form of ${digest.covers || "document"}; ${digest.canonical_file} matches byte for byte`);
-        } else {
-          const text = decodeUtf8(canonicalBytes);
-          if (!deepEqual(parseJson(text), value)) {
-            throw new Error(`${digest.canonical_file} parses to a different value than ${digest.covers || "the document"}`);
-          }
-          const recomputed = serializePythonJsonV1(parseJson(text, { number: rawNumber }));
-          if (!recomputed.equals(canonicalBytes)) {
-            throw new Error(`${digest.canonical_file} is not in python-json-v1 form: ${firstDifference(canonicalBytes, recomputed)}`);
-          }
-          report(recorder, kind, name, recorded, sha256(canonicalBytes), `SHA-256 of ${digest.canonical_file}; it is the python-json-v1 form of ${digest.covers || "document"}`);
+        const what = digest.covers || "the document";
+        const recomputed = legacy ? serializePythonJsonV1(value) : canonicalizeRfc8785(value);
+        if (!recomputed.equals(canonicalBytes)) {
+          throw new Error(`${digest.canonical_file} is not the ${legacy ? "python-json-v1" : "RFC 8785"} form of ${what}: ${firstDifference(canonicalBytes, recomputed)}`);
         }
+        report(recorder, kind, name, recorded, sha256(recomputed), `SHA-256 of the ${legacy ? "python-json-v1" : "RFC 8785"} form of ${what}; ${digest.canonical_file} matches byte for byte`);
       } catch (error) {
         recorder.fail(kind, `${name}: ${describeError(error)}`);
       }
@@ -295,9 +286,9 @@ export async function checkManifest(manifestFile, { root, recorder, validateMani
   return manifest.vectors.length;
 }
 
-async function readStrict(readBytes, file) {
+async function readStrict(readBytes, file, options = {}) {
   try {
-    return parseJson(decodeUtf8(await readBytes(file)));
+    return parseJson(decodeUtf8(await readBytes(file)), options);
   } catch (error) {
     if (error instanceof JsonSyntaxError || error instanceof TypeError) {
       throw new Error(`${path.basename(file)} is not strict JSON: ${error.message}`);

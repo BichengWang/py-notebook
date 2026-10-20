@@ -184,18 +184,36 @@ describe("python-json-v1 digests", () => {
 
   test("a canonical file that is not the covered value fails", async () => {
     write("conformance/valid/legacy.canonical", PY_COVERED.replace("1.5", "1.25"));
-    assert.match(failureText(await check()), /parses to a different value/);
+    assert.match(failureText(await check()), /is not the python-json-v1 form/);
   });
 
   test("a canonical file in another form fails even when the value and digest agree", async () => {
     const reordered = '{"schema_version":1,"payload":{"a":"\u00e9","b":1.5,"big":12345678901234567890}}';
     write("conformance/valid/legacy.canonical", reordered);
     write("conformance/valid/legacy.json", read("conformance/valid/legacy.json").replace(sha(PY_COVERED), sha(reordered)));
-    assert.match(failureText(await check()), /not in python-json-v1 form/);
+    assert.match(failureText(await check()), /is not the python-json-v1 form/);
     const spaced = PY_COVERED.replace('"payload":', '"payload": ');
     write("conformance/valid/legacy.canonical", spaced);
     write("conformance/valid/legacy.json", read("conformance/valid/legacy.json").replace(sha(reordered), sha(spaced)));
-    assert.match(failureText(await check()), /not in python-json-v1 form/);
+    assert.match(failureText(await check()), /is not the python-json-v1 form/);
+  });
+
+  test("int 0, float 0.0 and float -0.0 are different values even when the digest is resealed", async () => {
+    // The document and canonical file agree on the digest but disagree on the number token.
+    const withZero = (documentZero, canonicalZero) => {
+      const canonical = `{"payload":{"a":"\u00e9","b":1.5,"big":12345678901234567890,"z":${canonicalZero}},"schema_version":1}`;
+      write("conformance/valid/legacy.canonical", canonical);
+      write("conformance/valid/legacy.json",
+        `{"checksum":"${sha(canonical)}","schema_version":1,"payload":{"z":${documentZero},"b":1.5,"a":"\u00e9","big":12345678901234567890}}`);
+    };
+    withZero("0.0", "0.0");
+    assert.deepEqual((await check()).failures, [], "agreeing tokens pass");
+    for (const [documentZero, canonicalZero] of [["0.0", "0"], ["0", "0.0"], ["-0.0", "0.0"], ["0.0", "-0.0"], ["1", "1.0"], ["1.0", "1"]]) {
+      withZero(documentZero, canonicalZero);
+      assert.match(failureText(await check()), /is not the python-json-v1 form/, `${documentZero} vs ${canonicalZero}`);
+    }
+    withZero("-0.0", "-0.0");
+    assert.deepEqual((await check()).failures, [], "-0.0 is kept");
   });
 
   test("a number written with a trailing zero fails even when the digest is resealed", async () => {
@@ -205,13 +223,13 @@ describe("python-json-v1 digests", () => {
       write("conformance/valid/legacy.canonical", spelled);
       write("conformance/valid/legacy.json",
         `{"checksum":"${sha(spelled)}","schema_version":1,"payload":{"b":${to},"a":"\u00e9","big":12345678901234567890}}`);
-      assert.match(failureText(await check()), /not in python-json-v1 form/, to);
+      assert.match(failureText(await check()), /is not the python-json-v1 form/, to);
     }
   });
 
   test("a digest that does not match the canonical file fails", async () => {
     write("conformance/valid/legacy.json", read("conformance/valid/legacy.json").replace('"b":1.5', '"b":1.5,"added":1'));
-    assert.match(failureText(await check()), /parses to a different value/);
+    assert.match(failureText(await check()), /is not the python-json-v1 form/);
   });
 });
 

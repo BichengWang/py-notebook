@@ -176,22 +176,6 @@ export function decodeUtf8(bytes) {
   return DECODER.decode(bytes);
 }
 
-/** True when two parsed values are structurally equal; object member order is irrelevant. */
-export function deepEqual(a, b) {
-  if (a === b) return true;
-  if (typeof a !== typeof b || a === null || b === null || typeof a !== "object") return false;
-  if (a instanceof RawNumber || b instanceof RawNumber) {
-    return a instanceof RawNumber && b instanceof RawNumber && a.text === b.text;
-  }
-  if (Array.isArray(a) || Array.isArray(b)) {
-    return Array.isArray(a) && Array.isArray(b) && a.length === b.length
-      && a.every((item, index) => deepEqual(item, b[index]));
-  }
-  const keys = Object.keys(a);
-  return keys.length === Object.keys(b).length
-    && keys.every((key) => Object.hasOwn(b, key) && deepEqual(a[key], b[key]));
-}
-
 /** Resolve an RFC 6901 JSON Pointer; throws RangeError when it does not lead to a value. */
 export function resolvePointer(document, pointer) {
   if (pointer === "") return document;
