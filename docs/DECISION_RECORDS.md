@@ -142,6 +142,87 @@ show that independent implementations agree on canonical bytes and digests and o
 what a schema accepts; they do not show adoption, authenticity or live-model
 behavior.
 
+## Signed records
+
+A digest in a record can be recomputed by whoever edits it. A signature over the
+exact bytes of the record file cannot, so a record that was edited and re-hashed
+passes the digest check but fails `--require-signature`. Signing is optional:
+verifiers ignore envelopes unless `--require-signature` is given. Key handling and
+what each signature does and does not prove are in
+[SECURITY.md](../SECURITY.md#signed-decision-records).
+
+**Format.** The envelope is a [DSSE](https://github.com/secure-systems-lab/dsse)
+envelope around an [in-toto Statement v1](https://github.com/in-toto/attestation/blob/main/spec/v1/statement.md):
+
+```json
+{
+  "payloadType": "application/vnd.in-toto+json",
+  "payload": "<base64 of the statement>",
+  "signatures": [{"keyid": "hmac-sha256:0123456789abcdef", "sig": "<base64 HMAC-SHA256>"}]
+}
+```
+
+- The statement is `{"_type": "https://in-toto.io/Statement/v1", "subject": [{"name": FILE, "digest": {"sha256": H}}], "predicateType": URI, "predicate": {"schema": SCHEMA_ID}}`.
+  `H` is the SHA-256 of the **exact bytes of the signed file**, the same subject
+  `cosign attest-blob` computes, so reformatting the file breaks the signature and
+  one record can carry an HMAC envelope, a Sigstore bundle, or both.
+- Producers write the payload as the [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785)
+  canonical form of the statement. The signature is HMAC-SHA256, with the 32-byte key,
+  over the DSSE pre-authentication encoding
+  `"DSSEv1" SP len(payloadType) SP payloadType SP len(payload) SP payload` (lengths in
+  decimal bytes, payload the decoded statement bytes). The key id is `hmac-sha256:`
+  plus the first 16 hex digits of the SHA-256 of the key.
+- A verifier checks the payload type, finds a signature with its key id and compares
+  the HMAC in constant time, then requires `_type`, a `predicateType` equal to the
+  one for this record type and schema version, and a subject digest equal to the
+  SHA-256 of the file it read. The file is read once and the same bytes are then
+  parsed and replayed.
+
+**Predicate types.** One type per record and schema version, so a signature for one
+record type or version cannot vouch for another. The predicate is
+`{"schema": "<the schema $id>"}`, naming the JSON Schema the record follows
+(see [Schemas and conformance vectors](#schemas-and-conformance-vectors)); it carries
+nothing else.
+
+| Record | Signed file (subject name) | Predicate type | Schema `$id` in the predicate |
+| --- | --- | --- | --- |
+| experiment-gate `decision.json`, schema 2 and 3 | `decision.json` | `https://github.com/BichengWang/ai-decision-system/predicate/expgate/decision/v<N>` | `https://github.com/BichengWang/ai-decision-system/schema/expgate/decision.v<N>.json` |
+| decision-control exported record, schema 1-4 | the exported file, e.g. `record.json` | `.../predicate/decisioncontrol/record/v<N>` | `.../schema/decisioncontrol/record.v<N>.json` |
+| decision-control `evaluation.json`, schema 1 and 2 | `evaluation.json` | `.../predicate/decisioncontrol/evaluation/v<N>` | `.../schema/decisioncontrol/evaluation.v<N>.json` |
+| Jev answer record, schema 1 and 2 | the `--out` file | `.../predicate/jevdecision/answer/v<N>` | `.../schema/jevdecision/answer.v<N>.json` |
+| Jev evaluation directory | `provenance.json` (it pins every other file by hash), schema 2 | `.../predicate/jevdecision/provenance/v2` | `.../schema/jevdecision/provenance.v2.json` |
+
+**Files and flags.** The HMAC envelope is written next to the file as
+`<file>.dsse.json` (for example `decision.json.dsse.json`) and read from there unless
+`--signature ENVELOPE` is given. A Sigstore bundle is a file you name with
+`--sigstore-bundle`; the READMEs use `<file>.sigstore.json`. The key is read before
+anything is written, so an unusable key exits 2 and leaves no output.
+
+| Package | Make a key | Sign | Predicate for `cosign` | Require a signature |
+| --- | --- | --- | --- | --- |
+| experiment-gate | `experiment-gate keygen KEY` | `--sign-key KEY` on `experiment-gate`, `python -m expgate.run` and `python -m expgate`; one envelope per `decision.json` | `experiment-gate predicate --record decision.json --out pred.json` | `experiment-gate-verify RECORD... --require-signature` with `--key KEY`, or `--sigstore-bundle B --certificate-identity ID --certificate-oidc-issuer ISSUER` |
+| Jev | `jev-decision --generate-key KEY` | `jev-decision ... --out FILE --sign-key KEY` (needs `--out`); `jev-decision-eval ... --out DIR --sign-key KEY` | `jev-decision-verify FILE --predicate-out pred.json` (or `--evaluation DIR --predicate-out pred.json`); verifies nothing | `jev-decision-verify FILE` or `--evaluation DIR`, plus `--require-signature` and the same key or Sigstore flags |
+| decision-control | `decision-control keygen KEY` | `--sign-key KEY` on `demo`, `evaluate` and `export` (needs `--out`) | `decision-control predicate --record FILE --out pred.json` | `decision-control replay --record FILE` or `replay-evaluation --record FILE`, plus `--require-signature` and the same key or Sigstore flags |
+
+`--signature` goes with `--key` (one record only), and `--sigstore-bundle` needs both
+`--certificate-identity` and `--certificate-oidc-issuer`. Key or Sigstore flags
+without `--require-signature`, both kinds together, and `--signature` or
+`--sigstore-bundle` with several records are usage errors.
+
+**Exit codes under `--require-signature`.** The signature is checked first; only a
+valid signature proceeds to the normal verification.
+
+| Situation | Exit |
+| --- | --- |
+| No envelope or bundle, wrong key, record edited and re-hashed, wrong predicate type, malformed envelope, Sigstore rejected by `cosign` | 1 |
+| Missing, short or non-hex key file; `cosign` not installed; conflicting or incomplete flags; malformed, unsupported or (experiment-gate schema 1) unverifiable record | 2 |
+| Signature valid, then the normal verification agrees / disagrees | 0 / 1 |
+
+A signature shows that the holder of a key, or the named workflow identity, vouched
+for these bytes. It does not show that the inputs are true, and the packages record
+no signing time. Signatures made in CI over synthetic records are software checks,
+not adoption evidence.
+
 ## Exit codes
 
 Shared meaning: **0** success / accepted check; **1** completed but not accepted
@@ -191,6 +272,6 @@ calibration, adoption or production safety. RELIA gates are proposed engineering
 thresholds, not industry/government standards or evidence of commercial performance,
 fairness, legal compliance or consumer benefit.
 
-Next: [P-012](../.plan/phase-1-records-spec.md) covers optional authenticated (signed) records.
+Signed records: see [Signed records](#signed-records) above; key handling is in [SECURITY.md](../SECURITY.md#signed-decision-records).
 
 Regulatory provisions: a draft [mapping of these records to EU AI Act logging and retention duties, ISO/IEC 42001 A.6.2.8 and NIST AI RMF MANAGE 4.1](REGULATORY_MAPPING.md) makes no compliance claim and is not legal advice.
