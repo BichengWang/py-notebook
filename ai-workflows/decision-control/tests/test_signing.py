@@ -198,6 +198,17 @@ class SigningTests(unittest.TestCase):
             "digest value is a number": signed({**statement, "subject": [{"name": "x", "digest": {"sha256": 5}}]}),
             "digest value is a list": signed({**statement, "subject": [{"name": "x", "digest": {"sha256": [1]}}]}),
             "digest value is non-ASCII": signed({**statement, "subject": [{"name": "x", "digest": {"sha256": "\u00e9" * 64}}]}),
+            "high surrogate digest": signed({**statement, "subject": [{"name": "x", "digest": {"sha256": "\ud800"}}]}),
+            "low surrogate digest": signed({**statement, "subject": [{"name": "x", "digest": {"sha256": "\udc00" * 64}}]}),
+            "uppercase hex digest": signed({**statement, "subject": [
+                {"name": "x", "digest": {"sha256": statement["subject"][0]["digest"]["sha256"].upper()}}]}),
+            "63 character digest": signed({**statement, "subject": [
+                {"name": "x", "digest": {"sha256": statement["subject"][0]["digest"]["sha256"][:63]}}]}),
+            "65 character digest": signed({**statement, "subject": [
+                {"name": "x", "digest": {"sha256": statement["subject"][0]["digest"]["sha256"] + "0"}}]}),
+            "deeply nested list digest": signed(json.dumps({**statement, "subject": [
+                {"name": "x", "digest": {"sha256": "NESTED"}}]}).encode().replace(
+                    b'"NESTED"', b"[" * 100000 + b"]" * 100000)),
             "deeply nested payload": signed(b"[" * 100000),
             "statement _type is a list": signed({**statement, "_type": []}),
             "subject is an object": signed({**statement, "subject": subject[0]}),

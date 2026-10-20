@@ -120,11 +120,19 @@ def verify(record_bytes: bytes, envelope: object, predicate_types: set[str], key
     if not isinstance(subjects, list):
         raise SignatureError("signed statement subject is not a list")
     digest = hashlib.sha256(record_bytes).hexdigest()
-    if not any(isinstance(s, dict) and isinstance(s.get("digest"), dict)
-               and hmac.compare_digest(str(s["digest"].get("sha256", "")).encode("utf-8"), digest.encode("ascii"))
-               for s in subjects):
+    if not any(_names_digest(subject, digest) for subject in subjects):
         raise SignatureError("signature covers different record bytes")
     return body
+
+
+def _names_digest(subject: object, digest: str) -> bool:
+    """True when an in-toto subject carries this lowercase hex SHA-256."""
+    if not isinstance(subject, dict) or not isinstance(subject.get("digest"), dict):
+        return False
+    value = subject["digest"].get("sha256")
+    return (isinstance(value, str) and len(value) == len(digest)
+            and all(char in "0123456789abcdef" for char in value)
+            and hmac.compare_digest(value, digest))
 
 
 def verify_sigstore(record: Path, bundle: Path, predicate_type: str, identity: str, issuer: str) -> None:
