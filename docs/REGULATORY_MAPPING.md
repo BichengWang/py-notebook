@@ -9,11 +9,12 @@
 > of a given organisation are legal questions this document does not answer. Ask a
 > qualified lawyer or auditor.
 
-Status: drafted for plan item P-028; owner review pending. Retrieval date for every
-source below is **2026-10-19**. The records are described as they are today; JSON
-Schemas and further schema versions are being added under
-[P-011](../.plan/phase-1-records-spec.md), and optional authenticated records under
-P-012. Re-check the mapping when those land.
+Status: drafted for plan item P-028; owner review pending. The record mapping was
+re-done against `main` after P-011 (JSON Schemas, conformance vectors, RFC 8785
+records) and P-012 (signed records) landed, and describes the current schema version
+of each record, citing the schema files shipped as package data. The legal sources
+below were retrieved on **2026-10-19** and were not re-retrieved for the re-map.
+Re-check this document when a schema version or signing behavior changes.
 
 ## What "serves" means here
 
@@ -28,8 +29,10 @@ names. It does not mean the provision is satisfied. Three limits apply to every 
   SQLite file that can be exported. Retention is the duty of whoever keeps the files.
   No package sets, enforces or evidences a retention period.
 - Digests and checksums detect change after the fact. They do not authenticate who
-  wrote a record, and anyone who edits a record can recompute them. See
-  [Encoding and integrity](DECISION_RECORDS.md#encoding-and-integrity) and
+  wrote a record, and anyone who edits a record can recompute them. A signature
+  checked with `--require-signature` closes that gap for a re-hashed edit, and only
+  within the limits stated under [Signing](#signing-what-it-gives-and-what-it-does-not).
+  See [Encoding and integrity](DECISION_RECORDS.md#encoding-and-integrity) and
   [Compatibility and limits](DECISION_RECORDS.md#compatibility-and-limits).
 
 ## Primary texts and dates
@@ -123,17 +126,54 @@ the source table.
 
 ## Mapping by record type
 
-Record names and schema numbers follow
-[Records and checks](DECISION_RECORDS.md#records-and-checks). Field names are the ones
-the shipped packages write today. "-" means no field serves the provision.
+Record names follow [Records and checks](DECISION_RECORDS.md#records-and-checks).
+Field names are those of the **current schema version** of each record, as declared
+in the JSON Schema files shipped with each package (paths under
+`ai-workflows/`; earlier versions have sibling files `<record>.v<N>.json`):
+
+| Record (current schema) | Schema file |
+| --- | --- |
+| expgate `decision.json` (3) | `experiment-gate/expgate/schema/decision.v3.json` |
+| Jev typed answer (2) | `jev-decision/jevdecision/schema/answer.v2.json` |
+| Jev `evaluation.json` (2) | `jev-decision/jevdecision/schema/evaluation.v2.json` |
+| Jev `provenance.json` (2) | `jev-decision/jevdecision/schema/provenance.v2.json` |
+| decision-control exported record (4: `record` + `sha256`) | `decision-control/decisioncontrol/schema/record.v4.json` |
+| decision-control `evaluation.json` (2: `report` + `sha256`) | `decision-control/decisioncontrol/schema/evaluation.v2.json` |
+
+Committed conformance vectors (synthetic) are under each package's `conformance/`
+directory with a `manifest.json`. "-" in the table below means no field serves the
+provision.
 
 | Record | Art. 12(2)(a): risk situations, substantial modification | Art. 12(2)(b): post-market monitoring (Art. 72) | Art. 12(2)(c): deployer monitoring (Art. 26(5)) | Retention (Art. 19 provider, Art. 26(6) deployer) | ISO/IEC 42001 A.6.2.8 | NIST MANAGE 4.1 | Does not cover |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| **expgate `decision.json`** (schema 2) and `DECISION.md` | `decision` (SHIP/HOLD/ROLLBACK/INVALID), `reasons`, `metrics[].status` and `improvement_bounds` for guardrails, `sample_ratio.pass` flag a change that failed its predeclared guardrails before release | `experiment`, `policy`, `metrics`, `produced_by`, `expgate_version` give a comparable per-change data point a monitoring process could ingest | - | `input` embedded with `input_sha256`, `schema_version` and `DECISION.md`'s SHA-256 of the `decision.json` bytes let a holder detect later edits and pick the verifier rules | Not assessed (control text not reviewed). Fact: one aggregate record per evaluation, with no event times | `decision`, `policy` and `input_sha256` document one change-management gate: what was evaluated and under which thresholds | No timestamp or event time in the record. Aggregate summary only, no per-use events. Does not say whether a change is a substantial modification. Input provenance is the caller's. `produced_by` is a label, not an authenticated identity. No retention period, deletion, access control or legal hold |
-| **Jev typed answer** (CLI JSON, schema 1) | `answers[*]` by `type`: `refusal` (type only); `noul` (`probability`); `choice` (`choice`, `probabilities`, `confidence`); `score` (`score`, `level`, `levels`, `probabilities`, `confidence`). They expose uncertainty or refusal per question | `model`, `backend`, `id`, `usage`, `produced_by` identify the response that fed a decision | - | None beyond being a JSON file: no digest, no checksum, no verifier | Not assessed (control text not reviewed). Fact: one model response, with no timestamp | - | No timestamp, no input/question text, no digest, no standalone verifier. `model`, `backend` and `id` are supplied metadata; nothing authenticates provider origin. Not a log of every use. No retention handling |
-| **Jev `evaluation.json`** (schema 2) with **`provenance.json`** (schema 2), `responses.jsonl`, `cases.jsonl` | `status` (PASS/FAIL/UNGATED), `error_rate`, `errors`, per-question `refusal_rate`, `refusals`, accuracy bounds, `requirements[].pass` show measured quality against stated requirements on labeled cases | `jevdecision_version`, `produced_by`, `model`, `backend` and `source` (replay/live) identify the run. Re-scoring later needs the retained input files `cases.jsonl`, `responses.jsonl` and the questions and requirements files, which `provenance.json` hashes; `cases` in `evaluation.json` is only a count | - | `provenance.json` records SHA-256 of exact input and output bytes (`inputs.*.sha256`, `outputs`), so retained files can be re-checked; `response_origin` states whether responses were hand-supplied; original questions, cases and requirements stay external and must be retained separately | Not assessed (control text not reviewed). Fact: offline scoring record, with no timestamps | A repeatable evaluation artifact usable as an input to change management and periodic re-evaluation; nothing here implements monitoring | Offline scoring of saved responses, not runtime events. No timestamps. No record-only provenance verifier; re-scoring needs the retained inputs. `provenance.json` hashes detect change and do not authenticate authorship. Labeled cases and raw responses may contain personal data; minimisation and erasure are the keeper's concern. Synthetic fixtures show software behavior, not live-model quality |
-| **decision-control exported record** `record-*.json` (schema 3; schemas 1 and 2 replay under their original rules) | `evaluation.verdict` and `evaluation.reasons` (ALLOW/REVIEW/ABSTAIN/DENY), `recommendation.refused`, `recommendation.probability`, `status` (e.g. CANCELLED, STALE) | `created_at`, `events[].at`, `policy.version`, `policy_sha256`, `recommendation.model`, `recommendation.question_version` give a dated, policy-pinned data point per decision | `review.decision`, `review.reviewer`, `review.note`, `review.at`; `events` including `CANCELLED` (a reversed approval stays on record); `result` shows what was executed | Checksum over the whole record (`sha256`) plus embedded policy, ticket snapshot, review and events make an exported file self-contained and change-evident; the working store is a mutable SQLite file and only exports carry the checksum | Not assessed (control text not reviewed). Fact: the only record here with timestamped events (`events[].at`, `review.at`), one record per decision, written by the workflow and not by an AI system | `review` (human approval or denial before execution), `CANCELLED` (reversal of an earlier approval), `policy.reviewers` and `policy_sha256` evidence an approval, override and change-control step for one decision | Timestamps come from the local clock (UTC) with no trusted time source. `proposed_by`, `review.reviewer` and `produced_by` are caller-asserted labels: identity is not authenticated and nothing is signed. Does not capture user or affected-person input, appeals, incident response, serious-incident reporting, decommissioning or recovery. Does not detect a deleted or withheld record. No hash chain across records. Replay executes nothing. No retention period, deletion or legal hold |
-| **decision-control `evaluation.json`** (schema 1, `report` + `sha256`) | `metrics` (e.g. `unsafe_auto_allow_rate`, `incorrect_approval_rate`, `required_review_recall`), `gates`, `disposition` on labeled cases | `kind`, `source`, `confidence_level`, `policy`, `requirements` and the embedded `case_results` allow the same cases to be re-evaluated against a changed policy (`cases` is only a count) | - | Canonical `sha256` over `report`; replay recomputes the report from the embedded content | Not assessed (control text not reviewed). Fact: offline report, with no timestamps | A policy-evaluation report usable as change-management evidence before a policy or model change | No `produced_by` and no timestamps in this schema. Offline evaluation of supplied cases, not runtime events. Labeled cases are the caller's. Checksum is not a signature. No retention handling |
+| **expgate `decision.json`** (schema 3) and `DECISION.md` | `decision` (SHIP/HOLD/ROLLBACK/INVALID), `reasons`, `metrics[].status` and `improvement_bounds` for guardrails, `sample_ratio.pass` flag a change that failed its predeclared guardrails before release | `experiment`, `policy`, `metrics`, `produced_by`, `expgate_version` give a comparable per-change data point a monitoring process could ingest | - | `input` embedded with `input_sha256` (RFC 8785 digest of `/input`) and `schema_version`; a detached signature file (`decision.json.dsse.json` or a Sigstore bundle) is a separate file that has to be retained with the record. `DECISION.md` carries the SHA-256 of the `decision.json` bytes but is not itself signed | Not assessed (control text not reviewed). Fact: one aggregate record per evaluation, with no event times | `decision`, `policy` and `input_sha256` document one change-management gate: what was evaluated and under which thresholds | No timestamp or event time in the record. Aggregate summary only, no per-use events. Does not say whether a change is a substantial modification. Input provenance is the caller's. `produced_by` is a label, not an authenticated identity. No retention period, deletion, access control or legal hold |
+| **Jev typed answer** (schema 2) | `answers[*]` by `type`: `refusal` (type only); `noul` (`probability`); `choice` (`choice`, `probabilities`, `confidence`); `score` (`score`, `level`, `levels`, `probabilities`, `confidence`). They expose uncertainty or refusal per question | `model`, `backend`, `id`, `usage`, `produced_by` identify the response that fed a decision; `questions` (the question definitions), `response` (the raw provider response) and `record_sha256` make that one answer re-derivable offline | - | `record_sha256` (RFC 8785 digest of the whole record without that member); detached signature file retained separately. Schema 1 records stay readable but carry no digest and cannot be verified | Not assessed (control text not reviewed). Fact: one model response, with no timestamp | - | No timestamp. The question text and response are embedded, so the record may contain personal data supplied by the caller. `model`, `backend` and `id` are supplied metadata; nothing authenticates that the provider sent the response. Not a log of every use. No retention handling |
+| **Jev `evaluation.json`** (schema 2) with **`provenance.json`** (schema 2), `responses.jsonl`, `cases.jsonl`, `questions.json`, `requirements.json` | `status` (PASS/FAIL/UNGATED), `error_rate`, `errors`, per-question `refusal_rate`, `refusals`, accuracy bounds, `requirements[].pass` show measured quality against stated requirements on labeled cases | `jevdecision_version`, `produced_by`, `model`, `backend` and `source` (replay/live) identify the run. `jev-decision-verify --evaluation DIR` re-scores the retained files (`responses.jsonl`, `questions.json`, `requirements.json`, the labels in `cases.jsonl`); `cases` in `evaluation.json` is only a count | - | `provenance.json` records SHA-256 of exact input and output bytes (`inputs.*`, `outputs`), so retained files can be re-checked; `response_origin` states whether responses were hand-supplied. The original case states are not retained. A signature over `provenance.json` pins every file it hashes | Not assessed (control text not reviewed). Fact: offline scoring record, with no timestamps | A repeatable evaluation artifact usable as an input to change management and periodic re-evaluation; nothing here implements monitoring | Offline scoring of saved responses, not runtime events. No timestamps. Case states and the supplied responses file are not re-checked. `responses.jsonl` holds raw provider responses and labeled cases may contain personal data; minimisation and erasure are the keeper's concern. Synthetic fixtures show software behavior, not live-model quality |
+| **decision-control exported record** `record-*.json` (schema 4; 1, 2 and 3 replay under their original rules) | `evaluation.verdict` and `evaluation.reasons` (ALLOW/REVIEW/ABSTAIN/DENY), `recommendation.refused`, `recommendation.probability`, `status` (e.g. CANCELLED, STALE) | `created_at`, `events[].at`, `policy.version`, `policy_sha256`, `recommendation.model`, `recommendation.question_version` give a dated, policy-pinned data point per decision | `review.decision`, `review.reviewer`, `review.note`, `review.at`; `events` including `CANCELLED` (a reversed approval stays on record); `result` shows what was executed | `sha256` (RFC 8785 digest of `record`) plus embedded policy, ticket snapshot, review and events make an exported file self-contained and change-evident; the working store is a mutable SQLite file and only exports carry the checksum and can be signed | Not assessed (control text not reviewed). Fact: the only record here with timestamped events (`events[].at`, `review.at`), one record per decision, written by the workflow and not by an AI system | `review` (human approval or denial before execution), `CANCELLED` (reversal of an earlier approval), `policy.reviewers` and `policy_sha256` evidence an approval, override and change-control step for one decision | Does not capture user or affected-person input, appeals, incident response, serious-incident reporting, decommissioning or recovery. Does not detect a deleted or withheld record. No hash chain across records. Replay executes nothing. `proposed_by`, `review.reviewer` and `produced_by` are caller-asserted labels. No retention period, deletion or legal hold |
+| **decision-control `evaluation.json`** (schema 2, `report` + `sha256`) | `metrics` (e.g. `unsafe_auto_allow_rate`, `incorrect_approval_rate`, `required_review_recall`), `gates`, `disposition` on labeled cases | `kind`, `source`, `confidence_level`, `policy`, `requirements` and the embedded `case_results` allow the same cases to be re-evaluated against a changed policy (`cases` is only a count) | - | `sha256` over `report` (RFC 8785); replay recomputes the report from the embedded content; detached signature file retained separately | Not assessed (control text not reviewed). Fact: offline report, with no timestamps | A policy-evaluation report usable as change-management evidence before a policy or model change | No `produced_by` and no timestamps in this schema. Offline evaluation of supplied cases, not runtime events. Labeled cases are the caller's. No retention handling |
+
+### Replay, integrity and signature by record
+
+Replay compares recomputed values with recorded ones under the adopted float rule:
+**derived floating-point values that are recomputed from inputs agree within a
+relative 1e-9** (absolute 1e-12 where the recomputed value is exactly 0), because
+`log`, `exp`, `erf` and the normal quantile come from the platform math library and
+their last digits differ across platforms. Everything else compares exactly: inputs,
+strings, integers, booleans, dispositions and structure. Digest checks are always
+byte-exact. Older schema versions keep their original comparison rules.
+
+| Record | Digest | Replay comparison | Signature, when `--require-signature` is used |
+| --- | --- | --- | --- |
+| expgate `decision.json` (3; 2 uses the same comparison) | `input_sha256` over `/input`, RFC 8785 (schema 2: python-json-v1) | Relative 1e-9 on computed statistics only: `sample_ratio.p_value` and, per metric row, `diff`, `se`, `improvement`, `improvement_bounds`, `z`, `mde` and the CUPED `adjustment` numbers. Inputs, policy, counts, `reasons` strings, `decision` and structure are exact. Schema 3 rejects duplicate keys, non-finite numbers and integers beyond 2^53-1 (exit 2) | Over the exact bytes of `decision.json`; `DECISION.md` is not covered |
+| Jev typed answer (2) | `record_sha256` | Exact: the only arithmetic on recorded floats is addition, multiplication and division, which are bit-portable | Over the exact bytes of the answer file |
+| Jev `evaluation.json` / `provenance.json` (2) | `provenance.json` holds SHA-256 of exact file bytes; the digests are exact | Re-scored metric floats, including each requirement's `value`, within relative 1e-9; requirement bounds, counts, strings, booleans, statuses, `cases.jsonl` rows and file hashes are exact | Over the exact bytes of `provenance.json`, which pins the other files by hash |
+| decision-control record (4) | `sha256` over `record`, RFC 8785 (schemas 1 to 3: python-json-v1) | Exact. The verdict is recomputed from the frozen policy; checksum, lifecycle, separation of duties and `policy_sha256` agree. Schema 4 rejects duplicate keys, non-finite numbers and integers beyond 2^53-1 | Over the exact bytes of the exported record file |
+| decision-control `evaluation.json` (2; 1 replays under its original rules) | `sha256` over `report`, RFC 8785 (schema 1: python-json-v1) | Exact, with no tolerance, for both schemas: only correctly rounded IEEE 754 operations are used (`+`, `-`, `*`, `/` and `math.sqrt`) and no transcendental platform math-library function (`log`, `exp`, `erf`, inverse CDF) | Over the exact bytes of `evaluation.json` |
+
+Evidence for the cross-platform limit and its rule is in the package READMEs
+(expgate "Both schemas share one replay comparison", Jev "Metrics use `math.log`",
+decision-control "Replay recomputes every metric"). Records written under older
+schema versions are still compared under their original rules.
 
 ### Reading the table
 
@@ -148,8 +188,8 @@ the shipped packages write today. "-" means no field serves the provision.
 - **Retention** is a duty of the provider (Article 19) or deployer (Article 26(6)) for
   logs "under their control", and the period depends on the intended purpose and other
   law, including data protection law. The packages produce files and offer integrity
-  checks over them; storing, retaining, protecting and deleting them is outside the
-  packages.
+  checks over them; storing, retaining, protecting and deleting them, including the
+  detached signature envelopes and Sigstore bundles, is outside the packages.
 - **ISO/IEC 42001 A.6.2.8**: the control text was not reviewed (see the source
   table), so no statement is made about what it requires or whether any record could
   serve it. The column lists only facts about each record, in particular whether it
@@ -159,14 +199,58 @@ the shipped packages write today. "-" means no field serves the provision.
   records can evidence the override and change-management items for the decisions they
   cover. They do not implement any monitoring plan.
 
+## Signing: what it gives and what it does not
+
+Each package can sign its records and verify them with `--require-signature`
+(READMEs, "Signed records"). The packages' own HMAC envelopes are an in-toto
+Statement v1 in a DSSE envelope. The Sigstore path is different: it uses the
+external `cosign attest-blob --type <predicate type URI>`, which in cosign v3.1.3
+writes `_type` `https://in-toto.io/Statement/v0.1`, not v1 (cosign
+`pkg/cosign/attestation/attestation.go` L242-267 at v3.1.3; in-toto-golang v0.11.0
+`attestations.go` L11-18; both read on 2026-10-19). In both
+cases the subject is the SHA-256 of the **exact bytes of the signed file**, and
+its predicate type names the record type and schema version, so a signature for one
+record type or version does not vouch for another. Without `--require-signature`
+the verifiers ignore envelopes and behave as before.
+
+**What signing adds.** An edited record that is re-hashed (new digest, consistent
+content) passes digest-only verification but fails `--require-signature`: the
+signature no longer covers the file's bytes, so the verifier exits 1. Re-formatting
+the file also breaks the signature. This is tamper evidence against a re-hashed
+forgery by someone who lacks the signing key (HMAC) or the signing identity
+(Sigstore). An unsigned file, a wrongly keyed file and a file with a different
+predicate type also exit 1.
+
+| | HMAC-SHA256 (standard library, package-made) | Sigstore (external `cosign`, keyless in CI) |
+| --- | --- | --- |
+| Who creates the signature | The package, with `--sign-key` and a local key file | `cosign attest-blob`, run by the signer. The packages never sign with Sigstore |
+| What verification proves | The signer held the shared secret key (the envelope names it by a key id of the form `hmac-sha256:<prefix>`) | `cosign verify-blob-attestation` accepted the bundle for this file's bytes and predicate type, for the exact `--certificate-identity` and `--certificate-oidc-issuer` supplied |
+| Identity | None. Every verifier holds the same key and could also sign, so it does not show who signed or distinguish signers | With keyless signing in a CI workflow, the certificate identity names the workflow and ref (for example `.../.github/workflows/<workflow>.yml@refs/heads/main`). It is a workflow identity, not a person, and a record signed on another ref or workflow needs that exact identity to verify |
+| Public log | None | Keyless signing writes the signer identity and the record digest to the public Rekor transparency log permanently, so it is unsuitable for private decisions |
+| Trusted time | None. The envelope carries no time | Not provided by the packages: they pass `cosign` only `--bundle`, `--type`, `--certificate-identity`, `--certificate-oidc-issuer` and the file, read no time from the bundle and record none. A trusted signing time would be Rekor's inclusion time held in the Sigstore bundle, which a verifier would have to retain, read and check separately; how `cosign` treats it was not reviewed here |
+| Key custody | Keys are the keeper's problem: keep them out of the repository and untrusted backups, rotate by making a new key and keeping old keys to verify old envelopes. No revocation | No long-lived key for keyless signing; the identity provider and Sigstore trust root are external dependencies |
+
+Neither mechanism provides trusted time on its own. In particular, the
+decision-control `created_at`, `events[].at` and `review.at` come from the local
+system clock when the record is written. A valid signature makes those values
+tamper-evident from the signing moment onward. It does not make them true or show
+when the file was signed.
+
+A signature shows who (or which shared-secret holder) attested to the file. It does
+not show that the proposer, reviewer, model or labels inside the record are
+authentic, that the provider response is genuine, that the records are complete or
+ordered, or that an organisation retained them. Synthetic records signed in CI are
+software checks, not adoption evidence.
+
 ## What none of the records cover
 
-These apply across the table and are stated once here.
+These apply across the tables and are stated once here.
 
-- **Identity authentication without signing.** Producer, model, proposer and reviewer
-  are labels. No record is signed, so a record can be rewritten with a recomputed
-  digest. Optional authenticated records are planned under P-012; until they ship,
-  nothing here binds a record to a person or system.
+- **Identity of the people and systems named in a record.** Producer, model,
+  proposer and reviewer are labels the caller supplies. A signature binds the file
+  to a key (HMAC: a shared secret, not an identity) or to a workflow identity
+  (Sigstore), not to the named reviewer or proposer. Without `--require-signature`,
+  or for a record that is unsigned, nothing binds a record to a person or system.
 - **System-level logging.** The records are not the automatic event logs of an AI
   system (Article 12(1)), do not record each use, and carry none of the Article 12(3)
   items.
@@ -174,27 +258,29 @@ These apply across the table and are stated once here.
   access control, encryption, legal hold or personal-data erasure workflow exists.
 - **Completeness and ordering.** Nothing shows that every decision produced a record,
   that no record was removed, or that records are in order across runs. There is no
-  hash chain or transparency log.
-- **Trusted time.** Only decision-control records timestamps, from the local system
-  clock. expgate and Jev records have none.
+  hash chain across records. Rekor logs a Sigstore signature, not the existence of
+  the decisions that were never signed.
+- **Trusted time.** See the signing section: no package supplies or checks a
+  trusted signing time. Only decision-control records timestamps, from the local
+  system clock; expgate and Jev records have none.
 - **Provider origin.** No record authenticates that a model response came from a
   named provider. Jev's `response_origin` states this limit.
 - **Operator duties.** Instructions for use, human-oversight assignment, informing
   providers or authorities, suspension of use and serious-incident reporting
   (Articles 26 and 73) are organisational processes that the records do not perform
   or evidence.
-- **Evidence of real-world use.** Hand-written and synthetic fixtures establish
-  software behavior, not live-model quality, calibration, adoption or production use.
+- **Evidence of real-world use.** Hand-written and synthetic fixtures, including the
+  conformance vectors, establish software behavior, not live-model quality,
+  calibration, adoption or production use.
 - **RELIA.** The reliability benchmark (`results.json`, `MANIFEST.json`) is outside
   this mapping. It is a synthetic comparison, not a decision record.
 
 ## Maintenance
 
-Update this document when a schema version, record field or application date
-changes. In particular: the JCS and JSON Schema work in P-011, signed records in
-P-012, and any amendment to Regulation (EU) 2024/1689 after the 2026-07-27
-consolidated version. Re-check the NIST AI RMF text when NIST publishes its revision
-(on 2026-10-19, <https://airc.nist.gov/airmf-resources/airmf/> states that AI RMF 1.0
-"is being updated"; this document uses AI RMF 1.0 as published in January 2023).
-Re-read the ISO/IEC 42001 control from a
-licensed copy before describing it in more detail.
+Update this document when a schema version, record field, signing behavior or
+application date changes, and on any amendment to Regulation (EU) 2024/1689 after the
+2026-07-27 consolidated version. Re-check the NIST AI RMF text when NIST publishes
+its revision (on 2026-10-19, <https://airc.nist.gov/airmf-resources/airmf/> states
+that AI RMF 1.0 "is being updated"; this document uses AI RMF 1.0 as published in
+January 2023). Re-read the ISO/IEC 42001 control from a licensed copy before
+describing it in more detail.
