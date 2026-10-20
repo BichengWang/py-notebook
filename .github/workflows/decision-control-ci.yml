@@ -76,6 +76,12 @@ jobs:
         run: |
           python -m unittest discover -s tests -p 'test_schema.py' -v
           python -m unittest discover -s tests -p 'test_conformance.py' -v
+      - name: Install pinned dev-only LangGraph and run the example test
+        env:
+          DECISION_CONTROL_REQUIRE_LANGGRAPH: "1"
+        run: |
+          python -m pip install -r examples/langgraph/requirements-dev.txt
+          python -m unittest discover -s tests -p 'test_langgraph_example.py' -v
       - name: Validate demo and evaluation output against the shipped schemas
         run: |
           python -m decisioncontrol demo --out "$RUNNER_TEMP/dc-demo" > /dev/null
