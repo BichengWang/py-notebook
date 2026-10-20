@@ -181,6 +181,16 @@ record schema. Record schemas 1-4 predate the registry and keep permitting only
 `reassign_ticket`; a v1-v4 reader rejects the new members. The evaluation command and
 reports still score `reassign_ticket` only.
 
+## LangGraph approvals
+
+[`examples/langgraph/`](examples/langgraph/README.md) maps a LangGraph `interrupt()` approval
+onto this workflow: a `propose` node calls `submit`, a `review` node surfaces the pending
+decision with `interrupt()` and records the reviewer's `Command(resume=...)` as `approve` or
+`reject`, then exports a record for `replay`. The proposer cannot approve their own REVIEW
+decision, and the LangGraph thread and checkpoint ids are kept in the review note. LangGraph
+is a dev-only dependency of the example (pinned in its `requirements-dev.txt`); the package
+does not import it.
+
 ## Evaluate supplied recommendations
 
 Evaluate a candidate routing policy on independently labeled JSON Lines before
@@ -594,7 +604,9 @@ Schema validation tests need the dev-only `jsonschema` package and skip when it 
 absent; CI installs pinned versions (see `decision-control-ci.yml`) and also checks
 that the records written by `decision-control demo` validate against the shipped
 schemas. The re-evaluation tests need `opa` and `cedar` on PATH and skip otherwise; the
-digest-only tests run everywhere. CI runs the suite twice, first with neither tool and
+digest-only tests run everywhere. The LangGraph example test (`tests/test_langgraph_example.py`)
+needs the pinned `examples/langgraph/requirements-dev.txt` and skips without it; CI installs it
+and sets `DECISION_CONTROL_REQUIRE_LANGGRAPH=1` so a missing install fails. CI runs the suite twice, first with neither tool and
 then with the pinned OPA 1.21.2 and Cedar CLI 4.14.0 release binaries (checksum
 verified) and `DECISION_CONTROL_REQUIRE_POLICY_TOOLS=1`, which makes a missing tool
 fail instead of skip. To refresh the OPA and Cedar fixtures run

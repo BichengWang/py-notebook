@@ -7,6 +7,14 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 ## [Unreleased]
 
 ### Added
+- LangGraph approvals example (P-026, `examples/langgraph/`): a two-node graph whose `propose`
+  node submits a `set_ticket_priority` decision and whose `review` node surfaces it with
+  `interrupt()`, records `Command(resume=...)` as `approve` or `reject` by a named reviewer, and
+  exports a record that `decision-control replay` accepts. The proposer's own approval is refused
+  by the store, and a record forged to name the proposer as reviewer fails replay (exit 1). The
+  review note carries the LangGraph thread and checkpoint ids (no schema change). LangGraph 1.2.16
+  is a dev-only dependency pinned in `examples/langgraph/requirements-dev.txt`; `decisioncontrol`
+  does not import it. Tests skip without it; CI installs it.
 - Signed records (P-012): `keygen`, `--sign-key` on `demo`, `evaluate` and `export`, and
   `--require-signature` (`--key [--signature]` or `--sigstore-bundle` with
   `--certificate-identity` and `--certificate-oidc-issuer`) on `replay` and
