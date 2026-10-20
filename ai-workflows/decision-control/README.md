@@ -9,7 +9,7 @@ implementation, integration, benchmark changes, or provider-quality claims.
 
 ## Install and run
 
-Install the PyPI distribution (the 0.1.0 release is prepared but not yet published):
+Install the PyPI distribution (the first PyPI release, 0.2.0, is prepared but not yet published):
 
 ```bash
 pip install decisioncontrol

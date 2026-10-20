@@ -1,7 +1,7 @@
 {
   "decision": "SHIP",
   "experiment": "win",
-  "expgate_version": "0.1.0",
+  "expgate_version": "0.2.0",
   "input": {
     "arms": {
       "control": {

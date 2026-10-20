@@ -1,7 +1,7 @@
 {
   "decision": "SHIP",
   "experiment": "win",
-  "expgate_version": "0.1.0",
+  "expgate_version": "0.2.0",
   "input_sha256": "6ef97c0a71a7eda30d4b04b62aa42a9dbf6bdc47710dd01db0727c7d2dd5429a",
   "metrics": [
     {
@@ -71,7 +71,7 @@
   },
   "produced_by": {
     "name": "expgate",
-    "version": "0.1.0"
+    "version": "0.2.0"
   },
   "reasons": [
     "primary metric improved and all guardrails are non-inferior"

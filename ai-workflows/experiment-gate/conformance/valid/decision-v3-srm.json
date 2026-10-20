@@ -1,7 +1,7 @@
 {
   "decision": "INVALID",
   "experiment": "srm",
-  "expgate_version": "0.1.0",
+  "expgate_version": "0.2.0",
   "input": {
     "arms": {
       "control": {
@@ -130,7 +130,7 @@
   },
   "produced_by": {
     "name": "expgate",
-    "version": "0.1.0"
+    "version": "0.2.0"
   },
   "reasons": [
     "sample-ratio mismatch (p=6.74e-49 < 0.001)"

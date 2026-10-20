@@ -6,7 +6,7 @@ import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from unittest import mock
-from jevdecision import APIError, Choice, DecisionModel, JevBackend, Noul, QuestionError, ResponseError, Score
+from jevdecision import APIError, Choice, DecisionModel, JevBackend, Noul, QuestionError, ResponseError, Score, __version__
 from jevdecision.answers import parse_answers
 from jevdecision.backends import urllib_transport
 from jevdecision.evaluation import Case, evaluate, main
@@ -140,7 +140,7 @@ class ReleaseTests(unittest.TestCase):
             self.assertEqual(record['schema_version'], 2)
             self.assertEqual(record['answers']['n']['type'], 'refusal')
             self.assertEqual(record['questions'], {'n': {'type': 'noul', 'instructions': 'yes?'}})
-            self.assertEqual(record['produced_by'], {'name': 'jevdecision', 'version': '0.1.0'})
+            self.assertEqual(record['produced_by'], {'name': 'jevdecision', 'version': __version__})
             self.assertEqual(record['answers']['n']['type'], 'refusal')
 
     def test_failed_output_publish_does_not_block_rerun(self):

@@ -1,7 +1,7 @@
 {
   "decision": "SHIP",
   "experiment": "jcs-edge 😀",
-  "expgate_version": "0.1.0",
+  "expgate_version": "0.2.0",
   "input": {
     "arms": {
       "control": {
@@ -97,7 +97,7 @@
   },
   "produced_by": {
     "name": "expgate",
-    "version": "0.1.0"
+    "version": "0.2.0"
   },
   "reasons": [
     "primary metric improved and all guardrails are non-inferior"

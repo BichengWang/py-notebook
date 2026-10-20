@@ -1,6 +1,6 @@
 # Security policy
 
-This independently maintained decision-control component is an initial 0.1.0 local
+This independently maintained decision-control component is an alpha local
 SDK/CLI, not a hosted service. Report vulnerabilities privately to repository
 maintainer Bicheng Wang at **bichengwang17@gmail.com**. Include the affected version, reproduction,
 impact and proposed mitigation; do not attach sensitive production tickets or
