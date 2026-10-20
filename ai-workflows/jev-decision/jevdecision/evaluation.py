@@ -34,7 +34,9 @@ Command line: exit 0 for PASS, 1 for FAIL/provider errors, 2 for invalid input,
 and 3 for UNGATED (no explicit question metric bounds). CLI runs also write provenance.json
 with exact input and output file SHA-256 hashes, separately from evaluation metrics, and a
 retained copies of the question and requirement files (`questions.json`, `requirements.json`)
-so `jev-decision-verify --evaluation` can re-score the run from the directory alone.
+so `jev-decision-verify --evaluation` can re-score the run from the directory alone. With
+`--sign-key KEYFILE` it also writes `provenance.json.dsse.json`, an HMAC-SHA256 DSSE envelope over the
+exact bytes of provenance.json (which pins every other file by hash).
 
     python -m jevdecision.evaluation --questions examples/support-ticket.json \
         --cases examples/support-ticket-cases.jsonl \
@@ -53,7 +55,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from statistics import NormalDist
 
-from . import __version__
+from . import __version__, attestation, signing
 from .backends import BACKENDS, _check_state, create_backend
 from .errors import APIError, DatasetError, DecisionError, ResponseError
 from .answers import RefusalAnswer
@@ -509,6 +511,9 @@ def main(argv=None):
                         help='supplied JSON Lines of {"id", "response"}; unverified origin, no provider call')
     parser.add_argument("--require", type=Path, help="JSON requirement spec")
     parser.add_argument("--out", required=True, type=Path, help="new or empty output directory")
+    parser.add_argument("--sign-key", type=Path,
+                        help="HMAC key file; also writes OUT/provenance.json.dsse.json, a DSSE envelope over the "
+                             "exact bytes of provenance.json")
     parser.add_argument("--backend", choices=sorted(BACKENDS), default="jev",
                         help="provider whose response format is replayed or called (default: jev)")
     parser.add_argument("--model", help="model id for a live run (default: the backend's)")
@@ -521,6 +526,7 @@ def main(argv=None):
         parser.error("--out must be a new path or an existing empty directory")
     staging = None
     try:
+        key = signing.load_key(args.sign_key) if args.sign_key is not None else None  # before any work
         inputs = {name: path.read_bytes() if path else None for name, path in (
             ("questions", args.questions), ("cases", args.cases),
             ("requirements", args.require), ("responses", args.responses))}
@@ -586,6 +592,11 @@ def main(argv=None):
         }
         (staging / "provenance.json").write_text(
             json.dumps(provenance, sort_keys=True, separators=(",", ":"), ensure_ascii=False), encoding="utf-8")
+        if key is not None:
+            envelope = attestation.sign_bytes((staging / "provenance.json").read_bytes(), "provenance.json",
+                                              "provenance", 2, key)
+            (staging / ("provenance.json" + attestation.ENVELOPE_SUFFIX)).write_text(
+                attestation.render_envelope(envelope), encoding="utf-8")
         os.replace(staging, args.out)
     except OSError as error:
         print(f"error: {error}", file=sys.stderr)

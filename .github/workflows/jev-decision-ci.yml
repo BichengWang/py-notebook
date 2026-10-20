@@ -84,18 +84,7 @@ jobs:
           venv="$RUNNER_TEMP/jev-wheel"
           cd "$RUNNER_TEMP"
           example_dir="$GITHUB_WORKSPACE/ai-workflows/jev-decision/examples"
-          "$venv/bin/python" - "$example_dir" "$RUNNER_TEMP/answer.json" <<'PY'
-          import json, sys
-          from pathlib import Path
-          from jevdecision import JevBackend, questions_from_spec
-          from jevdecision.records import answer_record, dumps_record
-          examples, target = Path(sys.argv[1]), Path(sys.argv[2])
-          questions = questions_from_spec(json.loads((examples / "support-ticket.json").read_text()))
-          response = json.loads((examples / "support-ticket-responses.jsonl").read_text().splitlines()[0])["response"]
-          backend = JevBackend(api_key="unused", transport=lambda *args: response, env={})
-          decision = backend.decide("Help! My payouts have been failing for 3 days.", questions)
-          target.write_text(dumps_record(answer_record(decision, questions)), encoding="utf-8")
-          PY
+          "$venv/bin/python" "$GITHUB_WORKSPACE/ai-workflows/jev-decision/scripts/example-answer.py" answer.json
           "$venv/bin/jev-decision-verify" answer.json
           sed 's/"noul":0.08/"noul":0.8/' answer.json > tampered.json
           if cmp -s answer.json tampered.json; then echo "tamper edit did not change the record"; exit 1; fi
@@ -112,3 +101,112 @@ jobs:
           tampered_eval_exit=$?
           set -e
           test "$tampered_eval_exit" -eq 1
+          # HMAC signing round trip with the installed wheel.
+          "$venv/bin/jev-decision" --generate-key signing.key
+          "$venv/bin/jev-decision" --generate-key other.key > /dev/null
+          "$venv/bin/python" "$GITHUB_WORKSPACE/ai-workflows/jev-decision/scripts/example-answer.py" \
+            signed.json --sign-key signing.key
+          "$venv/bin/jev-decision-verify" signed.json --require-signature --key signing.key
+          expect_exit() {
+            expected="$1"; shift
+            code=0; "$@" || code=$?
+            test "$code" -eq "$expected"
+          }
+          expect_exit 1 "$venv/bin/jev-decision-verify" signed.json --require-signature --key other.key
+          expect_exit 1 "$venv/bin/jev-decision-verify" answer.json --require-signature --key signing.key
+          sed 's/"noul":0.08/"noul":0.8/' signed.json > signed-tampered.json
+          cp signed.json.dsse.json signed-tampered.json.dsse.json
+          expect_exit 1 "$venv/bin/jev-decision-verify" signed-tampered.json --require-signature --key signing.key
+          "$venv/bin/jev-decision-eval" --questions "$example_dir/support-ticket.json" \
+            --cases "$example_dir/support-ticket-cases.jsonl" \
+            --responses "$example_dir/support-ticket-responses.jsonl" \
+            --require "$example_dir/support-ticket-requirements.json" \
+            --out "$RUNNER_TEMP/jev-wheel-eval-signed" --sign-key signing.key > /dev/null
+          "$venv/bin/jev-decision-verify" --evaluation "$RUNNER_TEMP/jev-wheel-eval-signed" \
+            --require-signature --key signing.key
+          expect_exit 1 "$venv/bin/jev-decision-verify" --evaluation "$RUNNER_TEMP/jev-wheel-eval-signed" \
+            --require-signature --key other.key
+          expect_exit 1 "$venv/bin/jev-decision-verify" --evaluation "$RUNNER_TEMP/jev-wheel-eval" \
+            --require-signature --key signing.key
+  sigstore:
+    name: jev-decision sigstore attestation
+    # Keyless signing needs a GitHub OIDC token: not available to fork or Dependabot pull requests.
+    if: >-
+      github.actor != 'dependabot[bot]' &&
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        shell: bash
+        working-directory: ai-workflows/jev-decision
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          cosign-release: v3.1.3
+      - name: Produce a fresh answer record and an evaluation directory
+        run: |
+          PYTHONPATH=. python scripts/example-answer.py "$RUNNER_TEMP/answer.json"
+          python -m jevdecision.evaluation --questions examples/support-ticket.json \
+            --cases examples/support-ticket-cases.jsonl \
+            --responses examples/support-ticket-responses.jsonl \
+            --require examples/support-ticket-requirements.json --out "$RUNNER_TEMP/eval-run" > /dev/null
+      - name: Attest the answer record and provenance.json keylessly with the GitHub OIDC identity
+        run: |
+          attest() {  # attest FILE BUNDLE [verify args selecting the record or evaluation directory]
+            file="$1"; bundle="$2"; shift 2
+            python -m jevdecision.verify "$@" --predicate-out "$RUNNER_TEMP/$(basename "$file").pred.json" \
+              > "$RUNNER_TEMP/$(basename "$file").predicate.json"
+            type=$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["predicate_type"])' \
+              "$RUNNER_TEMP/$(basename "$file").predicate.json")
+            cosign attest-blob --yes --predicate "$RUNNER_TEMP/$(basename "$file").pred.json" --type "$type" \
+              --bundle "$bundle" "$file"
+          }
+          attest "$RUNNER_TEMP/answer.json" "$RUNNER_TEMP/answer.json.sigstore.json" "$RUNNER_TEMP/answer.json"
+          attest "$RUNNER_TEMP/eval-run/provenance.json" "$RUNNER_TEMP/eval-run/provenance.json.sigstore.json" \
+            --evaluation "$RUNNER_TEMP/eval-run"
+      - name: Verify with the package verifier
+        env:
+          IDENTITY: ${{ github.server_url }}/${{ github.workflow_ref }}
+        run: |
+          issuer=https://token.actions.githubusercontent.com
+          answer="$RUNNER_TEMP/answer.json"
+          run_dir="$RUNNER_TEMP/eval-run"
+          expect_exit() {
+            expected="$1"; shift
+            code=0; "$@" || code=$?
+            test "$code" -eq "$expected"
+          }
+          verify_answer() {  # verify_answer FILE IDENTITY
+            python -m jevdecision.verify "$1" --require-signature --sigstore-bundle "$answer.sigstore.json" \
+              --certificate-identity "$2" --certificate-oidc-issuer "$issuer"
+          }
+          verify_run() {  # verify_run DIR IDENTITY
+            python -m jevdecision.verify --evaluation "$1" --require-signature \
+              --sigstore-bundle "$run_dir/provenance.json.sigstore.json" \
+              --certificate-identity "$2" --certificate-oidc-issuer "$issuer"
+          }
+          verify_answer "$answer" "$IDENTITY"
+          verify_run "$run_dir" "$IDENTITY"
+          # An edited record and a different expected identity must exit 1.
+          sed 's/"noul":0.08/"noul":0.8/' "$answer" > "$RUNNER_TEMP/forged.json"
+          cmp -s "$answer" "$RUNNER_TEMP/forged.json" && { echo "tamper edit did not change the record"; exit 1; }
+          cp "$answer.sigstore.json" "$RUNNER_TEMP/forged.json.sigstore.json"
+          expect_exit 1 python -m jevdecision.verify "$RUNNER_TEMP/forged.json" --require-signature \
+            --sigstore-bundle "$answer.sigstore.json" --certificate-identity "$IDENTITY" \
+            --certificate-oidc-issuer "$issuer"
+          other="https://github.com/someone-else/repo/.github/workflows/x.yml@refs/heads/main"
+          expect_exit 1 verify_answer "$answer" "$other"
+          expect_exit 1 verify_run "$run_dir" "$other"
+          cp -r "$run_dir" "$RUNNER_TEMP/eval-forged"
+          echo " " >> "$RUNNER_TEMP/eval-forged/provenance.json"
+          expect_exit 1 verify_run "$RUNNER_TEMP/eval-forged" "$IDENTITY"
