@@ -17,7 +17,8 @@ does not meet the first condition (152 stars on 2026-10-18, per the
 
 Each entry describes what the tool does and states one limit, and claims nothing
 about use. Before opening any PR, confirm the repository still has the install
-paths the entry implies (a clone works today; PyPI is pending as of 2026-10-19).
+paths the entry implies (a clone works today; 0.1.0 is on PyPI, but signing needs
+unreleased 0.2.0 as of 2026-10-19 PDT).
 
 | List | Stars (2026-10-19) | Last push | Section | Rules source |
 | --- | --- | --- | --- | --- |
@@ -67,8 +68,8 @@ exported A/B aggregates into a SHIP / HOLD / ROLLBACK / INVALID record that carr
 its input and frozen rules, and `experiment-gate-verify` recomputes it offline.
 `jevdecision` (typed model answers) and `decisioncontrol` (human-approved actions)
 do the same for their decision points. Records can be signed (in-toto Statement in
-a DSSE envelope). Python 3.11+, standard library only, MIT. Not on PyPI yet:
-install from the repository.
+a DSSE envelope). Python 3.11+, standard library only, MIT. 0.1.0 is on PyPI;
+signing and the Jev verifier need unreleased 0.2.0, so install from the repository.
 
 ## What's the difference between this tool and similar ones?
 
@@ -113,8 +114,8 @@ libraries that help to design, implement and manage AI in a responsible way").
 ```markdown
 Adds AI Decision System to Tools > Audit: MIT-licensed, standard-library Python tools
 that write decision records (input, frozen rules, result) that a third party can
-recompute offline, optionally signed. Not on PyPI yet; the entry links to the
-repository, where the install and verify commands are.
+recompute offline, optionally signed. 0.1.0 is on PyPI; signed records need
+unreleased 0.2.0. The entry links to source install and verify commands.
 ```
 
 ## 3. agentrust-io/awesome-ai-governance
@@ -159,7 +160,7 @@ Adds decision-control to Agent Action Records. It records a proposed action, the
 frozen policy and the human approval as a record that can be replayed offline, and
 the record can be signed (in-toto Statement in a DSSE envelope, HMAC key). MIT,
 Python 3.11+, standard library only. It is a local SDK/CLI, not an identity service
-or an executor, and it is not on PyPI yet; the entry links to the source.
+or an executor. 0.1.0 is on PyPI; signing needs unreleased 0.2.0, so the entry links to source installation.
 ```
 
 ## Before opening each PR

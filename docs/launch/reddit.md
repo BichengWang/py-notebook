@@ -83,7 +83,8 @@ are cross-checked against scipy, statsmodels, gbstats and confseq with committed
 golden vectors (those libraries are dev-only).
 
 Records can be signed (in-toto Statement in a DSSE envelope; HMAC by default,
-Sigstore through cosign as an opt-in). From a clone, since it is not on PyPI yet:
+Sigstore through cosign as an opt-in). 0.1.0 is on PyPI, but this signed-record
+demo needs unreleased 0.2.0; install from a clone until then:
 
     pip install ./ai-decision-system/ai-workflows/experiment-gate
     experiment-gate-verify review-run/*/decision.json --require-signature --key signing.key
@@ -148,7 +149,8 @@ dashboard that has moved on, a config that may have been edited, an approval tha
 is a mutable tag. I wanted the decision itself to be re-checkable, so I wrote
 a record format and small reference verifiers rather than another platform.
 
-What exists today, from a clone (not on PyPI yet): experiment-gate turns exported
+0.1.0 is on PyPI; the signed-record demo needs unreleased 0.2.0 from a clone.
+What exists today: experiment-gate turns exported
 A/B aggregates into a SHIP / HOLD / ROLLBACK / INVALID record that carries its own
 input and frozen rules, and experiment-gate-verify recomputes it offline. The
 same repository has records for typed model answers (jevdecision) and for

@@ -25,9 +25,9 @@ vary. See [Decision record conventions](docs/DECISION_RECORDS.md).
 
 | Component | Decision point | Package | Record and offline check | Status |
 | --- | --- | --- | --- | --- |
-| [Jev decision](ai-workflows/jev-decision/README.md) | Typed yes/no, choice and score answers; labeled quality gates | `jevdecision` | Typed answer, `evaluation.json`, provenance; `jev-decision-verify answer.json`, `jev-decision-eval --responses …` with retained questions/cases/requirements | 0.1.0 (GitHub release; PyPI pending); schemas, verifier and signing unreleased on `main` |
-| [decision-control](ai-workflows/decision-control/README.md) | Frozen routing policy, human approval and local ticket action | `decisioncontrol` | Exported record; `decision-control replay --record …` | 0.1.0 (GitHub release; PyPI pending); registry, OPA/Cedar adapters, LangGraph example and signing unreleased on `main` |
-| [Experiment gate](ai-workflows/experiment-gate/README.md) | SHIP / HOLD / ROLLBACK / INVALID from exported A/B aggregates | `expgate` | `decision.json`; `experiment-gate-verify …` | 0.1.0 (GitHub release; PyPI pending); schema 3, GrowthBook importer and signing unreleased on `main` |
+| [Jev decision](ai-workflows/jev-decision/README.md) | Typed yes/no, choice and score answers; labeled quality gates | `jevdecision` | Typed answer, `evaluation.json`, provenance; `jev-decision-verify answer.json`, `jev-decision-eval --responses …` with retained questions/cases/requirements | 0.1.0 on GitHub and PyPI; schemas, verifier and signing arrive in 0.2.0 (unreleased on `main`) |
+| [decision-control](ai-workflows/decision-control/README.md) | Frozen routing policy, human approval and local ticket action | `decisioncontrol` | Exported record; `decision-control replay --record …` | 0.1.0 on GitHub and PyPI; registry, OPA/Cedar adapters, LangGraph example and signing arrive in 0.2.0 (unreleased on `main`) |
+| [Experiment gate](ai-workflows/experiment-gate/README.md) | SHIP / HOLD / ROLLBACK / INVALID from exported A/B aggregates | `expgate` | `decision.json`; `experiment-gate-verify …` | 0.1.0 on GitHub and PyPI; schema 3, GrowthBook importer and signing arrive in 0.2.0 (unreleased on `main`) |
 | [RELIA](ai-workflows/ai-decision-reliability/README.md) | Synthetic model release and guarded update | Not published | `results.json`, `MANIFEST.json`; `python -m relia.compare … --protocol …` in its environment | Unreleased; human-gated |
 
 The three small packages require Python 3.11+ and use only the standard library
@@ -49,8 +49,14 @@ A signature shows the holder of a key signed the bytes, not who that person is.
 
 ## Quickstart from a clone
 
-Use Python 3.11+ in a virtual environment. These commands work before PyPI
-publication by installing each independent project from Git:
+Use Python 3.11+ in a virtual environment. For the published 0.1.0 packages:
+
+```sh
+pip install expgate jevdecision decisioncontrol
+```
+
+Features documented on `main` beyond 0.1.0 arrive with 0.2.0, which is not
+published yet. Until then, install each independent project from source:
 
 ```sh
 pip install "git+https://github.com/BichengWang/ai-decision-system#subdirectory=ai-workflows/experiment-gate"
@@ -82,8 +88,8 @@ decision-control replay --record /tmp/control-new/record-review.json
 cat /tmp/control-new/summary.json
 ```
 
-After 0.2.0 is published, `pip install expgate jevdecision decisioncontrol` will
-be available; publication is not claimed here. Live Jev calls require
+The 0.1.0 packages are on PyPI with trusted-publishing attestations; 0.2.0 remains
+unreleased. Live Jev calls require
 `TYPESAFE_API_KEY` (Jev) or `OPENAI_API_KEY` (OpenAI). The examples above make no
 provider calls and use hand-written/synthetic fixtures. They are software checks,
 not live-model, calibration, adoption or production evidence. Hashes detect

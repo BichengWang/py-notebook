@@ -9,13 +9,15 @@ implementation, integration, benchmark changes, or provider-quality claims.
 
 ## Install and run
 
-Install the PyPI distribution (the first PyPI release, 0.2.0, is prepared but not yet published):
+Install the published 0.1.0 PyPI distribution:
 
 ```bash
 pip install decisioncontrol
 ```
 
-For a source installation, run from this directory:
+Features documented here beyond 0.1.0 (schemas, signing, the action registry and
+bridges) ship in 0.2.0, which is not yet published. Until then, use a source
+installation from `main`, running from this directory:
 
 ```bash
 uv venv --python 3.11 .venv
