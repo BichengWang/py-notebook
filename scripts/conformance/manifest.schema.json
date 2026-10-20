@@ -216,13 +216,15 @@
                       "const": true
                     }
                   }
-                }
+                },
+                "minItems": 1
               },
               "digests": {
                 "minItems": 1
               }
             },
             "required": [
+              "documents",
               "digests"
             ]
           }

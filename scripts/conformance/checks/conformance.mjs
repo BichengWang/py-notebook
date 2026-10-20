@@ -99,10 +99,12 @@ async function discoverManifests(root) {
 }
 
 // One Ajv instance per project holding every schema file in the project's package schema
-// directories, so a $ref by $id resolves across files.
+// directories, so a $ref by $id resolves across files. Every discovered schema is registered
+// and compiled up front, so a malformed, id-less or invalid schema is reported even when no
+// vector references it. `problems` lists those failures as { file, error }.
 async function loadProjectSchemas(projectDir) {
   const ajv = newAjv();
-  const loaded = new Map(); // absolute file -> { id } | { error }
+  const loaded = new Map(); // absolute file -> { id, validate? } | { error }
   const files = [];
   for (const entry of await fs.readdir(projectDir, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
@@ -110,25 +112,39 @@ async function loadProjectSchemas(projectDir) {
     const names = await fs.readdir(schemaDir).catch(() => []);
     for (const name of names.filter((item) => item.endsWith(".json")).sort()) files.push(path.join(schemaDir, name));
   }
-  const load = async (file) => {
+  const register = async (file) => {
     if (loaded.has(file)) return;
     try {
       const schema = JSON.parse(decodeUtf8(await fs.readFile(file)));
-      if (typeof schema.$id !== "string") throw new Error("schema has no string $id");
+      if (typeof schema?.$id !== "string") throw new Error("schema has no string $id");
       ajv.addSchema(schema);
       loaded.set(file, { id: schema.$id });
     } catch (error) {
       loaded.set(file, { error: describeError(error) });
     }
   };
-  for (const file of files) await load(file);
-  return { load, validatorFor: (file) => {
+  const compile = (file) => {
     const entry = loaded.get(file);
-    if (entry?.error) throw new Error(`schema ${path.basename(file)} cannot be loaded: ${entry.error}`);
-    const validate = ajv.getSchema(entry.id);
-    if (!validate) throw new Error(`schema ${path.basename(file)} is not registered`);
-    return validate;
-  } };
+    if (entry.error || entry.validate) return;
+    try {
+      entry.validate = ajv.getSchema(entry.id);
+      if (!entry.validate) throw new Error("schema is not registered");
+    } catch (error) {
+      loaded.set(file, { error: describeError(error) });
+    }
+  };
+  for (const file of files) await register(file);
+  for (const file of files) compile(file);
+  return {
+    problems: () => files.filter((file) => loaded.get(file).error).map((file) => ({ file, error: loaded.get(file).error })),
+    async validatorFor(file) {
+      await register(file);
+      compile(file);
+      const entry = loaded.get(file);
+      if (entry.error) throw new Error(`schema ${path.basename(file)} cannot be used: ${entry.error}`);
+      return entry.validate;
+    },
+  };
 }
 
 /** Check one manifest. Returns the recorder so callers can inspect counts and failures. */
@@ -153,6 +169,9 @@ export async function checkManifest(manifestFile, { root, recorder, validateMani
   recorder.ok("manifest", `format 1, package ${manifest.package}, ${manifest.vectors.length} vectors`);
 
   const schemas = await loadProjectSchemas(projectDir);
+  for (const { file, error } of schemas.problems()) {
+    recorder.fail("schema", `${path.relative(projectDir, file).split(path.sep).join("/")} cannot be loaded: ${error}`);
+  }
   const referenced = new Set();
   const documentCache = new Map();
   const readBytes = async (file) => {
@@ -189,8 +208,7 @@ export async function checkManifest(manifestFile, { root, recorder, validateMani
       try {
         const file = inside(document.path, "document path");
         const schemaFile = contained(projectDir, document.schema, "schema");
-        await schemas.load(schemaFile);
-        const validate = schemas.validatorFor(schemaFile);
+        const validate = await schemas.validatorFor(schemaFile);
         let data;
         let parseProblem = null;
         try {
@@ -209,6 +227,15 @@ export async function checkManifest(manifestFile, { root, recorder, validateMani
         }
       } catch (error) {
         recorder.fail("schema", `${document.path} against ${document.schema}: ${describeError(error)}`);
+      }
+    }
+
+    if (vector.expect === "valid") {
+      const documented = new Set((vector.documents ?? []).map((document) => document.path));
+      for (const digest of vector.digests ?? []) {
+        if (!documented.has(digest.document)) {
+          recorder.fail("digest", `${digest.document}#${digest.value}: document has no schema-validated entry in documents`);
+        }
       }
     }
 

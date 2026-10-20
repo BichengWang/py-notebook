@@ -42,8 +42,11 @@ Beyond the JSON Schema, the checker enforces:
   `invalid/`) and `verify.exit_code` is 0, 1 or 2 accordingly.
 - Every file under `valid/`, `tampered/` and `invalid/` is referenced by a vector,
   digest `canonical_file` or `covers_file`, so no vector goes unchecked.
-- Every schema file under `ai-workflows/<project>/*/schema/` has a string `$id`
-  and loads into one Ajv instance, so `$ref` between files resolves.
+- A `valid` vector declares a non-empty `documents` list, and every digest's
+  `document` has a `documents` entry, so the record it digests is schema-validated.
+- Every schema file under `ai-workflows/<project>/*/schema/`, referenced or not,
+  has a string `$id`, loads into one Ajv instance (so `$ref` between files
+  resolves) and compiles in strict mode.
 - Digests of `tampered` and `invalid` vectors are not recomputed; they are
   expected to disagree with their content.
 
@@ -56,7 +59,7 @@ BigInt instead of being rounded.
 | `canonicalization` | Check |
 | --- | --- |
 | `rfc8785` | Re-canonicalize the covered value (after removing `exclude` members; each must exist) per RFC 8785 and compare byte for byte with `canonical_file`; SHA-256 of those bytes must equal the recorded digest. Integers outside the I-JSON range, non-finite numbers and lone surrogates fail. |
-| `python-json-v1` | SHA-256 of `canonical_file` must equal the recorded digest; `canonical_file` must parse to a value deep-equal to the covered value (after `exclude`); and re-serializing it with sorted keys (by code point), compact separators, unescaped non-ASCII and its own number literals must reproduce it byte for byte. Float formatting is not re-derived. |
+| `python-json-v1` | SHA-256 of `canonical_file` must equal the recorded digest; `canonical_file` must parse to a value deep-equal to the covered value (after `exclude`); and re-serializing it Python's way must reproduce it byte for byte: keys sorted by code point, compact separators, unescaped non-ASCII, integers as canonical decimal (no leading zeros, no `-0`), floats as Python's `repr` of the parsed double (shortest round-trip digits, fixed notation for exponents -4 to 15, otherwise `1e-07` / `1.5e+16`), so `0.950` or `1e5` fail. The float spelling is cross-checked against Python on 6000 doubles in the self-tests. |
 | `bytes` | SHA-256 of the exact bytes of `covers_file` must equal the recorded digest. |
 
 Schema validation reads documents with `JSON.parse`, like any JSON Schema

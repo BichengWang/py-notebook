@@ -198,6 +198,17 @@ describe("python-json-v1 digests", () => {
     assert.match(failureText(await check()), /not in python-json-v1 form/);
   });
 
+  test("a number written with a trailing zero fails even when the digest is resealed", async () => {
+    // 1.50 is the same value as 1.5 but not Python's spelling, so Python would write different bytes.
+    for (const [from, to] of [["1.5", "1.50"], ["1.5", "15e-1"], ["1.5", "1.5e0"]]) {
+      const spelled = PY_COVERED.replace(from, to);
+      write("conformance/valid/legacy.canonical", spelled);
+      write("conformance/valid/legacy.json",
+        `{"checksum":"${sha(spelled)}","schema_version":1,"payload":{"b":${to},"a":"\u00e9","big":12345678901234567890}}`);
+      assert.match(failureText(await check()), /not in python-json-v1 form/, to);
+    }
+  });
+
   test("a digest that does not match the canonical file fails", async () => {
     write("conformance/valid/legacy.json", read("conformance/valid/legacy.json").replace('"b":1.5', '"b":1.5,"added":1'));
     assert.match(failureText(await check()), /parses to a different value/);
@@ -232,6 +243,21 @@ describe("schema validation", () => {
     assert.match(failureText(await check()), /declared schema_valid=true but is not parseable JSON/);
   });
 
+  test("an unreferenced schema that is malformed, id-less or invalid fails", async () => {
+    for (const [text, expected] of [
+      ["{", /unused\.v1\.json cannot be loaded: .*JSON/],
+      ['{"type":"object"}', /unused\.v1\.json cannot be loaded: schema has no string \$id/],
+      [JSON.stringify(schema("unused.v1.json", { typo_keyword: 1 })), /unused\.v1\.json cannot be loaded: .*unknown keyword/],
+      [JSON.stringify(schema("unused.v1.json", { type: "nonsense" })), /unused\.v1\.json cannot be loaded/],
+      [JSON.stringify(schema("record.v3.json", {})), /unused\.v1\.json cannot be loaded: .*already exists/],
+    ]) {
+      write("demo/schema/unused.v1.json", text);
+      assert.match(failureText(await check()), expected, text);
+    }
+    write("demo/schema/unused.v1.json", JSON.stringify(schema("unused.v1.json", {})));
+    assert.deepEqual((await check()).failures, []);
+  });
+
   test("a missing, id-less or invalid schema fails", async () => {
     rmSync(file("demo/schema/record.v3.json"));
     assert.match(failureText(await check()), /ENOENT/);
@@ -251,6 +277,21 @@ describe("manifest rules", () => {
   test("a valid vector without digests is rejected", async () => {
     editManifest((value) => { delete value.vectors[0].digests; });
     assert.match(failureText(await check()), /does not match manifest\.schema\.json/);
+  });
+
+  test("a valid vector must declare documents", async () => {
+    editManifest((value) => { delete value.vectors[0].documents; });
+    assert.match(failureText(await check()), /does not match manifest\.schema\.json/);
+    editManifest((value) => { value.vectors[0].documents = []; });
+    assert.match(failureText(await check()), /does not match manifest\.schema\.json/);
+  });
+
+  test("every digest document needs a schema-validated documents entry", async () => {
+    write("conformance/valid/bundle/extra.json", '{"files":{}}');
+    editManifest((value) => {
+      value.vectors[2].documents = [{ path: "extra.json", schema: "demo/schema/provenance.v1.json", schema_valid: true }];
+    });
+    assert.match(failureText(await check()), /provenance\.json#\/files\/responses\.jsonl\/sha256: document has no schema-validated entry in documents/);
   });
 
   test("paths cannot leave the vector tree", async () => {
