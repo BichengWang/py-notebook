@@ -55,6 +55,10 @@ evaluation record schema numbers are unchanged.
   directories, with canonical bytes and `bytes` digests), `conformance/manifest.json` and the deterministic
   `conformance/generate.py`. CI validates them with the built wheel and a separate Node job validates every
   vector and recomputes every digest.
+- `conformance/generate.py --check` compares the committed vectors with a fresh generation without writing
+  (exit 1 and the differing paths on stderr; evaluation `evaluation.json` floats compare with the
+  verifier's 1e-9 tolerance, so a tree generated on another platform passes), `--out DIR` writes or checks
+  another directory, and unknown arguments exit 2. Run without arguments it still rewrites the tree.
 
 ### Changed
 - `jev-decision` prints schema 2 answer records by default (see Compatibility and upgrading).

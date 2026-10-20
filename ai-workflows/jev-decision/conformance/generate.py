@@ -1,20 +1,25 @@
 """Generate the Jev conformance vectors and manifest.json (standard library only, deterministic).
 
     python3 conformance/generate.py            # rewrite conformance/{valid,tampered,invalid} and manifest.json
+    python3 conformance/generate.py --check    # compare with the committed tree, write nothing; exit 1 if it differs
+    python3 conformance/generate.py --out DIR  # write the tree under DIR instead (with --check: compare DIR)
 
 Every vector is derived from fixed inputs: the example questions, cases and responses in
 `examples/`, hand-written provider responses below, and named edits recorded in each vector's
-`note`. Nothing here is output from a live provider. `tests/test_conformance.py` asserts that the
-committed tree equals a fresh generation. Regenerate after changing the record formats or the
+`note`. Nothing here is output from a live provider. `--check` and `tests/test_conformance.py` assert
+that the committed tree equals a fresh generation under `tree_differences` (byte-exact except for the
+platform difference of metric floats in evaluation directories). Regenerate after changing the record formats or the
 package version (records carry `produced_by.version`).
 """
 
 from __future__ import annotations
 
+import argparse
 import copy
 import hashlib
 import io
 import json
+import re
 import shutil
 import sys
 import tempfile
@@ -27,9 +32,10 @@ COMPONENT = ROOT.parent
 sys.path.insert(0, str(COMPONENT))
 
 from jevdecision import APIError, JevBackend, OpenAIDecisionsBackend, questions_from_spec  # noqa: E402
-from jevdecision.evaluation import main as evaluate_main  # noqa: E402
+from jevdecision.evaluation import main as evaluate_main, render_markdown  # noqa: E402
 from jevdecision.jcs import canonicalize  # noqa: E402
 from jevdecision.records import DIGEST_FIELD, answer_record, dumps_record, record_digest  # noqa: E402
+from jevdecision.verify import _close  # noqa: E402
 
 EXAMPLES = COMPONENT / "examples"
 QUESTIONS_FILE = EXAMPLES / "support-ticket.json"
@@ -405,14 +411,185 @@ def generate():
     return tree.files
 
 
+class Mismatch(AssertionError):
+    """A committed vector is not a fresh generation under the comparison rules."""
+
+
+def require(condition, message):
+    if not condition:
+        raise Mismatch(message)
+
+
+DIGEST_LINE = re.compile(rb"(- evaluation\.json SHA-256: `)[0-9a-f]{64}(`)")
+# Vectors whose provenance.json deliberately lists a hash that is not that of the committed file.
+STALE_BY_DESIGN = {"evaluation-markdown-edited": ("EVALUATION.md", lambda data: data[:-1])}
+# Every tampered and invalid evaluation vector is derived from this valid one by a named edit; only the
+# edits that change EVALUATION.md appear here, all others leave it byte-identical to the source.
+SOURCE_VECTOR = "evaluation-replay-gated"
+MARKDOWN_EDITS = {"evaluation-markdown-edited": lambda data: data + b"\n"}
+EVALUATION_RULE_FILES = ("evaluation.json", "EVALUATION.md", "provenance.json")
+KINDS = ("valid", "tampered", "invalid")
+EVALUATION_DIRECTORIES = 12
+
+
+def check_derived_hashes(name, directory, files):
+    """provenance.json's hashes of evaluation.json and EVALUATION.md must be those files' SHA-256, except
+    where the vector deliberately leaves a stale one. Returns provenance.json with those two values masked."""
+    provenance = json.loads(files["provenance.json"])
+    outputs = provenance.get("outputs", {})
+    for filename in ("evaluation.json", "EVALUATION.md"):
+        if filename not in outputs:
+            continue
+        recorded, outputs[filename]["sha256"] = outputs[filename]["sha256"], "X"
+        data = files.get(filename)
+        if data is None:
+            continue
+        if directory in STALE_BY_DESIGN and STALE_BY_DESIGN[directory][0] == filename:
+            data = STALE_BY_DESIGN[directory][1](data)
+        require(recorded == hashlib.sha256(data).hexdigest(), f"{name}: provenance hash of {filename}")
+    return provenance
+
+
+def compare_evaluation_directory(kind, directory, committed, fresh, source=None, fresh_source=None):
+    """Compare a committed evaluation vector with a fresh generation, allowing only the platform
+    difference of metric floats and what follows from it. Raises Mismatch on the first difference and
+    returns the filenames covered by a rule instead of byte equality.
+
+    - evaluation.json: compared with the verifier's tolerance.
+    - EVALUATION.md, valid vectors: equal to the fresh Markdown apart from its digest line, and the
+      committed one exactly the rendering of the committed report and cases with the committed report's
+      actual digest. Tampered and invalid vectors: the digest line is not normalized; in BOTH trees the
+      Markdown equals that tree's own source vector's Markdown plus the vector's named edit, byte for byte.
+    - provenance.json: equal apart from the two hashes derived from the files above; in BOTH trees those
+      two hashes are the SHA-256 of that tree's files (checked independently), except for the deliberate
+      stale hash.
+    - every other file is byte-equal.
+    """
+    name = f"{kind}/{directory}"
+    for filename in committed:
+        if filename not in EVALUATION_RULE_FILES:
+            require(committed[filename] == fresh[filename], f"{name}/{filename}")
+    if "evaluation.json" in committed:
+        require(_close(json.loads(fresh["evaluation.json"]), json.loads(committed["evaluation.json"]),
+                       frozenset({"limit"})), f"{name}/evaluation.json")
+    if "EVALUATION.md" in committed and kind == "valid":
+        require(DIGEST_LINE.sub(rb"\1X\2", committed["EVALUATION.md"]) == DIGEST_LINE.sub(
+            rb"\1X\2", fresh["EVALUATION.md"]), f"{name}/EVALUATION.md")
+    elif "EVALUATION.md" in committed:
+        require(source is not None and fresh_source is not None, f"{name}: needs the source vector of each tree")
+        edit = MARKDOWN_EDITS.get(directory, lambda data: data)
+        require(committed["EVALUATION.md"] == edit(source["EVALUATION.md"]),
+                f"{name}/EVALUATION.md (committed) differs from the source vector plus its named edit")
+        require(fresh["EVALUATION.md"] == edit(fresh_source["EVALUATION.md"]),
+                f"{name}/EVALUATION.md (fresh) differs from the source vector plus its named edit")
+    require(check_derived_hashes(name, directory, committed) == check_derived_hashes(name, directory, fresh),
+            f"{name}/provenance.json")
+    if kind == "valid":
+        digest = hashlib.sha256(committed["evaluation.json"]).hexdigest()
+        # evaluation.json and cases.jsonl are written with sorted keys; the Markdown lists questions in
+        # the order of the question file, so restore that order from the retained questions.json.
+        order = list(json.loads(committed["questions.json"]))
+        report = json.loads(committed["evaluation.json"])
+        report["questions"] = {key: report["questions"][key] for key in order if key in report["questions"]}
+        cases = []
+        for line in committed["cases.jsonl"].decode("utf-8").splitlines():
+            row = json.loads(line)
+            if "questions" in row:
+                row["questions"] = {key: row["questions"][key] for key in order if key in row["questions"]}
+            cases.append(row)
+        rendered = render_markdown(report, digest, cases)
+        require(committed["EVALUATION.md"] == rendered.encode("utf-8"), f"{name}/EVALUATION.md is not the rendering")
+    return {filename for filename in committed if filename in EVALUATION_RULE_FILES}
+
+
+def read_tree(target):
+    """The files `write(target)` produces: the three vector directories and manifest.json."""
+    found = {}
+    for kind in KINDS:
+        for path in sorted((target / kind).rglob("*")):
+            if path.is_file():
+                found[path.relative_to(target).as_posix()] = path.read_bytes()
+    if (target / "manifest.json").is_file():
+        found["manifest.json"] = (target / "manifest.json").read_bytes()
+    return found
+
+
+def tree_differences(committed, fresh):
+    """Compare a committed tree with a fresh generation. Returns (differing paths or reasons, covered paths).
+
+    Everything is byte-exact except the evaluation directories, which follow `compare_evaluation_directory`:
+    the platform difference of metric floats is allowed, so a tree generated on macOS passes on Linux.
+    """
+    problems = [f"{path} (missing from the {'fresh' if path in committed else 'committed'} tree)"
+                for path in sorted(committed.keys() ^ fresh.keys())]
+    directories = {}
+    for name in sorted(committed.keys() | fresh.keys()):
+        parts = Path(name).parts
+        if len(parts) == 3 and parts[1].startswith("evaluation-"):
+            directories.setdefault(parts[:2], []).append(parts[2])
+        elif name in committed and name in fresh and committed[name] != fresh[name]:
+            problems.append(name)
+    if len(directories) != EVALUATION_DIRECTORIES:
+        problems.append(f"expected {EVALUATION_DIRECTORIES} evaluation vector directories, found {len(directories)}")
+    # A directory with a file missing on either side is already reported above; its files cannot be paired.
+    pairable = {key for key, files in directories.items()
+                if all(f"{key[0]}/{key[1]}/{f}" in committed and f"{key[0]}/{key[1]}/{f}" in fresh for f in files)}
+    source_key = ("valid", SOURCE_VECTOR)
+    covered = set()
+    if source_key not in pairable:
+        return problems + [f"{source_key[0]}/{source_key[1]} (the source vector of the evaluation edits)"], covered
+
+    def files_of(tree, key):
+        return {f: tree[f"{key[0]}/{key[1]}/{f}"] for f in directories[key]}
+
+    for key in sorted(pairable):
+        try:
+            for filename in compare_evaluation_directory(
+                    key[0], key[1], files_of(committed, key), files_of(fresh, key),
+                    files_of(committed, source_key), files_of(fresh, source_key)):
+                covered.add(f"{key[0]}/{key[1]}/{filename}")
+        except Mismatch as error:
+            problems.append(str(error))
+        except (ValueError, KeyError, TypeError, AttributeError) as error:  # a mangled committed file
+            problems.append(f"{key[0]}/{key[1]} (unreadable: {type(error).__name__}: {error})")
+    return problems, covered
+
+
+def compare_trees(committed, fresh):
+    """Raise Mismatch unless the committed tree equals the fresh one under `tree_differences`; return the
+    paths covered by a rule instead of byte equality."""
+    problems, covered = tree_differences(committed, fresh)
+    require(not problems, "; ".join(problems))
+    return covered
+
+
 def write(target):
-    for kind in ("valid", "tampered", "invalid"):
+    for kind in KINDS:
         shutil.rmtree(target / kind, ignore_errors=True)
-    for relative, data in generate().items():
+    files = generate()
+    for relative, data in files.items():
         path = target / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
+    return len(files)
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__.strip().splitlines()[0])
+    parser.add_argument("--check", action="store_true",
+                        help="compare the tree with a fresh generation without writing; exit 1 and list the "
+                             "differing paths on a difference")
+    parser.add_argument("--out", type=Path, default=ROOT, metavar="DIR",
+                        help="the tree to write or, with --check, to compare (default: this directory)")
+    args = parser.parse_args(argv)
+    if args.check:
+        problems, _ = tree_differences(read_tree(args.out), generate())
+        for problem in problems:
+            print(f"differs: {problem}", file=sys.stderr)
+        return 1 if problems else 0
+    print(f"wrote {write(args.out)} files under {args.out}")
+    return 0
 
 
 if __name__ == "__main__":
-    write(ROOT)
+    raise SystemExit(main())
