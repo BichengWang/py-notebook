@@ -6,6 +6,7 @@
     python -m expgate.run --all-scenarios --out review-run
     python -m expgate.run --all-scenarios --out review-run --sign-key signing.key
     python -m expgate keygen signing.key
+    python -m expgate.run --from growthbook results.json --mapping mapping.json --out review-run
 
 Writes ``decision.json`` (deterministic, sorted keys) and ``DECISION.md`` per
 experiment, in ``--out`` itself for one experiment and in ``--out/<experiment>/`` for
@@ -27,6 +28,7 @@ from pathlib import Path
 from . import __version__, attestation, signing
 from .decision import evaluate
 from .generator import SCENARIOS, generate
+from .importers import growthbook
 
 
 def _fmt(x: float) -> str:
@@ -44,6 +46,10 @@ def render_markdown(report: dict, digest: str) -> str:
     L.append(f"- assignment: {srm['control_units']} control / {srm['treatment_units']} treatment "
              f"(expected treatment share {srm['expected_treatment_share']}); SRM p={srm['p_value']:.3g} "
              f"-> {'PASS' if srm['pass'] else 'FAIL'}\n")
+    source = report["input"].get("source")
+    if source:
+        L.insert(-1, f"- imported from a {source['format']} export, SHA-256 `{source['export_sha256']}`; "
+                     "the decision uses only the exported counts, means and standard deviations")
     L.append("| Metric | Role | Control | Treatment | Improvement [bounds] | Margin | MDE | Status |")
     L.append("|---|---|---:|---:|---|---:|---:|---|")
     for m in report["metrics"]:
@@ -92,6 +98,10 @@ def main(argv=None) -> int:
     src.add_argument("--scenario", choices=sorted(SCENARIOS))
     src.add_argument("--all-scenarios", action="store_true")
     src.add_argument("--input", type=Path, nargs="+", help="one or more experiment summary JSON files")
+    src.add_argument("--from", dest="from_export", nargs=2, metavar=("FORMAT", "FILE"),
+                     help="convert an exported results file (FORMAT: growthbook) instead of reading a summary; "
+                          "requires --mapping")
+    ap.add_argument("--mapping", type=Path, help="metric mapping JSON for --from (types, directions, margins)")
     ap.add_argument("--out", type=Path, required=True, help="new or empty output directory")
     ap.add_argument("--sign-key", type=Path, help="HMAC key file; writes decision.json.dsse.json next to each record")
     ap.add_argument("--require-ship", action="store_true", help="exit 1 unless every decision is SHIP")
@@ -99,6 +109,12 @@ def main(argv=None) -> int:
 
     if a.out.exists() and (not a.out.is_dir() or any(a.out.iterdir())):
         ap.error("--out must be a new path or an existing empty directory")
+    if a.mapping and not a.from_export:
+        ap.error("--mapping is only used with --from")
+    if a.from_export and not a.mapping:
+        ap.error("--from needs --mapping: the export does not carry metric types, directions or guardrail margins")
+    if a.from_export and a.from_export[0] != growthbook.FORMAT:
+        ap.error(f"unsupported --from format {a.from_export[0]!r}; supported: {growthbook.FORMAT}")
 
     try:
         key = signing.load_key(a.sign_key) if a.sign_key else None  # read first: a bad key writes nothing
@@ -114,6 +130,18 @@ def main(argv=None) -> int:
             except (OSError, ValueError) as exc:
                 print(f"error: cannot read experiment summary {path}: {exc}", file=sys.stderr)
                 return 2
+    elif a.from_export:
+        export_path = Path(a.from_export[1])
+        try:
+            export, mapping_bytes = export_path.read_bytes(), a.mapping.read_bytes()
+        except OSError as exc:
+            print(f"error: cannot read {exc.filename}: {exc.strerror}", file=sys.stderr)
+            return 2
+        try:
+            summaries = [(str(export_path), growthbook.convert(export, growthbook.load_mapping(mapping_bytes)))]
+        except growthbook.GrowthBookImportError as exc:
+            print(f"error: cannot import GrowthBook export {export_path}: {exc}", file=sys.stderr)
+            return 2
     elif a.all_scenarios:
         summaries = [(name, generate(name)) for name in sorted(SCENARIOS)]
     else:

@@ -1,0 +1,13 @@
+{
+  "name": "GrowthBook API",
+  "production": false,
+  "api_host": "http://localhost:3100",
+  "app_origin": "http://localhost:3000",
+  "config_source": "file",
+  "email_enabled": false,
+  "build": {
+    "sha": "7cbc85d1d113595757f6808b5c440657e4325b47",
+    "date": "2026-09-22T02:47:59Z",
+    "lastVersion": "5.1.0"
+  }
+}

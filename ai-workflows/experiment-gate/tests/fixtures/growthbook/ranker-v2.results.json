@@ -1,0 +1,419 @@
+{
+  "experiment": {
+    "id": "exp_59nx3dmvfweg4v",
+    "trackingKey": "ranker-v2",
+    "name": "Offer ranker v2",
+    "type": "standard",
+    "project": "",
+    "hypothesis": "Synthetic: the candidate ranker raises purchase rate without hurting refunds, latency or order value.",
+    "description": "",
+    "tags": [],
+    "owner": "",
+    "dateCreated": "2026-10-19T23:41:16.974Z",
+    "dateUpdated": "2026-10-19T23:41:18.139Z",
+    "archived": false,
+    "status": "running",
+    "autoRefresh": true,
+    "hashAttribute": "id",
+    "fallbackAttribute": "",
+    "hashVersion": 2,
+    "disableStickyBucketing": false,
+    "variations": [
+      {
+        "variationId": "var_59nx3dmvfweg4t",
+        "key": "0",
+        "name": "Control",
+        "description": "",
+        "screenshots": []
+      },
+      {
+        "variationId": "var_59nx3dmvfweg4u",
+        "key": "1",
+        "name": "Candidate",
+        "description": "",
+        "screenshots": []
+      }
+    ],
+    "phases": [
+      {
+        "name": "Main",
+        "dateStarted": "2026-09-01T00:00:00.000Z",
+        "dateEnded": "2026-09-20T00:00:00.000Z",
+        "reasonForStopping": "synthetic capture",
+        "seed": "ebbc5c22-c0b6-4ec3-a294-5c74d6c42642",
+        "coverage": 1,
+        "trafficSplit": [
+          {
+            "variationId": "var_59nx3dmvfweg4t",
+            "weight": 0.5
+          },
+          {
+            "variationId": "var_59nx3dmvfweg4u",
+            "weight": 0.5
+          }
+        ],
+        "targetingCondition": "{}",
+        "prerequisites": [],
+        "savedGroupTargeting": []
+      }
+    ],
+    "settings": {
+      "datasourceId": "warehouse",
+      "assignmentQueryId": "user_id",
+      "experimentId": "ranker-v2",
+      "segmentId": "",
+      "queryFilter": "",
+      "inProgressConversions": "include",
+      "attributionModel": "firstExposure",
+      "statsEngine": "bayesian",
+      "goals": [
+        {
+          "metricId": "fact__2CgCUpjf8do7w5KJVP4QhQ",
+          "overrides": {}
+        }
+      ],
+      "secondaryMetrics": [
+        {
+          "metricId": "fact__2CgCUpjhMxfLQ55mSD9T8J",
+          "overrides": {}
+        }
+      ],
+      "guardrails": [
+        {
+          "metricId": "fact__2CgCUpjn58wfxn5BJQkV8C",
+          "overrides": {}
+        },
+        {
+          "metricId": "fact__2CgCUpjoZTKKQWyJ4PnGnx",
+          "overrides": {}
+        },
+        {
+          "metricId": "fact__2CgCUpjirWvQUE5mQvYDb3",
+          "overrides": {}
+        }
+      ],
+      "regressionAdjustmentEnabled": false,
+      "sequentialTestingEnabled": false,
+      "sequentialTestingTuningParameter": 5000,
+      "postStratificationEnabled": null,
+      "decisionFrameworkSettings": {
+        "decisionFrameworkMetricOverrides": []
+      },
+      "metricOverrides": []
+    },
+    "shareLevel": "organization",
+    "linkedFeatures": [],
+    "attributeScopeAllProjects": false,
+    "hasVisualChangesets": false,
+    "hasURLRedirects": false,
+    "customFields": {},
+    "customMetricSlices": [],
+    "precomputedUnitDimensionIds": []
+  },
+  "result": {
+    "id": "snp_2CgCUpjzUWZ9Sg3BsqmqB8",
+    "dateUpdated": "2026-10-19T23:41:17.010Z",
+    "experimentId": "exp_59nx3dmvfweg4v",
+    "phase": "0",
+    "dimension": {
+      "type": "none"
+    },
+    "dateStart": "2026-09-01T00:00:00.000Z",
+    "dateEnd": "2026-09-20T00:00:00.000Z",
+    "settings": {
+      "datasourceId": "warehouse",
+      "assignmentQueryId": "user_id",
+      "experimentId": "ranker-v2",
+      "segmentId": "",
+      "queryFilter": "",
+      "inProgressConversions": "include",
+      "attributionModel": "firstExposure",
+      "statsEngine": "bayesian",
+      "goals": [
+        {
+          "metricId": "fact__2CgCUpjf8do7w5KJVP4QhQ",
+          "overrides": {}
+        }
+      ],
+      "secondaryMetrics": [
+        {
+          "metricId": "fact__2CgCUpjhMxfLQ55mSD9T8J",
+          "overrides": {}
+        }
+      ],
+      "guardrails": [
+        {
+          "metricId": "fact__2CgCUpjn58wfxn5BJQkV8C",
+          "overrides": {}
+        },
+        {
+          "metricId": "fact__2CgCUpjoZTKKQWyJ4PnGnx",
+          "overrides": {}
+        },
+        {
+          "metricId": "fact__2CgCUpjirWvQUE5mQvYDb3",
+          "overrides": {}
+        }
+      ]
+    },
+    "queryIds": [
+      "qry_2CgCUpk3ws5g2fkCwWiiw8",
+      "qry_2CgCUpk5SDqM1QTU8HqWjy",
+      "qry_2CgCUpk8ATyHoDzeFySNHz",
+      "qry_2CgCUpk9QCDg3BrJAEZvvC",
+      "qry_2CgCUpkAPgFC5PZkALvAqN",
+      "qry_2CgCUpkBPEpHWW76oGy5PN"
+    ],
+    "results": [
+      {
+        "dimension": "",
+        "totalUsers": 40000,
+        "checks": {
+          "srm": 1
+        },
+        "metrics": [
+          {
+            "metricId": "fact__2CgCUpjf8do7w5KJVP4QhQ",
+            "metricName": "Purchase rate",
+            "variations": [
+              {
+                "variationId": "var_59nx3dmvfweg4t",
+                "variationName": "Control",
+                "users": 20000,
+                "analyses": [
+                  {
+                    "engine": "bayesian",
+                    "numerator": 2069,
+                    "denominator": 0,
+                    "mean": 0.10345,
+                    "stddev": 0.3045457231681312,
+                    "percentChange": 0,
+                    "effectStandardError": 0,
+                    "ciLow": 0,
+                    "ciHigh": 0,
+                    "pValue": 0,
+                    "risk": 0,
+                    "chanceToBeatControl": 0
+                  }
+                ]
+              },
+              {
+                "variationId": "var_59nx3dmvfweg4u",
+                "variationName": "Candidate",
+                "users": 20000,
+                "analyses": [
+                  {
+                    "engine": "bayesian",
+                    "numerator": 2377,
+                    "denominator": 0,
+                    "mean": 0.11885,
+                    "stddev": 0.32361192422406193,
+                    "percentChange": 0.1488641855969067,
+                    "effectStandardError": 0.03257640077861004,
+                    "ciLow": 0.08501561332488843,
+                    "ciHigh": 0.21271275786892496,
+                    "pValue": 0,
+                    "risk": 1.604260790516e-8,
+                    "chanceToBeatControl": 0.999997557816619
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "metricId": "fact__2CgCUpjhMxfLQ55mSD9T8J",
+            "metricName": "Revenue per user",
+            "variations": [
+              {
+                "variationId": "var_59nx3dmvfweg4t",
+                "variationName": "Control",
+                "users": 20000,
+                "analyses": [
+                  {
+                    "engine": "bayesian",
+                    "numerator": 87003.28,
+                    "denominator": 0,
+                    "mean": 4.350164,
+                    "stddev": 15.104224962694715,
+                    "percentChange": 0,
+                    "effectStandardError": 0,
+                    "ciLow": 0,
+                    "ciHigh": 0,
+                    "pValue": 0,
+                    "risk": 0,
+                    "chanceToBeatControl": 0
+                  }
+                ]
+              },
+              {
+                "variationId": "var_59nx3dmvfweg4u",
+                "variationName": "Candidate",
+                "users": 20000,
+                "analyses": [
+                  {
+                    "engine": "bayesian",
+                    "numerator": 102905.72,
+                    "denominator": 0,
+                    "mean": 5.1452860000000005,
+                    "stddev": 16.446746331765716,
+                    "percentChange": 0.18277977565903264,
+                    "effectStandardError": 0.03947094384364524,
+                    "ciLow": 0.10541814728968499,
+                    "ciHigh": 0.26014140402838026,
+                    "pValue": 0,
+                    "risk": 1.433552942605e-8,
+                    "chanceToBeatControl": 0.9999981782158011
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "metricId": "fact__2CgCUpjirWvQUE5mQvYDb3",
+            "metricName": "Average order value",
+            "variations": [
+              {
+                "variationId": "var_59nx3dmvfweg4t",
+                "variationName": "Control",
+                "users": 20000,
+                "analyses": [
+                  {
+                    "engine": "bayesian",
+                    "numerator": 87003.28,
+                    "denominator": 2920,
+                    "mean": 29.79564383561644,
+                    "stddev": 30.459393019629353,
+                    "percentChange": 0,
+                    "effectStandardError": 0,
+                    "ciLow": 0,
+                    "ciHigh": 0,
+                    "pValue": 0,
+                    "risk": 0,
+                    "chanceToBeatControl": 0
+                  }
+                ]
+              },
+              {
+                "variationId": "var_59nx3dmvfweg4u",
+                "variationName": "Candidate",
+                "users": 20000,
+                "analyses": [
+                  {
+                    "engine": "bayesian",
+                    "numerator": 102905.72,
+                    "denominator": 3340,
+                    "mean": 30.810095808383235,
+                    "stddev": 29.186318071671376,
+                    "percentChange": 0.034046989498315985,
+                    "effectStandardError": 0.010190536258053226,
+                    "ciLow": 0.014073905449382088,
+                    "ciHigh": 0.05402007354724988,
+                    "pValue": 0,
+                    "risk": 0.00000110890012996327,
+                    "chanceToBeatControl": 0.9995826740487774
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "metricId": "fact__2CgCUpjn58wfxn5BJQkV8C",
+            "metricName": "Refund rate",
+            "variations": [
+              {
+                "variationId": "var_59nx3dmvfweg4t",
+                "variationName": "Control",
+                "users": 20000,
+                "analyses": [
+                  {
+                    "engine": "bayesian",
+                    "numerator": 407,
+                    "denominator": 0,
+                    "mean": 0.02035,
+                    "stddev": 0.14119446695958027,
+                    "percentChange": 0,
+                    "effectStandardError": 0,
+                    "ciLow": 0,
+                    "ciHigh": 0,
+                    "pValue": 0,
+                    "risk": 0,
+                    "chanceToBeatControl": 0
+                  }
+                ]
+              },
+              {
+                "variationId": "var_59nx3dmvfweg4u",
+                "variationName": "Candidate",
+                "users": 20000,
+                "analyses": [
+                  {
+                    "engine": "bayesian",
+                    "numerator": 394,
+                    "denominator": 0,
+                    "mean": 0.0197,
+                    "stddev": 0.13896729831150922,
+                    "percentChange": -0.031941031941032004,
+                    "effectStandardError": 0.06773005405288686,
+                    "ciLow": -0.1646894985556414,
+                    "ciHigh": 0.10080743467357736,
+                    "pValue": 0,
+                    "risk": 0.014000062282269425,
+                    "chanceToBeatControl": 0.6813914041379994
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "metricId": "fact__2CgCUpjoZTKKQWyJ4PnGnx",
+            "metricName": "Page load ms",
+            "variations": [
+              {
+                "variationId": "var_59nx3dmvfweg4t",
+                "variationName": "Control",
+                "users": 20000,
+                "analyses": [
+                  {
+                    "engine": "bayesian",
+                    "numerator": 8177757.2,
+                    "denominator": 0,
+                    "mean": 408.88786,
+                    "stddev": 91.0507593854089,
+                    "percentChange": 0,
+                    "effectStandardError": 0,
+                    "ciLow": 0,
+                    "ciHigh": 0,
+                    "pValue": 0,
+                    "risk": 0,
+                    "chanceToBeatControl": 0
+                  }
+                ]
+              },
+              {
+                "variationId": "var_59nx3dmvfweg4u",
+                "variationName": "Candidate",
+                "users": 20000,
+                "analyses": [
+                  {
+                    "engine": "bayesian",
+                    "numerator": 8192336.6,
+                    "denominator": 0,
+                    "mean": 409.61683,
+                    "stddev": 89.76885425976468,
+                    "percentChange": 0.0017828115513138587,
+                    "effectStandardError": 0.0022131704077127776,
+                    "ciLow": -0.002554922739453014,
+                    "ciHigh": 0.0061205458420807305,
+                    "pValue": 0,
+                    "risk": 0.0020462599185097816,
+                    "chanceToBeatControl": 0.21025220834640668
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

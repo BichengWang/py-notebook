@@ -1,0 +1,23 @@
+datasources:
+  warehouse:
+    type: postgres
+    name: Synthetic warehouse
+    params:
+      host: warehouse
+      port: 5432
+      user: warehouse
+      password: warehouse
+      database: events
+    settings:
+      userIdTypes:
+        - userIdType: user_id
+          description: Synthetic user id
+      queries:
+        exposure:
+          - id: user_id
+            name: Synthetic experiment exposures
+            userIdType: user_id
+            query: >
+              SELECT user_id, "timestamp" AS timestamp, experiment_id, variation_id
+              FROM experiment_viewed
+            dimensions: []

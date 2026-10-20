@@ -20,6 +20,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   exit 1; a bad key file, missing `cosign` or flag misuse exits 2 (a bad `--sign-key` before any
   output is written). Behavior without the flags is unchanged. CI signs a record keylessly and
   verifies it with the package, and the wheel smoke check round-trips an HMAC signature.
+- `experiment-gate --from growthbook results.json --mapping mapping.json` (P-025): converts the body of
+  GrowthBook's `GET /api/v1/experiments/{id}/results` (per-variation users, counts, means and standard
+  deviations) into an expgate input, evaluates it under expgate's rules and writes a normal schema-3
+  record. Offline and standard library only (`expgate/importers/growthbook.py`). A mapping file supplies
+  what the export lacks: metric type, direction and guardrail margin, and a `snapshot` block asserting
+  the snapshot's allocation share and that it was not regression-adjusted, because the results endpoint
+  pairs the latest snapshot with the experiment's current settings; the assertions are recorded in
+  `source.asserted` and the import is refused when the export's current weights or adjustment flags
+  contradict them. A malformed or unsupported export or
+  mapping (other dimensions than none, more than two variations or a repeated variation id, regression
+  adjustment or sequential testing, a phase that is not a valid index, a probability outside [0, 1], a metric
+  whose shape contradicts its type, duplicate keys, `NaN`) exits 2 with the field named. Post-stratification
+  is accepted. GrowthBook's p-values, intervals and chance to win are never used
+  for the decision. The README has the field mapping and what is and is not imported.
+- Optional `source` object in a schema-3 `input` (`format`, `export_sha256`, experiment and snapshot ids,
+  `stats_engine`, `asserted`, `reading`), added to `decision.v3.json`. `export_sha256` is the SHA-256 of the export
+  file's exact bytes, so `input_sha256` covers it and `experiment-gate-verify` detects an edit. `reading`
+  holds the importer's reading of GrowthBook's own statistics (ship, hold or rollback) and, when it
+  differs from expgate's decision, the `policy difference:` lines that `reasons` then repeats; replay
+  reproduces them. Decisions never depend on `source`. Schema 2 rejects it. Schema 3 is unreleased, so
+  this is part of schema 3, not a new schema version.
+- Fixtures captured from a throwaway self-hosted GrowthBook 5.1.0 with a synthetic warehouse
+  (`tests/fixtures/growthbook/`: three exports, a mapping file and the dev-only capture script and
+  compose stack), and `tests/test_growthbook.py`. One export shows GrowthBook's reading and expgate's
+  decision agreeing, one a SHIP reading that expgate holds because a guardrail is not shown
+  non-inferior, one a HOLD reading that expgate ships by its one-sided test. They are
+  software-behavior evidence only: the data is synthetic.
 - Golden vectors under `tests/golden/` that compare every estimator in `expgate.stats` with
   scipy, statsmodels, gbstats and confseq (dev-only, pinned in `tests/golden/requirements.txt`).
   The default tests read the committed JSON and need no third-party library; a CI job

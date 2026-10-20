@@ -73,6 +73,9 @@ staging directory next to `--out` and atomically published with `os.replace`; a
 write failure leaves the target untouched and the run can be retried. `--require-ship` exits 1 unless every decision is `SHIP`, so the
 command can gate a promotion job.
 
+`--from growthbook results.json --mapping mapping.json` converts a GrowthBook results
+export instead of reading a summary (see [Importing a GrowthBook export](#importing-a-growthbook-export)).
+
 | Exit | Evaluation CLI | Verification CLI |
 |---|---|---|
 | 0 | Records written; required SHIP condition met, if requested | All records verified |
@@ -98,7 +101,8 @@ integers within range, means, standard deviations and guardrail margins must be 
 `alpha`, `srm_alpha`, `power` and `expected_treatment_share` must lie in (0, 1), and
 `policy.sequential.planned_units` must be an integer of at least 2. `experiment`,
 when present, must be a non-empty string. The allowed top-level keys are
-`experiment`, `description`, `seed` (synthetic metadata), `metrics`, `arms`,
+`experiment`, `description`, `seed` (synthetic metadata), `source` (provenance of an
+[imported](#importing-a-growthbook-export) summary, schema 3 only), `metrics`, `arms`,
 `policy`, and `assignment`. Metric specs allow only `type`, `role`, `direction`,
 and `margin`; arm metrics must all be declared in the specs. Unknown keys at
 the summary top level, in metric specs, in `policy`,
@@ -285,6 +289,165 @@ calibration, adoption, or production evidence:
 experiment-gate --input examples/*.json --out example-records
 experiment-gate-verify example-records/*/decision.json
 ```
+
+## Importing a GrowthBook export
+
+`experiment-gate --from growthbook results.json --mapping mapping.json --out review-run` converts
+the experiment-results export of a [GrowthBook](https://www.growthbook.io/) experiment into an
+expgate input, evaluates it under expgate's frozen rules, and writes a normal schema-3
+record that `experiment-gate-verify` accepts. The importer reads a file you already have; it
+opens no connection and adds no dependency. `--out`, `--require-ship` and the exit codes work as
+for `--input`; a malformed or unsupported export, mapping file or option exits 2 with the
+offending field named. One export per run.
+
+Get the export from your instance with GrowthBook's documented REST endpoint (this call is yours,
+not the package's; the 5.1.0 `openapi.yaml` calls it `getExperimentResults`):
+
+```bash
+curl -sS "$GROWTHBOOK_API/api/v1/experiments/$EXPERIMENT_ID/results" \
+     -H "Authorization: Bearer $GROWTHBOOK_SECRET_KEY" -o results.json
+```
+
+Keep the bytes as they are. The record stores the SHA-256 of the file's exact bytes in
+`input.source.export_sha256` (and `DECISION.md` shows it), and `input_sha256` covers it, so
+`shasum -a 256 results.json` ties the record to the file it came from. A reformatted copy
+of the same export has a different digest. The digest detects change; it does not show that the
+export came from GrowthBook or that the numbers are right.
+
+### Mapping file
+
+The export names metrics by id and says which are goals and guardrails, but not whether a metric
+is a proportion, a mean or a ratio, which direction is better (GrowthBook's `inverse` is not in
+it), or how much a guardrail may degrade (GrowthBook has no non-inferiority margin). The mapping
+file supplies those, keyed by the `metricId` in the export (types and `inverse` are in
+`GET /api/v1/fact-metrics`):
+
+```json
+{
+  "primary": "fact__abc123",
+  "policy": {"alpha": 0.05, "srm_alpha": 0.001, "power": 0.8},
+  "growthbook": {"alpha": 0.05, "srm_alpha": 0.001},
+  "snapshot": {"expected_treatment_share": 0.5, "regression_adjustment": false},
+  "metrics": {
+    "fact__abc123": {"name": "purchase_rate", "type": "proportion", "direction": "increase"},
+    "fact__def456": {"type": "mean", "direction": "decrease", "margin": 4.0}
+  }
+}
+```
+
+`snapshot` is required (below). `metrics` is required and must describe the primary metric and every guardrail of the export, and
+only those (a stray id is an error, so a typo cannot silently drop a margin). `type` is
+`proportion`, `mean` or `ratio`, `direction` is `increase` or `decrease`, a guardrail needs a
+non-negative `margin` in the metric's own units and the primary takes none, `name` (default: the
+export's `metricName`) is the metric's name in the record. `primary` is only needed when the export lists
+several goal metrics; the other goals are then not imported. `policy` is copied into the expgate
+input (`alpha`, `srm_alpha`, `power`; sequential monitoring is not available for imports).
+`growthbook` states the significance levels GrowthBook was run with, used only for the reading
+below; the export does not carry them and the defaults are GrowthBook's 0.05 and 0.001.
+
+[`tests/fixtures/growthbook/mapping.json`](tests/fixtures/growthbook/mapping.json) is a complete
+example.
+
+### Field mapping
+
+| GrowthBook export | expgate input | Notes |
+|---|---|---|
+| `experiment.trackingKey` (else `name`, `id`) | `experiment` | |
+| `experiment.variations[0]`, `[1]` | `arms.control`, `arms.treatment` | The first variation is GrowthBook's baseline; exactly two are supported |
+| `experiment.phases[result.phase].trafficSplit` | checked against `snapshot.expected_treatment_share` | The current weights may only contradict the asserted share, not establish it (below); the sample-ratio check uses the asserted share |
+| `result.results[0].metrics[].variations[].users` | `arms.<arm>.units` | Must be the same for every imported metric |
+| `result.settings.goals[]` | the `primary` metric | One goal, or `primary` in the mapping |
+| `result.settings.guardrails[]` | `guardrail` metrics | Margin from the mapping |
+| `result.settings.secondaryMetrics[]` | not imported | expgate has no secondary role |
+| proportion: `numerator` | `successes` | Must be a whole number at most `users`; the export's `denominator` must be 0, `mean` must equal `numerator / users` and `stddev` that of a proportion, or the metric is probably not a proportion and the import exits 2 |
+| mean: `mean`, `stddev` | `mean`, `sd` | `denominator` must be 0 and `mean` equal `numerator / users` |
+| ratio: `numerator`, `denominator`, `mean`, `stddev` | numerator mean `numerator / users`, denominator mean `denominator / users`, `corr` 0, denominator `sd` 0, numerator `sd` `stddev * denominator mean` | The export has one per-unit delta-method standard deviation instead of the two spreads and their correlation. This encoding reproduces GrowthBook's variance under expgate's delta-method formula (up to floating-point rounding); it is not the real numerator and denominator spread |
+| `result.settings.statsEngine`, `result.id`, `result.dateUpdated`, `experiment.id` | `source.stats_engine`, `snapshot_id`, `snapshot_updated`, `experiment_id` | Provenance only |
+| the file's bytes | `source.export_sha256` | SHA-256, lowercase hex |
+| mapping `snapshot` | `source.asserted` | Operator-asserted allocation share and "no regression adjustment"; not in the export (below) |
+| `checks.srm`, `analyses[].pValue`, `chanceToBeatControl`, `percentChange` | `source.reading` | Read, never used for the decision |
+| `ciLow`, `ciHigh`, `effectStandardError`, `risk`, relative effects | not imported | |
+
+Exports the importer refuses (exit 2): not the `{experiment, result}` body of `getExperimentResults`;
+an experiment that is not a `standard` two-variation test; a result broken down by a dimension;
+`regressionAdjustmentEnabled` or `sequentialTestingEnabled` set, or a metric-level regression adjustment
+override (the exported standard deviation is then not the raw one); allocation weights that contradict the
+mapping's `snapshot.expected_treatment_share`; a `result.phase` that is not a zero-based index string within
+`experiment.phases`; more or fewer than exactly two variation results per metric, or a repeated variation id;
+a `pValue`, `chanceToBeatControl` or `checks.srm` outside [0, 1]; a metric with an analysis error, missing data,
+or a shape that contradicts its mapped type; duplicate keys, `NaN` or invalid UTF-8. Post-stratification
+(`postStratificationEnabled`, on by default in GrowthBook) is accepted: by inspection of GrowthBook's source at
+`7cbc85d1` it is applied in GrowthBook's effect estimate, not to the per-arm users, numerators, means or
+standard deviations that expgate reads, but the export does not let the importer check that.
+
+### What the export cannot establish about the snapshot
+
+`GET /api/v1/experiments/{id}/results` returns the **latest successful snapshot** together with the experiment's
+**current** settings (GrowthBook `7cbc85d1`, `getExperimentResults.ts` and `toSnapshotApiInterface`). The metric
+lists, `trafficSplit` weights and adjustment flags in the export are therefore not necessarily the ones the snapshot
+was computed with, and the snapshot's own adjustment flags and weights are not exported. Two edits after a
+snapshot are silent: switching CUPED off leaves regression-adjusted standard deviations next to a `false` flag
+(a mean or ratio metric then carries a variance that does not belong to its raw mean), and editing weights within
+a phase leaves the old counts next to the new weights (a valid snapshot then looks like a sample-ratio mismatch).
+
+So the importer does not take either from the export. The mapping must **assert** them in `snapshot`:
+`expected_treatment_share` (the share of the allocation the snapshot was taken under) and
+`regression_adjustment: false` (the snapshot was computed without regression adjustment). Both are recorded in
+`input.source.asserted`, are operator statements the importer cannot verify, and the import is refused when the
+export's current settings contradict them (weights that do not match the asserted share, adjustment or sequential
+testing switched on): refresh the analysis in GrowthBook and export again. The decision and the sample-ratio check
+use the asserted share. What is still not covered: an adjustment that was on when the snapshot ran and was
+switched off since is indistinguishable from a raw snapshot (hence the assertion), and the goal and guardrail
+lists are current, not snapshot-time (the mapping's explicit per-metric entries, and the requirement that
+each has results in the export, bound the damage).
+
+Alternatives that were checked and not used: comparing `experiment.dateUpdated` with the snapshot time is
+unusable, since running a snapshot itself updates the experiment (in all three fixtures `experiment.dateUpdated`
+is about a second after `result.dateUpdated` for an untouched experiment); a snapshot document with snapshot-time
+settings is not in the public API (`GET /api/v1/snapshots/{id}` returns only `id`, `experiment` and `status`).
+
+### GrowthBook's reading and policy differences
+
+expgate never uses GrowthBook's p-values, intervals or Bayesian chance to win. It recomputes
+every statistic from the exported counts, means and standard deviations with its own estimators
+(unpooled Wald for proportions, Welch for means, delta method for ratios) and its own rules: a
+**one-sided** test of the primary metric at `alpha`, and **non-inferiority within a margin** for every guardrail
+with `alpha` split across them. GrowthBook's frequentist engine reports **two-sided** p-values and
+intervals and has no margins; its Bayesian engine reports a chance to beat control.
+
+So the record can say where the two part ways, the importer also *reads* GrowthBook's own numbers with
+the same ship/hold/rollback vocabulary and stores the result in `input.source.reading`. This reading is
+the importer's, not a verdict GrowthBook computes: its open-source API exposes no decision.
+A metric is *better* or *worse* when the frequentist `pValue` is below the GrowthBook significance level (0.05 by default,
+signed by `percentChange` and the mapped direction) or the Bayesian `chanceToBeatControl` is at least
+one minus it, or at most it; otherwise *not significant*. `INVALID` when GrowthBook's own `checks.srm` is below its
+level (0.001); `ROLLBACK` when the primary or any guardrail is *worse*; `SHIP` when the primary is *better*;
+otherwise `HOLD`. Whatever correction GrowthBook applied to its p-values is inherited, and the organization's real
+significance levels are not in the export, so set `growthbook` in the mapping if they are not the defaults.
+
+When the reading differs from expgate's decision, `reasons` says so, then adds one
+`policy difference: …` line per metric that explains why, with the numbers (they are stored in the input, so
+replay reproduces them):
+
+```text
+GrowthBook's own statistics read as HOLD; expgate decided SHIP
+policy difference: primary purchase_rate: GrowthBook reads it as not significant (two-sided p 0.09086 >= 0.05); expgate tests the
+primary metric one-sided at alpha 0.05 on the exported aggregates and finds it improved (one-sided p 0.04131); GrowthBook's own statistic is not used
+```
+
+When they agree, `reasons` is unchanged. The reading is metadata: `experiment-gate-verify` replays the
+decision from the counts and the rules, and the reading and the export digest are part of the digested
+input, so editing either (or any count) exits 1 unless the digest is recomputed too, as for any input edit.
+
+### Evidence behind the importer
+
+The three fixtures in [`tests/fixtures/growthbook/`](tests/fixtures/growthbook/README.md) are unmodified
+`getExperimentResults` response bodies from a throwaway self-hosted GrowthBook 5.1.0 whose warehouse held
+**synthetic** events for two variations (one proportion, one mean and one ratio metric, plus guardrails).
+They are software-behavior evidence only: the importer reads the real export shape, and one capture shows
+GrowthBook's reading and expgate's decision agreeing, one disagreeing because of the guardrail margin and one
+because of the one-sided test. They say nothing about real experiments, users, models or effect sizes. The
+README there lists the exact capture steps and `capture/capture.py` repeats them.
 
 ## Ratio metrics
 
@@ -534,3 +697,12 @@ performance or calibration on live-model outcomes.
   denominator mean is estimated well away from zero.
 - Synthetic scenarios show that the rules behave as specified. They say nothing
   about any real product's effects.
+- The GrowthBook importer needs a mapping file whose `snapshot` block asserts, without being able to check,
+  the snapshot's allocation share and that it was not regression-adjusted (the results endpoint exports the
+  experiment's current settings, not the snapshot's). It converts only plain two-variation experiments without
+  regression adjustment, sequential testing or dimensions, and drops secondary
+  metrics and GrowthBook's own intervals. A ratio metric is imported with a linearised numerator
+  spread because the export lacks the real one. GrowthBook's "reading" in the record is the importer's
+  reading of its p-values or chance to beat control at assumed significance levels, not a GrowthBook
+  verdict. Only one GrowthBook version (5.1.0), one warehouse type and synthetic data were
+  used to capture fixtures; no real GrowthBook installation has been tested.

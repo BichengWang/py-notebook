@@ -30,6 +30,10 @@ With ``policy.sequential.planned_units`` set, bounds use a normal-mixture confid
 sequence (see :func:`expgate.stats.sequential_multiplier`). Coverage is exact under
 the known-variance normal model; using observed standard errors is approximate.
 
+An optional ``source`` object records where an imported summary came from (see
+:mod:`expgate.importers.growthbook`). It never changes the decision; when its ``reading`` of the
+platform's own statistics differs from the decision, ``reasons`` repeats the stated differences.
+
 """
 from __future__ import annotations
 
@@ -101,6 +105,10 @@ def _count(value, where: str) -> int:
 _POLICY_KEYS = {"alpha", "srm_alpha", "power", "sequential"}
 _SEQUENTIAL_KEYS = {"planned_units"}
 _ASSIGNMENT_KEYS = {"expected_treatment_share"}
+_SOURCE_KEYS = {"format", "export_sha256", "experiment_id", "snapshot_id", "snapshot_updated", "stats_engine", "asserted",
+                "reading"}
+_READING_KEYS = {"decision", "alpha", "srm_alpha", "basis", "differences"}
+_SOURCE_LABELS = {"growthbook": "GrowthBook"}
 
 
 def _known_keys(value: dict, allowed: set, where: str) -> None:
@@ -110,9 +118,46 @@ def _known_keys(value: dict, allowed: set, where: str) -> None:
         raise ValueError(f"{where} has unknown keys {sorted(unknown)}; expected only {sorted(allowed)}")
 
 
+def _validate_source(source) -> None:
+    """``source`` records where an imported summary came from; the decision never depends on it."""
+    _object(source, "'source'")
+    _known_keys(source, _SOURCE_KEYS, "'source'")
+    if source.get("format") not in _SOURCE_LABELS:
+        raise ValueError(f"source format must be one of {sorted(_SOURCE_LABELS)}")
+    digest = source.get("export_sha256")
+    if not isinstance(digest, str) or len(digest) != 64 or digest.strip("0123456789abcdef"):
+        raise ValueError("source export_sha256 must be 64 lowercase hex digits")
+    for key in _SOURCE_KEYS - {"format", "export_sha256", "reading", "asserted"}:
+        if key in source and (not isinstance(source[key], str) or not source[key]):
+            raise ValueError(f"source {key} must be a non-empty string")
+    if "asserted" in source:
+        asserted = _object(source["asserted"], "source asserted")
+        _known_keys(asserted, {"expected_treatment_share", "regression_adjustment"}, "source asserted")
+        if not 0 < _number(asserted.get("expected_treatment_share"), "source asserted expected_treatment_share") < 1:
+            raise ValueError("source asserted expected_treatment_share must be in (0, 1)")
+        if asserted.get("regression_adjustment") is not False:
+            raise ValueError("source asserted regression_adjustment must be false")
+    if "stats_engine" in source and source["stats_engine"] not in ("bayesian", "frequentist"):
+        raise ValueError("source stats_engine must be 'bayesian' or 'frequentist'")
+    if "reading" in source:
+        reading = _object(source["reading"], "source reading")
+        _known_keys(reading, _READING_KEYS, "source reading")
+        if reading.get("decision") not in DECISIONS:
+            raise ValueError(f"source reading decision must be one of {list(DECISIONS)}")
+        for key in ("alpha", "srm_alpha"):
+            if key in reading and not 0 < _number(reading[key], f"source reading {key}") < 1:
+                raise ValueError(f"source reading {key} must be in (0, 1)")
+        for key in ("basis", "differences"):
+            lines = reading.get(key)
+            if not isinstance(lines, list) or not all(isinstance(line, str) and line for line in lines):
+                raise ValueError(f"source reading {key} must be a list of non-empty strings")
+
+
 def _validate(summary: dict) -> None:
     _object(summary, "experiment summary")
-    _known_keys(summary, {"experiment", "description", "seed", "metrics", "policy", "assignment", "arms"}, "experiment summary")
+    _known_keys(summary, {"experiment", "description", "seed", "metrics", "policy", "assignment", "arms", "source"}, "experiment summary")
+    if "source" in summary:
+        _validate_source(summary["source"])
     if "experiment" in summary and (not isinstance(summary["experiment"], str) or not summary["experiment"].strip()):
         raise ValueError("'experiment' must be a non-empty string")
     metrics = _object(summary.get("metrics"), "'metrics'")
@@ -217,6 +262,8 @@ def evaluate(summary: dict, *, schema_version: int = SCHEMA_VERSION) -> dict:
     if schema_version not in SUPPORTED_SCHEMAS:
         raise ValueError(f"cannot produce schema_version {schema_version!r}")
     _validate(summary)
+    if "source" in summary and schema_version != 3:
+        raise ValueError("'source' needs schema_version 3")
     policy = {"alpha": 0.05, "srm_alpha": 0.001, "power": 0.8, **summary.get("policy", {})}
     control, treatment = summary["arms"]["control"], summary["arms"]["treatment"]
     share = summary.get("assignment", {}).get("expected_treatment_share", 0.5)
@@ -302,6 +349,13 @@ def evaluate(summary: dict, *, schema_version: int = SCHEMA_VERSION) -> dict:
         reasons += [f"guardrail {n} is inconclusive" for n, s in sorted(guard_status.items()) if s == "INCONCLUSIVE"]
         if sequential is not None and sequential["information_fraction"] >= 1:
             reasons.append("planned sample size reached without a decision")
+
+    source = summary.get("source", {})
+    reading = source.get("reading")
+    if reading is not None and reading["decision"] != decision:
+        label = _SOURCE_LABELS[source["format"]]
+        reasons.append(f"{label}'s own statistics read as {reading['decision']}; expgate decided {decision}")
+        reasons += [f"policy difference: {line}" for line in reading["differences"]]
 
     report = {"schema_version": schema_version, "produced_by": {"name": "expgate", "version": __version__},
               "input": copy.deepcopy(summary), "input_sha256": input_digest(summary, schema_version),

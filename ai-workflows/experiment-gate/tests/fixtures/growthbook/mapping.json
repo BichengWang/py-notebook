@@ -1,0 +1,31 @@
+{
+  "snapshot": {
+    "expected_treatment_share": 0.5,
+    "regression_adjustment": false
+  },
+  "metrics": {
+    "fact__2CgCUpjf8do7w5KJVP4QhQ": {
+      "name": "purchase_rate",
+      "type": "proportion",
+      "direction": "increase"
+    },
+    "fact__2CgCUpjn58wfxn5BJQkV8C": {
+      "name": "refund_rate",
+      "type": "proportion",
+      "direction": "decrease",
+      "margin": 0.005
+    },
+    "fact__2CgCUpjoZTKKQWyJ4PnGnx": {
+      "name": "page_load_ms",
+      "type": "mean",
+      "direction": "decrease",
+      "margin": 4.0
+    },
+    "fact__2CgCUpjirWvQUE5mQvYDb3": {
+      "name": "average_order_value",
+      "type": "ratio",
+      "direction": "increase",
+      "margin": 1.5
+    }
+  }
+}

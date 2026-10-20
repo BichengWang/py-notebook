@@ -1,0 +1,419 @@
+{
+  "experiment": {
+    "id": "exp_59nx3dmvfweg5b",
+    "trackingKey": "ranker-v3",
+    "name": "Offer ranker v3",
+    "type": "standard",
+    "project": "",
+    "hypothesis": "Synthetic: the candidate ranker raises purchase rate without hurting refunds, latency or order value.",
+    "description": "",
+    "tags": [],
+    "owner": "",
+    "dateCreated": "2026-10-19T23:41:16.990Z",
+    "dateUpdated": "2026-10-19T23:41:18.188Z",
+    "archived": false,
+    "status": "running",
+    "autoRefresh": true,
+    "hashAttribute": "id",
+    "fallbackAttribute": "",
+    "hashVersion": 2,
+    "disableStickyBucketing": false,
+    "variations": [
+      {
+        "variationId": "var_59nx3dmvfweg59",
+        "key": "0",
+        "name": "Control",
+        "description": "",
+        "screenshots": []
+      },
+      {
+        "variationId": "var_59nx3dmvfweg5a",
+        "key": "1",
+        "name": "Candidate",
+        "description": "",
+        "screenshots": []
+      }
+    ],
+    "phases": [
+      {
+        "name": "Main",
+        "dateStarted": "2026-09-01T00:00:00.000Z",
+        "dateEnded": "2026-09-20T00:00:00.000Z",
+        "reasonForStopping": "synthetic capture",
+        "seed": "63bb662c-0f66-4ef1-8327-5ac05c8f7551",
+        "coverage": 1,
+        "trafficSplit": [
+          {
+            "variationId": "var_59nx3dmvfweg59",
+            "weight": 0.5
+          },
+          {
+            "variationId": "var_59nx3dmvfweg5a",
+            "weight": 0.5
+          }
+        ],
+        "targetingCondition": "{}",
+        "prerequisites": [],
+        "savedGroupTargeting": []
+      }
+    ],
+    "settings": {
+      "datasourceId": "warehouse",
+      "assignmentQueryId": "user_id",
+      "experimentId": "ranker-v3",
+      "segmentId": "",
+      "queryFilter": "",
+      "inProgressConversions": "include",
+      "attributionModel": "firstExposure",
+      "statsEngine": "frequentist",
+      "goals": [
+        {
+          "metricId": "fact__2CgCUpjf8do7w5KJVP4QhQ",
+          "overrides": {}
+        }
+      ],
+      "secondaryMetrics": [
+        {
+          "metricId": "fact__2CgCUpjhMxfLQ55mSD9T8J",
+          "overrides": {}
+        }
+      ],
+      "guardrails": [
+        {
+          "metricId": "fact__2CgCUpjn58wfxn5BJQkV8C",
+          "overrides": {}
+        },
+        {
+          "metricId": "fact__2CgCUpjoZTKKQWyJ4PnGnx",
+          "overrides": {}
+        },
+        {
+          "metricId": "fact__2CgCUpjirWvQUE5mQvYDb3",
+          "overrides": {}
+        }
+      ],
+      "regressionAdjustmentEnabled": false,
+      "sequentialTestingEnabled": false,
+      "sequentialTestingTuningParameter": 5000,
+      "postStratificationEnabled": null,
+      "decisionFrameworkSettings": {
+        "decisionFrameworkMetricOverrides": []
+      },
+      "metricOverrides": []
+    },
+    "shareLevel": "organization",
+    "linkedFeatures": [],
+    "attributeScopeAllProjects": false,
+    "hasVisualChangesets": false,
+    "hasURLRedirects": false,
+    "customFields": {},
+    "customMetricSlices": [],
+    "precomputedUnitDimensionIds": []
+  },
+  "result": {
+    "id": "snp_2CgCUpkFbqieJkgUpisQZQ",
+    "dateUpdated": "2026-10-19T23:41:17.071Z",
+    "experimentId": "exp_59nx3dmvfweg5b",
+    "phase": "0",
+    "dimension": {
+      "type": "none"
+    },
+    "dateStart": "2026-09-01T00:00:00.000Z",
+    "dateEnd": "2026-09-20T00:00:00.000Z",
+    "settings": {
+      "datasourceId": "warehouse",
+      "assignmentQueryId": "user_id",
+      "experimentId": "ranker-v3",
+      "segmentId": "",
+      "queryFilter": "",
+      "inProgressConversions": "include",
+      "attributionModel": "firstExposure",
+      "statsEngine": "frequentist",
+      "goals": [
+        {
+          "metricId": "fact__2CgCUpjf8do7w5KJVP4QhQ",
+          "overrides": {}
+        }
+      ],
+      "secondaryMetrics": [
+        {
+          "metricId": "fact__2CgCUpjhMxfLQ55mSD9T8J",
+          "overrides": {}
+        }
+      ],
+      "guardrails": [
+        {
+          "metricId": "fact__2CgCUpjn58wfxn5BJQkV8C",
+          "overrides": {}
+        },
+        {
+          "metricId": "fact__2CgCUpjoZTKKQWyJ4PnGnx",
+          "overrides": {}
+        },
+        {
+          "metricId": "fact__2CgCUpjirWvQUE5mQvYDb3",
+          "overrides": {}
+        }
+      ]
+    },
+    "queryIds": [
+      "qry_2CgCUpkNo11FF868Vv5yHE",
+      "qry_2CgCUpkSkwYP5oo6p7THWP",
+      "qry_2CgCUpkUzVcBamuUn2gYJH",
+      "qry_2CgCUpkXiQcghRJ9QXKbJy",
+      "qry_2CgCUpkaCMmjjm3c1aGiUq",
+      "qry_2CgCUpkcBW8oUMEuZpQHVb"
+    ],
+    "results": [
+      {
+        "dimension": "",
+        "totalUsers": 40000,
+        "checks": {
+          "srm": 1
+        },
+        "metrics": [
+          {
+            "metricId": "fact__2CgCUpjf8do7w5KJVP4QhQ",
+            "metricName": "Purchase rate",
+            "variations": [
+              {
+                "variationId": "var_59nx3dmvfweg59",
+                "variationName": "Control",
+                "users": 20000,
+                "analyses": [
+                  {
+                    "engine": "frequentist",
+                    "numerator": 1986,
+                    "denominator": 0,
+                    "mean": 0.0993,
+                    "stddev": 0.29906439105985183,
+                    "percentChange": 0,
+                    "effectStandardError": 0,
+                    "ciLow": 0,
+                    "ciHigh": 0,
+                    "pValue": 0,
+                    "risk": 0,
+                    "chanceToBeatControl": 0
+                  }
+                ]
+              },
+              {
+                "variationId": "var_59nx3dmvfweg5a",
+                "variationName": "Candidate",
+                "users": 20000,
+                "analyses": [
+                  {
+                    "engine": "frequentist",
+                    "numerator": 2243,
+                    "denominator": 0,
+                    "mean": 0.11215,
+                    "stddev": 0.3155509111062746,
+                    "percentChange": 0.12940584088620344,
+                    "effectStandardError": 0.03291508241910149,
+                    "ciLow": 0.0648915069424288,
+                    "ciHigh": 0.1939201748299781,
+                    "pValue": 0.000084557937267693,
+                    "risk": 0,
+                    "chanceToBeatControl": 0
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "metricId": "fact__2CgCUpjhMxfLQ55mSD9T8J",
+            "metricName": "Revenue per user",
+            "variations": [
+              {
+                "variationId": "var_59nx3dmvfweg59",
+                "variationName": "Control",
+                "users": 20000,
+                "analyses": [
+                  {
+                    "engine": "frequentist",
+                    "numerator": 82284.79,
+                    "denominator": 0,
+                    "mean": 4.1142395,
+                    "stddev": 14.462679475343428,
+                    "percentChange": 0,
+                    "effectStandardError": 0,
+                    "ciLow": 0,
+                    "ciHigh": 0,
+                    "pValue": 0,
+                    "risk": 0,
+                    "chanceToBeatControl": 0
+                  }
+                ]
+              },
+              {
+                "variationId": "var_59nx3dmvfweg5a",
+                "variationName": "Candidate",
+                "users": 20000,
+                "analyses": [
+                  {
+                    "engine": "frequentist",
+                    "numerator": 95208.36,
+                    "denominator": 0,
+                    "mean": 4.760418,
+                    "stddev": 15.658041237269924,
+                    "percentChange": 0.15705903849301908,
+                    "effectStandardError": 0.03938769963873477,
+                    "ciLow": 0.07985821495178433,
+                    "ciHigh": 0.23425986203425384,
+                    "pValue": 0.00006688834202739358,
+                    "risk": 0,
+                    "chanceToBeatControl": 0
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "metricId": "fact__2CgCUpjirWvQUE5mQvYDb3",
+            "metricName": "Average order value",
+            "variations": [
+              {
+                "variationId": "var_59nx3dmvfweg59",
+                "variationName": "Control",
+                "users": 20000,
+                "analyses": [
+                  {
+                    "engine": "frequentist",
+                    "numerator": 82284.79,
+                    "denominator": 2757,
+                    "mean": 29.845770765324627,
+                    "stddev": 32.07552840456023,
+                    "percentChange": 0,
+                    "effectStandardError": 0,
+                    "ciLow": 0,
+                    "ciHigh": 0,
+                    "pValue": 0,
+                    "risk": 0,
+                    "chanceToBeatControl": 0
+                  }
+                ]
+              },
+              {
+                "variationId": "var_59nx3dmvfweg5a",
+                "variationName": "Candidate",
+                "users": 20000,
+                "analyses": [
+                  {
+                    "engine": "frequentist",
+                    "numerator": 95208.36,
+                    "denominator": 3164,
+                    "mean": 30.091137800252845,
+                    "stddev": 29.87164684000125,
+                    "percentChange": 0.008221165968790809,
+                    "effectStandardError": 0.01043025370872202,
+                    "ciLow": -0.012222377408242483,
+                    "ciHigh": 0.028664709345824102,
+                    "pValue": 0.4305821812972086,
+                    "risk": 0,
+                    "chanceToBeatControl": 0
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "metricId": "fact__2CgCUpjn58wfxn5BJQkV8C",
+            "metricName": "Refund rate",
+            "variations": [
+              {
+                "variationId": "var_59nx3dmvfweg59",
+                "variationName": "Control",
+                "users": 20000,
+                "analyses": [
+                  {
+                    "engine": "frequentist",
+                    "numerator": 404,
+                    "denominator": 0,
+                    "mean": 0.0202,
+                    "stddev": 0.14068390099794645,
+                    "percentChange": 0,
+                    "effectStandardError": 0,
+                    "ciLow": 0,
+                    "ciHigh": 0,
+                    "pValue": 0,
+                    "risk": 0,
+                    "chanceToBeatControl": 0
+                  }
+                ]
+              },
+              {
+                "variationId": "var_59nx3dmvfweg5a",
+                "variationName": "Candidate",
+                "users": 20000,
+                "analyses": [
+                  {
+                    "engine": "frequentist",
+                    "numerator": 413,
+                    "denominator": 0,
+                    "mean": 0.02065,
+                    "stddev": 0.1422096252016719,
+                    "percentChange": 0.0222772277227724,
+                    "effectStandardError": 0.0708000235732043,
+                    "ciLow": -0.11649246833020718,
+                    "ciHigh": 0.161046923775752,
+                    "pValue": 0.7530290495528809,
+                    "risk": 0,
+                    "chanceToBeatControl": 0
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "metricId": "fact__2CgCUpjoZTKKQWyJ4PnGnx",
+            "metricName": "Page load ms",
+            "variations": [
+              {
+                "variationId": "var_59nx3dmvfweg59",
+                "variationName": "Control",
+                "users": 20000,
+                "analyses": [
+                  {
+                    "engine": "frequentist",
+                    "numerator": 8208633.3,
+                    "denominator": 0,
+                    "mean": 410.431665,
+                    "stddev": 120.11219421352565,
+                    "percentChange": 0,
+                    "effectStandardError": 0,
+                    "ciLow": 0,
+                    "ciHigh": 0,
+                    "pValue": 0,
+                    "risk": 0,
+                    "chanceToBeatControl": 0
+                  }
+                ]
+              },
+              {
+                "variationId": "var_59nx3dmvfweg5a",
+                "variationName": "Candidate",
+                "users": 20000,
+                "analyses": [
+                  {
+                    "engine": "frequentist",
+                    "numerator": 8243696.8,
+                    "denominator": 0,
+                    "mean": 412.18484,
+                    "stddev": 120.30534207565769,
+                    "percentChange": 0.004271539331644888,
+                    "effectStandardError": 0.0029350904571262882,
+                    "ciLow": -0.0014813063407878215,
+                    "ciHigh": 0.010024385004077598,
+                    "pValue": 0.14558444045678698,
+                    "risk": 0,
+                    "chanceToBeatControl": 0
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
