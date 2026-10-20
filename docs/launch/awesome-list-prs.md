@@ -129,7 +129,7 @@ repository, where the install and verify commands are.
 - Automation: a contributor reputation check runs when a PR opens, and external
   contributors need a named-maintainer review before merge
   ([workflows](https://github.com/agentrust-io/awesome-ai-governance/tree/main/.github/workflows)).
-  Recent PRs ([#154](https://github.com/agentrust-io/awesome-ai-governance/pull/154) to [#159](https://github.com/agentrust-io/awesome-ai-governance/pull/159)) merged between about 9 hours and 2 days after opening.
+  Of recent PRs [#154](https://github.com/agentrust-io/awesome-ai-governance/pull/154) to [#159](https://github.com/agentrust-io/awesome-ai-governance/pull/159), those that merged did so between about 9 hours and 2 days after opening; [#157](https://github.com/agentrust-io/awesome-ai-governance/pull/157) was closed without merging.
 
 **Fit:** the list is about governing AI systems that act on their own. Only
 `decision-control` is close to that scope (a proposed action, a frozen policy and a
