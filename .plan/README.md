@@ -61,7 +61,7 @@ is the record, not another platform.
 | Fact | Value (2026-10-19; 2026-10-18 values in brackets where they changed) |
 | --- | --- |
 | Packages | `expgate`, `jevdecision`, `decisioncontrol` 0.1.0 tagged and GitHub-released 2026-10-13 (PR #224); `main` carries unreleased work for 0.2.0 (see [Completed](#completed)); version 0.2.0 is prepared (#263) but not dated, tagged or published. Source lines (`wc -l` of each package's `.py` files): 903 / 1,592 / 1,180 at the 0.1.0 tags, 2,045 / 2,563 / 2,562 on `main`. Tests on Python 3.15.0, `python3 -m unittest discover -s tests`: 208 / 189 / 240 run with 6 / 2 / 25 skipped [76 / 105 / 98 at 0.1.0]. The skips are tests that need dev-only dependencies (`jsonschema`, `langgraph`, `opa`, `cedar`), which CI installs |
-| PyPI | All three names returned 404 again on 2026-10-19 and the release workflow's `pypi` job is skipped until the owner publishes; the READMEs say "PyPI pending". On 2026-10-19 GitHub environment `pypi` (required reviewer BichengWang, tag patterns `experiment-gate/v*`, `jev-decision/v*`, `decision-control/v*`) and `PYPI_PUBLISH=true` were set; the owner registers the three pending publishers, and nothing has been published yet |
+| PyPI | All three 0.1.0 packages are published: [expgate](https://pypi.org/project/expgate/0.1.0/), [decisioncontrol](https://pypi.org/project/decisioncontrol/0.1.0/) and [jevdecision](https://pypi.org/project/jevdecision/0.1.0/). Owner-approved tag-scoped `release.yml` dispatches uploaded wheels and sdists on 2026-10-19 PDT (2026-10-20T05:29Z for expgate; 05:32Z for the other two). Every file has a trusted-publishing attestation naming `BichengWang/ai-decision-system`, `release.yml`, environment `pypi`. A clean Python 3.11 venv installed all three pinned versions and ran the root quickstart from the 0.1.0 tags; 0.2.0 remains unreleased |
 | Verifiers | Every record type has a record-only verifier with tamper tests: `experiment-gate-verify`, `jev-decision-verify` (answer records and `--evaluation DIR`, #246) and `decision-control replay` / `replay-evaluation` [Jev had none, so P-009 held for two of three packages]. Each takes `--require-signature` (#253, #255, #256). Conformance vectors: 176 (54 valid, 62 tampered, 60 invalid): expgate 38, Jev 28, decision-control 110. `cd scripts/conformance && npm ci && node verify.mjs` reported `3 manifests, 176 vectors, 279 checks, 0 failures` on 2026-10-19 |
 | Canonical form | Adopted 2026-10-19 and implemented: RFC 8785 (JCS) digests in expgate `decision.json` schema 3, Jev answer record schema 2 and decision-control record schemas 4 and 5 and `evaluation.json` schema 2 (#246, #248, #250, #257). Each package carries a standard-library `jcs.py` tested against shared RFC 8785 vectors, and the Node checker recomputes every valid vector's digest without Python (#249). Versions that were verifiable before keep their original canonicalization and still verify (expgate decision schema 2; decision-control records 1–3 and `evaluation.json` 1). Jev answer schema 1 and expgate decision schema 1 stay readable but unverifiable (exit 2). Jev `evaluation.json` and `provenance.json` have no canonical form; provenance pins exact file bytes. Derived floats compare at a relative 1e-9 in expgate verification and Jev re-scoring (decisions.md); decision-control compares exactly because it uses no libm function |
 | RELIA | Candidate 0.1.5, spec 0.1.3, 1,098 source lines, 38 tests (38 passed on 2026-10-19); unreleased and human-gated. Its roadmap's September 2026 FTC comment (docket FTC-2026-1057, closed 2026-09-25) was filed as regulations.gov document FTC-2026-1057-0650 (received 2026-08-29, posted 2026-08-31) on the owner's confirmation and recorded in the RELIA roadmap by #242; it does not contain the technical description the roadmap planned. Initial release anchor set by the owner: 2026-10-28 |
@@ -76,11 +76,12 @@ is the record, not another platform.
 A visitor sees one install line, one verify line, and a table of record types
 whose schemas and vectors any language can use. State on 2026-10-19: the table,
 the signing line and the bridges line describe code that is on `main` and
-unreleased (0.2.0); the `pip install` line is **pending** (P-016, nothing is on
-PyPI) and "Used by" has no entries (no user has agreed to be named):
+unreleased (0.2.0); the `pip install` line installs published 0.1.0 (P-016 done).
+Use a source install for the newer features until P-023. "Used by" has no
+entries (no user has agreed to be named):
 
 ```markdown
-pip install expgate jevdecision decisioncontrol   # PENDING: not on PyPI (P-016)
+pip install expgate jevdecision decisioncontrol   # 0.1.0; features below need 0.2.0/source
 
 | Record | Schema | Verify offline | Vectors |
 | --- | --- | --- | --- |
@@ -118,7 +119,7 @@ Work landed ahead of the original schedule: P-011, P-012, P-013, P-015, P-017,
 P-018, P-019, P-025 and P-026 merged on 2026-10-19 (the bars show that real
 date; no earlier date is claimed). Targets that remain are for owner-gated items
 and are not achieved until the owner acts. 0.2.0 stays targeted for 2026-12-10;
-it can move earlier only after P-016 and P-020.
+it can move earlier after P-020 and the owner release; P-016 is complete.
 
 ```mermaid
 gantt
@@ -134,8 +135,8 @@ gantt
   P-025 GrowthBook importer              :done, p025, 2026-10-19, 1d
   P-015 OPA and Cedar adapters           :done, p015, 2026-10-19, 1d
   P-026 LangGraph approvals              :done, p026, 2026-10-19, 1d
+  P-016 PyPI 0.1.0                      :done, p016, 2026-10-19, 1d
   section Owner-gated, open
-  P-016 PyPI 0.1.0 (owner registers publishers) :crit, p016, 2026-10-19, 2026-10-23
   P-020 Zenodo integration (owner)       :crit, p020, 2026-10-19, 2026-11-01
   RELIA initial release (owner anchor)   :milestone, 2026-10-28, 0d
   0.2.0 on PyPI                          :milestone, 2026-12-10, 0d
@@ -158,13 +159,13 @@ gantt
 
 Status against these measures on 2026-10-19:
 
-- **2026-11-01, engineering:** two of three met. Every record type has a
-  record-only verifier and no Dependabot alert is open (0 open). `pip install`
-  is **not met**: nothing is on PyPI until the owner registers the publishers
-  (P-016, target 2026-10-23).
+- **2026-11-01, engineering:** all three met. A clean Python 3.11 venv installed
+  all three 0.1.0 packages from PyPI and ran the root quickstart from their tag
+  source; every record type has a record-only verifier on `main`; no Dependabot
+  alert is open (0 open). The Jev record-only verifier ships in 0.2.0, not 0.1.0.
 - **2026-12-13, engineering:** schemas, conformance vectors, golden vectors,
   signed records and the non-Python validator (`conformance (node)`) are on
-  `main`; **0.2.0 is not on PyPI** (P-023; needs P-016 and P-020).
+  `main`; **0.2.0 remains unpublished** (P-023; needs P-020 and the owner release).
 - **2027-02-28:** the three bridges are on `main` and unreleased. Launch, a first
   outside issue or PR and a pilot agreement are **not met** (none exists; the
   contributors list shows only the owner and Dependabot).
@@ -186,7 +187,7 @@ is not use, and interest is not adoption.
 
 | Risk | Mitigation |
 | --- | --- |
-| Someone registers `expgate`, `jevdecision` or `decisioncontrol` on PyPI first; a pending publisher is invalidated if the name is taken | P-016 is the first owner action. All three names still returned 404 on 2026-10-19, so the risk is open until the publishers are registered |
+| PyPI package-name takeover before first publication | Closed by P-016 on 2026-10-19 PDT: all three 0.1.0 projects are published with active trusted publishers |
 | 100 open alerts in a governance repository read as negligence | Closed by P-019 (#236, #244): 0 open alerts on 2026-10-19. A new alert on the workbench is triaged the same way: upgrade or remove the dependency |
 | A schema freeze locks in a canonical form other languages cannot reproduce | P-011 vectors carry canonical bytes in RFC 8785 form (adopted 2026-10-19), so another language's canonicalizer can be tested before any schema is published |
 | Signed records leak decision metadata to a public transparency log | Keyed (HMAC) signing is the default; Sigstore is opt-in and documented as public |
@@ -203,11 +204,10 @@ each phase file carries a status table for every row of that phase.
 | Plan ID | Status | What remains, and who does it |
 | --- | --- | --- |
 | P-014 | Blocked on owner | Owner supplies `TYPESAFE_API_KEY`, `OPENAI_API_KEY` and a hard spend cap; then the agent records the Jev live fixtures |
-| P-016 | Blocked on owner | Owner registers the three pending trusted publishers on pypi.org, then dispatches `release.yml` with `publish=true` on each `*/v0.1.0` tag ref (target 2026-10-23). GitHub environment `pypi` and `PYPI_PUBLISH=true` are set. All three names returned 404 on 2026-10-19. Docs follow-up: issue #238 (open) |
 | P-020 | Blocked on owner | Owner enables the Zenodo GitHub integration by 2026-11-01. No DOI exists and none is claimed |
 | P-021 | Owner decision pending | Issues #238–#241 exist; #239, #240 and #241 are closed. Owner decides whether to restart or retire the scheduled delivery task |
 | P-022 | Recorded (#242); owner follow-up pending | Dates are in the RELIA roadmap. The filed comment has no technical content; RELIA's initial release (due 2026-10-28) follows RELIA's human-gated process and is not scheduled by this plan |
-| P-023 | Prepared (#263); blocked on P-016 and P-020 | Version 0.2.0 and `## [0.2.0] - Unreleased` changelogs are on `main`; nothing is dated, tagged or published. The owner registers the publishers (P-016), runs `release.py prepare` with the date, tags and approves the `pypi` deployments; Zenodo (P-020) follows. Target 2026-12-10 |
+| P-023 | Prepared (#263); blocked on P-020 and owner release | Version 0.2.0 and `## [0.2.0] - Unreleased` changelogs are on `main`; 0.2.0 is not dated, tagged or published. P-016 is done; active PyPI publishers are configured. After enabling Zenodo (P-020), the owner runs `release.py prepare` with the date, tags and approves the `pypi` deployments. Target 2026-12-10 |
 | P-024 | Drafted, owner action pending | Launch kit in [`docs/launch/`](../docs/launch/README.md) (#261). Owner posts on 2027-01-12 after P-023; nothing has been posted, submitted or sent |
 | P-027 | Drafted, owner action pending | Template in [`docs/PILOT_PROTOCOL.md`](../docs/PILOT_PROTOCOL.md) (#243). Owner recruits a team; none has agreed to anything |
 | P-028 | Drafted, owner review pending | [`docs/REGULATORY_MAPPING.md`](../docs/REGULATORY_MAPPING.md) (#247, #258). It makes no compliance claim; ISO/IEC 42001 text was not reviewed |
@@ -236,6 +236,7 @@ Dates are America/Los_Angeles (UTC−07:00) calendar days. PRs #234–#263 merge
 | P-012 | Signed records: in-toto Statement v1 in a DSSE envelope, HMAC-SHA256 in-package and Sigstore through external `cosign`; `--require-signature` on `experiment-gate-verify`, `jev-decision-verify` and `decision-control replay` / `replay-evaluation`; CI signs keylessly with the GitHub OIDC identity and verifies with the package. Key handling is documented in `SECURITY.md`. **The owner has not yet approved key handling** (generation, storage, rotation as written there) | #253 (decision-control), #255 (Jev), #256 (expgate), #259 (docs), #262 (malformed signature fields) |
 | P-013 | Golden vectors compare every `expgate.stats` estimator with scipy, statsmodels, gbstats and confseq; default tests read committed JSON without those libraries and a CI job regenerates and diffs them; the cross-check led to `exact_tail` options for tail probabilities | #237 |
 | P-015 | Action registry (`reassign_ticket`, `set_ticket_priority`), record schema 5, OPA and Cedar adapters with fixtures recorded from OPA 1.21.2 and Cedar CLI 4.14.0; replay re-evaluates when the tool is on `PATH`, otherwise it is digest-only (exit 0 with a notice; `--require-reevaluation` exits 2) | #257 |
+| P-016 | **Done 2026-10-19 PDT:** 0.1.0 of all three packages on PyPI, with wheels, sdists and GitHub trusted-publishing attestations | [expgate](https://pypi.org/project/expgate/0.1.0/), [decisioncontrol](https://pypi.org/project/decisioncontrol/0.1.0/), [jevdecision](https://pypi.org/project/jevdecision/0.1.0/); clean Python 3.11 pinned installation and root quickstart passed (details in [phase 0](phase-0-ship-0.1.md#status-2026-10-19)); docs follow-up #238 |
 | P-017 | `jev-decision-verify` for answer records (schema 2 embeds the questions and the raw response under an RFC 8785 digest) and `--evaluation DIR`; schema 1 answers stay readable and exit 2; completes P-009 | #246, #251, #252; signing #255 |
 | P-018 | Stale status claims corrected: RELIA roadmap and changelog, `CITATION.cff` (`version`, `date-released`, `license`), `scripts/README.md` and the CONTRIBUTING link | #234 |
 | P-019 | 0 open Dependabot alerts [100 on 2026-10-18]; every alert is `fixed`, none dismissed; `src/` stays in the repository, the bounded `src baseline` check is green and `make workspace-check` passes (7 components; the P-019 acceptance said 6, before #249 added the `conformance` component) | #236, #244 |

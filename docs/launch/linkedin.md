@@ -30,7 +30,7 @@ exit code: 1
 
 What a passing check does not prove: that the decision was right, that the numbers you exported are true, or who signed (an HMAC key is shared). It is not compliance evidence, and the scenarios are synthetic.
 
-Not on PyPI yet, so the install is from a clone. The full commands and output are in the repo: https://github.com/BichengWang/ai-decision-system/tree/main/ai-workflows/experiment-gate
+0.1.0 is on PyPI, but this signed-record demo needs unreleased 0.2.0, so install from a clone for now. The full commands and output are in the repo: https://github.com/BichengWang/ai-decision-system/tree/main/ai-workflows/experiment-gate
 
 If you run release gates for models, I'd like to know which of your decisions this record could not hold.
 ````
@@ -40,7 +40,6 @@ If you run release gates for models, I'd like to know which of your decisions th
 - The install line, the verify line and the two result lines are copied from the run
   in [README.md](README.md#the-demo-as-run). `pip install` prints nothing with
   `--quiet`, which the transcript uses; the post drops that flag for readability.
-- Replace "Not on PyPI yet, so you install from a clone." with the one-line install
-  `pip install "expgate>=0.2.0"` only after publication, and say nothing about
-  availability until then.
+- Switch the signed-record demo's source install to
+  `pip install "expgate>=0.2.0"` only after 0.2.0 is published on PyPI.
 - Do not add a count of stars, forks or views, or a claim about users.

@@ -43,7 +43,7 @@ requires at least 500 GitHub stars per tool.
 | | Line | State on 2026-10-19 |
 | --- | --- | --- |
 | Install, from a clone | `pip install ./ai-decision-system/ai-workflows/experiment-gate` | Works today (run below) |
-| Install, from PyPI | `pip install "expgate>=0.2.0"` | **After PyPI publish (pending).** Not on PyPI: P-016 is not done. Signing (`keygen`, `--sign-key`, `--require-signature`) is on `main` but not in the 0.1.0 release, so PyPI needs 0.2.0 (P-023) |
+| Install, from PyPI | `pip install "expgate>=0.2.0"` | **After 0.2.0 PyPI publish (pending, P-023).** 0.1.0 is on PyPI (P-016 done), but signing (`keygen`, `--sign-key`, `--require-signature`) needs 0.2.0. Until then use the source install above |
 | Verify | `experiment-gate-verify review-run/*/decision.json --require-signature --key signing.key` | Works today (run below) |
 
 ## The demo, as run

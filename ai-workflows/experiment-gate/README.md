@@ -43,12 +43,20 @@ its numerical MDE of zero is not evidence of detectability.
 
 ## Quick start
 
-Install with Python 3.11 or later (the first PyPI release is pending):
+Install the published 0.1.0 package with Python 3.11 or later:
 
 ```bash
 pip install expgate
 experiment-gate --input examples/offer-ranker-v2.json --out review-run --require-ship
 experiment-gate-verify review-run/decision.json
+```
+
+Features documented on `main` beyond 0.1.0 (schema 3, signing and the GrowthBook
+importer) ship in 0.2.0, which is not yet published. Until then, install from
+source in this directory:
+
+```bash
+pip install .
 ```
 
 The examples live in this repository; supply your own exported summary after

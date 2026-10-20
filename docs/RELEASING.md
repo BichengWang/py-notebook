@@ -49,10 +49,18 @@ variable `PYPI_PUBLISH` equals `true`, and skips files already on PyPI.
 ## One-time publishing setup
 
 For **each** distribution (`expgate`, `jevdecision`, `decisioncontrol`), register a
-PyPI pending trusted publisher (or a publisher on the existing project): owner
+pending trusted publisher on PyPI (or a publisher on the existing project): owner
 `BichengWang`, repository `ai-decision-system`, workflow filename `release.yml`,
 environment `pypi`. See [PyPI setup](https://docs.pypi.org/trusted-publishers/adding-a-publisher/)
 and [pending publishers](https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/).
+
+PyPI permits only one **pending** publisher per (owner, repository, workflow,
+environment) configuration. For the 0.1.0 releases, register and publish one
+project at a time: `expgate`, then `decisioncontrol`, then `jevdecision`. Each
+first upload converts that pending entry into an active project publisher,
+freeing the configuration for the next pending project. Future new packages
+using this same workflow and environment must follow the same sequence;
+existing projects use their active publishers.
 
 Create GitHub environment `pypi` with a required reviewer and selected deployment
 tag patterns `experiment-gate/v*`, `jev-decision/v*`, `decision-control/v*`.

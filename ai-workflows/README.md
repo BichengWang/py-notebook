@@ -10,9 +10,13 @@ commands, but a project must remain runnable from its own directory.
 | Project | Purpose | Run from | Package / status |
 | --- | --- | --- | --- |
 | [`ai-decision-reliability`](ai-decision-reliability/README.md) | Synthetic-data reliability evaluation and release controls (RELIA) | `ai-workflows/ai-decision-reliability/` | Not published; unreleased, human-gated |
-| [`experiment-gate`](experiment-gate/README.md) | Ship / hold / rollback decisions for online A/B tests of decision models, with guardrails and sample-ratio checks | `ai-workflows/experiment-gate/` | `expgate`; 0.1.0 (GitHub release; PyPI pending) |
-| [`jev-decision`](jev-decision/README.md) | Jev as the core decision model: typed yes/no, choice, and score decisions, with the OpenAI Decisions API as an alternative backend, and offline evaluation against labeled cases | `ai-workflows/jev-decision/` | `jevdecision`; 0.1.0 (GitHub release; PyPI pending) |
-| [`decision-control`](decision-control/README.md) | Policy-constrained agent actions with durable approval and replayable evidence | `ai-workflows/decision-control/` | `decisioncontrol`; 0.1.0 (GitHub release; PyPI pending) |
+| [`experiment-gate`](experiment-gate/README.md) | Ship / hold / rollback decisions for online A/B tests of decision models, with guardrails and sample-ratio checks | `ai-workflows/experiment-gate/` | `expgate`; 0.1.0 on GitHub and PyPI |
+| [`jev-decision`](jev-decision/README.md) | Jev as the core decision model: typed yes/no, choice, and score decisions, with the OpenAI Decisions API as an alternative backend, and offline evaluation against labeled cases | `ai-workflows/jev-decision/` | `jevdecision`; 0.1.0 on GitHub and PyPI |
+| [`decision-control`](decision-control/README.md) | Policy-constrained agent actions with durable approval and replayable evidence | `ai-workflows/decision-control/` | `decisioncontrol`; 0.1.0 on GitHub and PyPI |
+
+`pip install expgate jevdecision decisioncontrol` installs 0.1.0. Features on
+`main` beyond 0.1.0 ship in 0.2.0 (not yet published); use the component READMEs'
+source-install instructions for those features until then.
 
 From the repository root, use the convenience targets in the [root Makefile](../Makefile):
 

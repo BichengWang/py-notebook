@@ -43,7 +43,8 @@ with no network. It is Python 3.11+, standard library only. Records can be
 signed: an in-toto Statement in a DSSE envelope, HMAC key by default, Sigstore
 through cosign if you opt in (that writes to a public log).
 
-Install and verify, from a clone (it is not on PyPI yet):
+0.1.0 is on PyPI, but this signed-record demo needs unreleased 0.2.0.
+Install and verify from a clone until then:
 
     pip install ./ai-decision-system/ai-workflows/experiment-gate
     experiment-gate-verify review-run/*/decision.json --require-signature --key signing.key

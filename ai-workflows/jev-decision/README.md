@@ -18,8 +18,15 @@ Requires Python 3.11 or later; runtime dependencies: none. Examples live in the 
 and source distribution under `examples/`; they are not installed in the wheel.
 
 ```bash
-# Once 0.2.0, the first PyPI release, is published:
+# Published version: 0.1.0
 pip install jevdecision
+```
+
+Schemas, `jev-decision-verify` and signing documented on `main` ship in 0.2.0,
+which is not yet published. Until then, install from source in this directory:
+
+```bash
+pip install .
 ```
 
 The distribution includes `jev-decision`, `jev-decision-eval` and `jev-decision-verify` (signing and verification of records: see Signed records); existing
