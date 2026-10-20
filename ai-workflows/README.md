@@ -90,8 +90,8 @@ you have not committed yet. It fails when:
   untracked files; legacy research files still receive import-boundary checks;
 - a component imports another component's package, or a project imports a
   third-party module it does not declare;
-- a local Markdown link in the root or `docs/` pages, or in a project or
-  tooling component, points to a missing file or to a heading that does not
+- a local Markdown link in the root pages, anywhere under `docs/` or `.plan/`,
+  in `.github/` or `ai-workflows/`, or in a project or tooling component, points to a missing file or to a heading that does not
   exist (links inside code, external URLs, and the legacy `src/` notes are not
   checked).
 
