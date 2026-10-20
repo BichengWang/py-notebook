@@ -11,6 +11,8 @@ workbench, not a shared runtime for those projects.
 
 Use Python 3.11 or newer for workspace tooling and the three small projects.
 Ensure `python3` resolves to that interpreter before running root make targets.
+The one exception is expgate's dev-only reference generator (`tests/golden/generate.py`): its
+`golden vectors` CI job runs on Python 3.10 because confseq 0.0.11 publishes wheels only up to 3.10.
 From the repository root:
 
 ```sh

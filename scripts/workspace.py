@@ -660,9 +660,11 @@ def check_workspace(root=ROOT, manifest=None):
 
 # Markdown links ------------------------------------------------------------
 
-# Documentation whose local links `check` verifies: the root, docs/ and .plan/ pages, plus every
-# project and tooling component (see link_scope). Legacy research notes are not checked.
-LINK_CHECKED = ("*.md", "docs/*.md", ".plan/*.md")
+# Documentation whose local links `check` verifies: the root pages, everything under docs/ and
+# .plan/, the ai-workflows index, and .github templates, plus every project and tooling component
+# (see link_scope), which covers the component READMEs, docs, examples and conformance notes.
+# Legacy research notes are not checked.
+LINK_CHECKED = ("*.md", "docs/**", ".plan/**", ".github/**", "ai-workflows/*.md")
 _FENCE_RE = re.compile(r"^ {0,3}(```|~~~)")
 _CODE_SPAN_RE = re.compile(r"(`+)(?:(?!\1).)+?\1")
 _LINK_RE = re.compile(r"\]\(\s*(<[^>]*>|[^)\s]+)(?:\s+(?:\"[^\"]*\"|'[^']*'))?\s*\)")

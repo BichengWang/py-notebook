@@ -571,8 +571,20 @@ class MarkdownLinkTests(unittest.TestCase):
         self.repo.write("README.md", self.repo.root.joinpath("README.md").read_text()
                         + "\n`[inline](gone.md)`\n\n```md\n[fenced](gone.md)\n```\n")
         self.repo.write("src/notes/README.md", "[legacy](gone.md)\n")
-        self.repo.write("docs/notes/old.md", "[nested](gone.md)\n")
+        self.repo.write("src/notes/deep/old.md", "[nested](gone.md)\n")
         self.assertEqual(self.repo.problems(), [])
+
+    def test_nested_documents_are_checked(self):
+        self.repo.write("docs/launch/post.md", "[ok](../../README.md) [gone](missing.md) [bad](../GUIDE.md#nope)\n")
+        self.repo.write("docs/GUIDE.md", "# Guide\n")
+        self.repo.write(".plan/phases/one.md", "[gone](two.md)\n")
+        self.repo.write("ai-workflows/INDEX.md", "[gone](nowhere.md)\n")
+        self.assertEqual(self.repo.problems(), [
+            ".plan/phases/one.md:1: link 'two.md' points to a missing file",
+            "ai-workflows/INDEX.md:1: link 'nowhere.md' points to a missing file",
+            "docs/launch/post.md:1: link 'missing.md' points to a missing file",
+            "docs/launch/post.md:1: link '../GUIDE.md#nope' names a heading that does not exist",
+        ])
 
     def test_untracked_documents_are_checked(self):
         self.repo.write("tools/README.md", "[new](missing.md)\n")
