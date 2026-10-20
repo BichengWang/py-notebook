@@ -7,7 +7,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from decisioncontrol import __version__
+from decisioncontrol import DecisionError, __version__, replay
 from decisioncontrol.cli import main
 from decisioncontrol.demo import run_demo
 from dc_support import (ID_PREFIX, as_schema3, jsonschema, load_schema, rehash_record,
@@ -158,6 +158,49 @@ class SchemaValidationTests(unittest.TestCase):
             edit(candidate)
             with self.subTest(cedar_edit=name):
                 self.assertFalse(check.is_valid({"record": candidate, "sha256": "0" * 64}))
+
+    def test_uuid_definition_matches_the_reader_for_schemas_4_and_5(self):
+        valid = EXAMPLES.parent / "conformance" / "valid"
+        variants = {
+            "canonical": lambda i: i,
+            "uppercase": lambda i: i.upper(),
+            "urn prefix": lambda i: f"urn:uuid:{i}",
+            "braces": lambda i: "{" + i + "}",
+            "no hyphens": lambda i: i.replace("-", ""),
+            "trailing newline": lambda i: i + "\n",
+            "not a uuid": lambda i: "not-a-uuid",
+        }
+        for version in (4, 5):
+            envelope = json.loads((valid / f"record-v{version}-allow-executed.json").read_text(encoding="utf-8"))
+            check = validator(f"record.v{version}.json")
+            for name, spell in variants.items():
+                candidate = deepcopy(envelope)
+                candidate["record"]["id"] = spell(envelope["record"]["id"])
+                rehash_record(candidate)
+                try:
+                    replay(candidate)
+                    reader_accepts = True
+                except DecisionError:
+                    reader_accepts = False
+                with self.subTest(version=version, spelling=name):
+                    self.assertEqual(check.is_valid(candidate), reader_accepts)
+                    self.assertEqual(reader_accepts, name == "canonical")
+
+    def test_schemas_1_to_3_document_that_the_reader_accepts_more_ids_than_the_pattern(self):
+        valid = EXAMPLES.parent / "conformance" / "valid"
+        envelope = json.loads((valid / "record-v3-allow-executed.json").read_text(encoding="utf-8"))
+        original = envelope["record"]["id"]
+        for version in (1, 2, 3):
+            self.assertIn("Deliberately stricter than the reader", load_schema(f"record.v{version}.json")["$defs"]["uuid"]["$comment"])
+        check = validator("record.v3.json")
+        for name, spelled, schema_accepts in (("uppercase", original.upper(), True),
+                                              ("urn prefix", f"urn:uuid:{original}", False)):
+            candidate = deepcopy(envelope)
+            candidate["record"]["id"] = spelled
+            rehash_record(candidate)
+            with self.subTest(spelling=name):
+                self.assertEqual(replay(candidate)["decision_id"], spelled)
+                self.assertEqual(check.is_valid(candidate), schema_accepts)
 
 
 if __name__ == "__main__":

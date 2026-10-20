@@ -440,14 +440,21 @@ Schema 4 and earlier readers reject these members. JCS writes
 a whole-number float such as `1.0` as `1`, so never rely on the int/float
 distinction in records; integers beyond 2^53-1, NaN/Infinity and unpaired surrogates
 exit 2. A CANCELLED event has `event`, `at`, `reviewer` and `note` fields.
-Other event shapes remain unchanged.
+Other event shapes remain unchanged. The decision `id` is `str(uuid4())`, generated inside `submit`, never
+taken from the caller. Replay of schema 4 and 5 requires exactly that canonical form (lowercase, hyphenated,
+`str(UUID(id)) == id`) and exits 2 for any other spelling that `uuid.UUID()` would parse, such as uppercase,
+`urn:uuid:` or braces; the JSON Schema `uuid` pattern is the same lowercase-only pattern.
 
-Archived v1-v4 evidence and stored decisions remain valid under their original
-rules: v1/v2 have no proposer separation check, and v1-v3 digest Python sorted
-compact JSON (see below). They do not gain invented identity provenance on replay.
+Records the package itself produced as v1-v3 (archived exports and stored decisions) remain valid under their
+original rules: v1/v2 have no proposer separation check, v1-v3 digest Python sorted compact JSON (see below)
+and accept any decision id that `uuid.UUID()` parses. They do not gain invented identity provenance on replay.
+Schemas 4 and 5 were never released, so they were tightened before 0.2.0 ships: a hand-written or edited
+v4/v5 record with a non-canonical decision id (uppercase, `urn:uuid:`, braces, no hyphens) now exits 2. Records
+written by the package are unaffected, because it always writes `str(uuid4())`.
 Existing stored v3 and v4 decisions keep their version (including after `approve` or
-`cancel`); only new submissions are v5. Cancelling a stored v1 decision explicitly promotes that record
-to v2, preserving its inputs and prior approval. Unknown schema versions are
+`cancel`); only new submissions are v5. The v1-v3 JSON Schemas keep the hyphenated pattern and say so in a `$comment` (a pattern
+cannot mirror the reader's `uuid.UUID()` parsing, which differs between Python versions). Cancelling a stored v1 decision
+explicitly promotes that record to v2, preserving its inputs and prior approval. Unknown schema versions are
 rejected (exit 2) rather than silently reinterpreted. Policy-evaluation reports use
 their own schema (1 or 2, above).
 
@@ -469,8 +476,11 @@ exit 0 and carries the exact canonical bytes and digests of each checksum;
 `tampered/` replays with exit 1 (stale checksums, and edits with a recomputed
 checksum such as proposer self-approval or an edited frozen policy that replay still
 detects); `invalid/` exits 2 (duplicate keys, NaN, unsafe integers, unknown schema
-or fields). `python3 conformance/generate.py` regenerates the tree deterministically;
-a unit test fails if the committed files differ. The vectors are synthetic software
+or fields, a non-canonical decision `id`). `python3 conformance/generate.py` regenerates the tree
+deterministically; `python3 conformance/generate.py --check` compares `valid/`, `tampered/`, `invalid/` and
+`manifest.json` with a fresh generation without writing (exit 1 and `differs: <path>` on stderr for a changed,
+missing or extra file inside those, exit 2 for an unknown argument). Files directly in `conformance/` other than
+`manifest.json` (such as `generate.py`) are not compared, and a unit test fails if the committed files differ. The vectors are synthetic software
 fixtures, not live or adoption evidence. A checksum recomputed over a self-consistent
 edit that obeys every replay rule (for example, adding yourself to the frozen
 reviewers) is undetectable; that needs signatures.

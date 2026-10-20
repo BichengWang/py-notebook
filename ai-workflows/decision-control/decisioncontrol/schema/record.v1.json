@@ -125,6 +125,7 @@
       "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
     },
     "uuid": {
+      "$comment": "Deliberately stricter than the reader. Producers write str(uuid4()), the hyphenated 8-4-4-4-12 form, and this pattern describes that form. The reader of schemas 1-3 (released in 0.1.0 and kept unchanged) accepts anything uuid.UUID() parses: braces, a urn:uuid: prefix, missing or repeated hyphens and, depending on the Python version, further spellings. A pattern cannot mirror that parser, so such ids are valid for replay but not for this schema. Schemas 4 and 5 require the canonical lowercase form, which their schemas match exactly.",
       "type": "string",
       "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?![\\s\\S])"
     },
