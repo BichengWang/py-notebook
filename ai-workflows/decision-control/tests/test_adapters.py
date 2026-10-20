@@ -7,13 +7,16 @@ import json
 import os
 from pathlib import Path
 import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
 
-from decisioncontrol import DecisionError, Evaluation, RecordMismatch, Recommendation, RoutingPolicy, TicketStore, Verdict
+from decisioncontrol import (DecisionError, Evaluation, RecordMismatch, Recommendation, RoutingPolicy, Ticket,
+                             TicketStore, Verdict)
 from decisioncontrol import export_record, replay
-from decisioncontrol.adapters import cedar, engine_for, opa
+from decisioncontrol.adapters import _binding, cedar, engine_for, opa
 from decisioncontrol.cli import main
 from decisioncontrol.jcs import canonicalize
 from decisioncontrol.policy import combine
@@ -173,9 +176,12 @@ class CedarAdapterTests(unittest.TestCase):
         request = cedar.authorization_request(proposal, Ticket('T"1\\', "intake"), "al\nice")
         self.assertEqual(request["principal"], 'User::"al\\u{a}ice"')
         self.assertEqual(request["resource"], 'Ticket::"T\\"1\\\\"')
-        self.assertEqual(request["context"], {"requested": "support", "current": "intake"})
+        self.assertEqual(request["context"], {"requested": "support", "current": "intake",
+                                              "proposal_sha256": _binding.proposal_sha256(proposal, Ticket('T"1\\', "intake"), "al\nice")})
         priority = Recommendation("set_ticket_priority", "t", None, 0.9, "m", "q", priority="high")
-        self.assertEqual(cedar.authorization_request(priority, Ticket("t", "d"), "a")["context"], {"requested": "high"})
+        context = cedar.authorization_request(priority, Ticket("t", "d"), "a")["context"]
+        self.assertEqual(set(context), {"requested", "proposal_sha256"})
+        self.assertEqual(context["requested"], "high")
 
     def test_decisions_map_to_verdicts_with_the_determining_policies(self):
         self.assertEqual(cedar.evaluation(self.frozen()), Evaluation(Verdict.ALLOW, ("cedar:permit:policy0",)))
@@ -460,6 +466,81 @@ class SubmitExternalPolicyTests(unittest.TestCase):
         self.assertEqual((record["evaluation"]["verdict"], record["status"]), ("REVIEW", "PENDING_REVIEW"))
 
 
+class BindingCompletenessTests(unittest.TestCase):
+    """A frozen decision is bound to the complete proposal and ticket snapshot, for both engines."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.store = TicketStore(Path(self.tmp.name) / "queue.sqlite3")
+        self.addCleanup(self.store.close)
+        self.policy = RoutingPolicy("p", ("support", "engineering", "legal"), ("engineering",), ("bob",),
+                                    0.8, ("low", "normal", "high", "urgent"), ("urgent",))
+
+    def recorded(self, name):
+        record = load(name)["record"]
+        self.store.create_ticket(record["ticket"]["id"], record["ticket"]["department"],
+                                 record["ticket"].get("priority"))
+        return record, Recommendation.from_dict(record["recommendation"])
+
+    def test_cedar_authorization_cannot_be_reused_after_the_ticket_moved_to_another_revision(self):
+        """The reviewer's reproduction: revision 0 authorization, ticket at revision 1."""
+        record, proposal = self.recorded("cedar-reassign-allow-executed")
+        frozen = record["external_policy"]
+        self.assertEqual(self.store.submit(proposal, self.policy, "alice", frozen)["ticket"]["revision"], 0)
+        self.store.create_ticket("T-211b", "intake")
+        bumped = Recommendation("set_ticket_priority", "T-211b", None, 0.95, "m", "q", priority="high")
+        self.store.execute(self.store.submit(bumped, self.policy, "alice")["id"])
+        self.assertEqual(self.store.get_ticket("T-211b").revision, 1)
+        again = Recommendation.from_dict({**record["recommendation"], "ticket_id": "T-211b"})
+        with self.assertRaises(RecordMismatch):
+            self.store.submit(again, self.policy, "alice", frozen)
+
+    def test_same_ticket_at_revision_one_is_refused(self):
+        record, proposal = self.recorded("cedar-reassign-allow-executed")
+        self.store.execute(self.store.submit(
+            Recommendation("set_ticket_priority", "T-211", None, 0.95, "m", "q", priority="high"),
+            self.policy, "alice")["id"])
+        self.assertEqual(self.store.get_ticket("T-211").revision, 1)
+        with self.assertRaises(RecordMismatch):
+            self.store.submit(proposal, self.policy, "alice", record["external_policy"])
+
+    def test_each_recommendation_member_is_bound_for_both_engines(self):
+        for name in ("cedar-reassign-allow-executed", "opa-reassign-allow-executed"):
+            record, proposal = self.recorded(name)
+            frozen = record["external_policy"]
+            for change in ({"model": "another"}, {"question_version": "q2"}, {"probability": 0.9},
+                           {"probability": None}, {"refused": True}):
+                changed = Recommendation.from_dict({**record["recommendation"], **change})
+                with self.subTest(name=name, change=change), self.assertRaises(RecordMismatch):
+                    self.store.submit(changed, self.policy, "alice", frozen)
+
+    def test_each_ticket_member_is_bound_for_both_engines(self):
+        for name in ("cedar-reassign-allow-executed", "opa-reassign-allow-executed"):
+            record, proposal = self.recorded(name)
+            frozen = record["external_policy"]
+            ticket = Ticket.from_dict(record["ticket"])
+            for changed in (Ticket(ticket.id, ticket.department, 1), Ticket(ticket.id, ticket.department, 0, "low"),
+                            Ticket(ticket.id, "other", 0)):
+                with self.subTest(name=name, ticket=changed.to_dict()), self.assertRaises(RecordMismatch):
+                    (cedar if frozen["engine"] == "cedar" else opa).bind(frozen, proposal, changed, "alice")
+            (cedar if frozen["engine"] == "cedar" else opa).bind(frozen, proposal, ticket, "alice")
+
+    def test_replay_rejects_an_edited_snapshot_or_recommendation_with_only_the_record_checksum_recomputed(self):
+        for name in ("cedar-reassign-allow-executed", "opa-reassign-allow-executed"):
+            for edit in (lambda r: r["ticket"].update(revision=1), lambda r: r["result"].update(revision=2),
+                         lambda r: r["recommendation"].update(probability=0.9),
+                         lambda r: r["recommendation"].update(question_version="q2")):
+                envelope = load(name)
+                edit(envelope["record"])
+                path = Path(self.tmp.name) / "edited.json"
+                path.write_text(json.dumps(rehash_record(envelope)), encoding="utf-8")
+                with self.subTest(name=name):
+                    self.assertEqual(run_cli("replay", "--record", str(path))[0], 1)
+                    with NoTools():
+                        self.assertEqual(run_cli("replay", "--record", str(path))[0], 1)
+
+
 class FreezeCliTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -538,8 +619,10 @@ class FreezeCliTests(unittest.TestCase):
         self.assertEqual((code, document["proposed_by"], document["ticket"]["department"]), (0, "alice", "intake"))
         code, request, _ = run_cli("--db", self.db, "policy-input", "--engine", "cedar", "--proposal", str(proposal),
                                    "--proposed-by", "alice")
-        self.assertEqual((code, request["principal"], request["context"]),
-                         (0, 'User::"alice"', {"requested": "support", "current": "intake"}))
+        self.assertEqual((code, request["principal"]), (0, 'User::"alice"'))
+        self.assertEqual({key: request["context"][key] for key in ("requested", "current")},
+                         {"requested": "support", "current": "intake"})
+        self.assertRegex(request["context"]["proposal_sha256"], "^[0-9a-f]{64}$")
 
     def test_submit_with_an_external_policy_file_exports_a_replayable_record(self):
         external = self.root / "external.json"
@@ -560,6 +643,20 @@ class FreezeCliTests(unittest.TestCase):
                         "--proposed-by", "bob", "--external-policy", str(external))
         self.assertEqual(wrong[0], 2)
         self.assertIn("does not describe", wrong[2])
+
+
+@unittest.skipUnless(HAVE_OPA and HAVE_CEDAR, "opa and cedar are required")
+class RecorderTests(unittest.TestCase):
+    def test_the_recorder_runs_into_a_new_directory_and_its_records_replay(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            done = subprocess.run([sys.executable, str(FIXTURES / "record.py"), "--out", tmp],
+                                  capture_output=True, text=True, timeout=120)
+            self.assertEqual(done.returncode, 0, done.stderr)
+            records = sorted((Path(tmp) / "records").glob("*.json"))
+            self.assertEqual([path.name for path in records], [path.name for path in RECORDS])
+            self.assertTrue((Path(tmp) / "opa" / "decision-log.jsonl").is_file())
+            for path in records:
+                self.assertEqual(run_cli("replay", "--record", str(path), "--require-reevaluation")[0], 0, path.name)
 
 
 @unittest.skipUnless(os.environ.get("DECISION_CONTROL_REQUIRE_POLICY_TOOLS") == "1",

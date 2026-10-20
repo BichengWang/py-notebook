@@ -7,8 +7,8 @@
     },
     "proposed_by": "mallory",
     "policy_sha256": "7236899f82f6bdfbbd02fa56d431c87e8b80270d5e50c3c3e2b1ac4048d78240",
-    "id": "b560798c-e61d-40d0-9717-ce1cd345e759",
-    "created_at": "2026-10-19T23:58:45.216734+00:00",
+    "id": "ab0e9005-386d-459c-bdb5-524aa2b67e1c",
+    "created_at": "2026-10-20T00:25:10.644889+00:00",
     "recommendation": {
       "action": "reassign_ticket",
       "ticket_id": "T-203",
@@ -60,12 +60,12 @@
     "events": [
       {
         "event": "SUBMITTED",
-        "at": "2026-10-19T23:58:45.216734+00:00"
+        "at": "2026-10-20T00:25:10.644889+00:00"
       }
     ],
     "external_policy": {
       "engine": "opa",
-      "decision_id": "94c88483-f615-486f-bef1-25e3e5ee86db",
+      "decision_id": "869728a4-0a97-4ac7-8cbf-02794a4f7a14",
       "path": "ticket/routing/decision",
       "bundles": {
         "bundle": {
@@ -101,12 +101,12 @@
       },
       "data": {},
       "labels": {
-        "id": "f438e1d5-55c7-47d9-a3bc-a984fa1862ed",
+        "id": "8263a464-de81-4c3a-bd44-0f980ede03ee",
         "version": "1.21.2"
       },
-      "timestamp": "2026-10-19T23:58:43.706902Z"
+      "timestamp": "2026-10-20T00:25:09.06804Z"
     },
-    "external_policy_sha256": "11d1f7858cbca1cba93b6853b4f18cd6ab7b36544a6b2c11705069ca866256ce"
+    "external_policy_sha256": "1bb683167be0588707e8b02d6ea0a058356166723c90474ed3aa7679a08f149f"
   },
-  "sha256": "7ffd3fbb88d19097be66241248d95c3452d872e22c078a4eaf40b5ff421765cc"
+  "sha256": "429f1a00338cd0a13baf992b3ebcad4149027216fefad72cb0ea6a18adda939f"
 }

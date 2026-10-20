@@ -7,8 +7,8 @@
     },
     "proposed_by": "alice",
     "policy_sha256": "7236899f82f6bdfbbd02fa56d431c87e8b80270d5e50c3c3e2b1ac4048d78240",
-    "id": "c908cc79-9976-476b-b237-6c9668b406ce",
-    "created_at": "2026-10-19T23:58:46.063747+00:00",
+    "id": "2369138f-dec8-4a14-b46e-c8d488d6b515",
+    "created_at": "2026-10-20T00:25:11.519571+00:00",
     "recommendation": {
       "action": "reassign_ticket",
       "ticket_id": "T-213",
@@ -60,7 +60,7 @@
     "events": [
       {
         "event": "SUBMITTED",
-        "at": "2026-10-19T23:58:46.063747+00:00"
+        "at": "2026-10-20T00:25:11.519571+00:00"
       }
     ],
     "external_policy": {
@@ -119,6 +119,7 @@
         "resource": "Ticket::\"T-213\"",
         "context": {
           "requested": "support",
+          "proposal_sha256": "1d760daa1054e63a3eb7d023075b53573615627aaf400789acf385cf12e2f2d7",
           "current": "legal"
         }
       },
@@ -128,7 +129,7 @@
         "errors": []
       }
     },
-    "external_policy_sha256": "8b62f85649dad5be5fbcd04899569e05123af6492d8a9cb8b53e9f10f550345a"
+    "external_policy_sha256": "f2095ad82d10f36bf1fe80d04638cf9ff20822d8ef5554bd9f6a0ab79b79cbed"
   },
-  "sha256": "4a25acd20728ddaa08b243d94f47018d05f84573883d8ec9fd3e29d6879ed223"
+  "sha256": "c30369b668704bfbfb853766602948391c0c467c8907d799015113cc72bed2ca"
 }

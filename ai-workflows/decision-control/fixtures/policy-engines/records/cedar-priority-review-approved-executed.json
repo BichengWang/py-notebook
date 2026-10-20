@@ -7,8 +7,8 @@
     },
     "proposed_by": "alice",
     "policy_sha256": "7236899f82f6bdfbbd02fa56d431c87e8b80270d5e50c3c3e2b1ac4048d78240",
-    "id": "0967f9f0-717a-46b9-9951-23382de0dbd9",
-    "created_at": "2026-10-19T23:58:46.241922+00:00",
+    "id": "ce09612e-c721-4915-8663-2dd4786bb0d7",
+    "created_at": "2026-10-20T00:25:11.703136+00:00",
     "recommendation": {
       "action": "set_ticket_priority",
       "ticket_id": "T-214",
@@ -60,7 +60,7 @@
       "decision": "APPROVED",
       "reviewer": "bob",
       "note": "checked the frozen decision",
-      "at": "2026-10-19T23:58:46.281650+00:00"
+      "at": "2026-10-20T00:25:11.746770+00:00"
     },
     "result": {
       "id": "T-214",
@@ -71,15 +71,15 @@
     "events": [
       {
         "event": "SUBMITTED",
-        "at": "2026-10-19T23:58:46.241922+00:00"
+        "at": "2026-10-20T00:25:11.703136+00:00"
       },
       {
         "event": "APPROVED",
-        "at": "2026-10-19T23:58:46.281650+00:00"
+        "at": "2026-10-20T00:25:11.746770+00:00"
       },
       {
         "event": "EXECUTED",
-        "at": "2026-10-19T23:58:46.321628+00:00"
+        "at": "2026-10-20T00:25:11.790216+00:00"
       }
     ],
     "external_policy": {
@@ -138,6 +138,7 @@
         "resource": "Ticket::\"T-214\"",
         "context": {
           "requested": "urgent",
+          "proposal_sha256": "31f6b9b0765d82a36304e89d22a6b65c564fc1e139ffb4d641a2e1c992496fc3",
           "current": "high"
         }
       },
@@ -149,7 +150,7 @@
         "errors": []
       }
     },
-    "external_policy_sha256": "c8668f92a457c0cb96824a5abddf5a02f2bd220513e7192bd9e741130309ef67"
+    "external_policy_sha256": "731e27296bc6a65aac932b2a8fac70f24362cc89e41de138b1d70d578892ec42"
   },
-  "sha256": "60bc5d360845c8928c0dd7afb1e43650b82c9c1356312797023142fc79a99f1d"
+  "sha256": "5b7a4c01600a76d0147de01b8cdd9fc26ada89e46d69a13abc87f4617ff3eff8"
 }

@@ -31,7 +31,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   data) or a Cedar authorization (policies as text or JSON, entities, request, decision,
   diagnostics) into the record. CLI: `freeze-opa`, `freeze-cedar`, `policy-input`,
   `submit --external-policy`. The frozen input or request must equal the one derived from
-  the record's recommendation, ticket and proposer; the external verdict is combined with
+  the record's complete recommendation, ticket snapshot (including revision) and proposer, through one shared
+  binding (Cedar carries a `proposal_sha256` context attribute); the external verdict is combined with
   the built-in policy by taking the more restrictive one.
 - `replay` re-evaluates a frozen policy with `opa eval` or `cedar authorize` when the tool is
   on PATH (OPA with `http.send`, `net.lookup_ip_addr` and `opa.runtime` removed), exiting 1 on
@@ -39,7 +40,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   `policy NOT re-evaluated` on stderr; `replay --require-reevaluation` exits 2 instead.
   The replay result gains `external_policy` for such records.
 - Recorded OPA 1.21.2 and Cedar CLI 4.14.0 decisions (`fixtures/policy-engines/`, with
-  `record.py` and `tool-versions.txt`) and 42 schema 5 conformance vectors (valid, tampered, invalid), eight of the valid ones
+  `record.py` and `tool-versions.txt`) and 45 schema 5 conformance vectors (valid, tampered, invalid), eight of the valid ones
   built from them.
 - CI installs checksum-verified OPA and Cedar CLI release binaries, runs the suite with
   and without them and replays the fixtures re-evaluated and digest-only.

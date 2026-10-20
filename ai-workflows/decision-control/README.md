@@ -302,16 +302,23 @@ open no network connection and run no service. `opa` and `cedar` are optional
 subprocesses used only to freeze a Cedar decision and to re-evaluate on replay.
 
 **Binding.** The frozen OPA `input` or Cedar `request` must equal the one decision-control
-derives from the record's own recommendation, ticket and proposer; otherwise submit and
-replay reject the record, so a decision taken for another proposal cannot be attached.
+derives from the record's own complete proposal, ticket snapshot and proposer (one shared
+function for both engines); otherwise submit and replay reject the record, so a decision
+taken for another proposal, or for the same proposal against another ticket revision, cannot
+be attached. "Complete" means the whole recommendation (model, question version,
+probability, refusal), the whole ticket (department, revision, priority), the proposer
+and the action.
 `decision-control --db DB policy-input --engine opa|cedar --proposal FILE --proposed-by NAME`
 prints it for a proposal against the current ticket.
 
-* OPA input: `{"action", "proposed_by", "ticket": {...}, "recommendation": {...}}`.
+* OPA input: `{"action", "proposed_by", "ticket": {...}, "recommendation": {...}}`, the
+  bound document itself.
 * Cedar request: principal `User::"<proposer>"`, action `Action::"<action>"`, resource
   `Ticket::"<ticket id>"`, context `{"requested": <target value>, "current": <value it
-  replaces, when the ticket has one>}`. Entities are supplied by the caller and are
-  evidence by digest only.
+  replaces, when the ticket has one>, "proposal_sha256": <RFC 8785 SHA-256 of the bound
+  document>}`. Cedar context is flat attributes for policy conditions, so the rest of the
+  proposal is bound by digest. Entities are supplied by the caller and are evidence by
+  digest only.
 
 **Combining.** The external verdict does not replace the built-in policy: the record's
 verdict is the more restrictive of the two (DENY, then ABSTAIN, then REVIEW, then
@@ -386,10 +393,14 @@ evidence that is wrong.
 
 What each mode catches: an edit of the frozen input or result with a stale checksum
 or stale `external_policy_sha256` fails in both modes, as does an edit that makes the input
-not describe the proposal or the result not match the recorded verdict. An edit of the frozen policy source
-(a Rego module or Cedar policy) with recomputed digests that leaves the recorded decision
-unchanged is invisible to digest-only verification and is caught only by re-evaluation.
-Recomputed digests are not signatures; see the trust boundary below.
+not describe the proposal or the result not match the recorded verdict. An edit of the frozen
+policy source (a Rego module or Cedar policy) with recomputed digests is invisible to
+digest-only verification, and re-evaluation catches it **only when the evaluated outcome
+changes**: a policy edit that still yields the frozen result passes. Metadata that does not
+affect evaluation (an OPA `decision_id`, `timestamp` or `labels`, bundle names and revisions,
+Cedar entities that no policy reads) can be edited with recomputed digests and still pass in
+both modes. Recomputed digests are not signatures: only `replay --require-signature`
+(see Signed records) ties the whole file to a key holder; see the trust boundary below.
 
 ## Record schema v5 (v1-v4 readable)
 

@@ -20,7 +20,7 @@ import tempfile
 from .. import jcs
 from ..actions import ACTIONS
 from ..models import DecisionError, Evaluation, RecordMismatch, Verdict, _fields, _text
-from . import _tools
+from . import _binding, _tools
 
 NAME = "cedar"
 FIELDS = {"engine", "policies", "entities", "request", "decision", "diagnostics"}
@@ -45,10 +45,12 @@ def authorization_request(recommendation, ticket, proposed_by):
     """The Cedar request for a proposal; replay requires the frozen request to equal it.
 
     Principal ``User::"<proposer>"``, action ``Action::"<action>"``, resource
-    ``Ticket::"<ticket id>"`` and a context with ``requested`` (the target value) and,
-    when the ticket has one, ``current`` (the value it would replace).
+    ``Ticket::"<ticket id>"`` and a context with ``requested`` (the target value), ``current``
+    (the value it would replace, when the ticket has one) and ``proposal_sha256``, the digest
+    of the complete bound proposal (see ``_binding``).
     """
-    context = {"requested": recommendation.target}
+    context = {"requested": recommendation.target,
+               "proposal_sha256": _binding.proposal_sha256(recommendation, ticket, proposed_by)}
     action = ACTIONS.get(recommendation.action)
     if action is not None and action.current(ticket) is not None:
         context["current"] = action.current(ticket)
@@ -109,8 +111,8 @@ def validate(frozen):
 
 def bind(frozen, recommendation, ticket, proposed_by):
     """Reject a frozen decision that was taken for a different proposal, ticket or proposer."""
-    if _canonical(frozen["request"]) != _canonical(authorization_request(recommendation, ticket, proposed_by)):
-        raise RecordMismatch("frozen Cedar request does not describe this decision's proposal, ticket and proposer")
+    _binding.require_equal(frozen["request"], authorization_request(recommendation, ticket, proposed_by),
+                           "Cedar", "request")
 
 
 def evaluation(frozen):

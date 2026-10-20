@@ -121,8 +121,8 @@ def main(argv=None):
     parser.add_argument("--out", default=str(HERE))
     out = Path(parser.parse_args(argv).out)
     records, raw_cedar = out / "records", out / "cedar"
-    records.mkdir(parents=True, exist_ok=True)
-    raw_cedar.mkdir(parents=True, exist_ok=True)
+    for directory in (records, raw_cedar, out / "opa"):
+        directory.mkdir(parents=True, exist_ok=True)
     (out / "tool-versions.txt").write_text("\n".join(versions()) + "\n", encoding="utf-8")
     with tempfile.TemporaryDirectory() as scratch:
         scratch = Path(scratch)

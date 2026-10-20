@@ -7,8 +7,8 @@
     },
     "proposed_by": "alice",
     "policy_sha256": "7236899f82f6bdfbbd02fa56d431c87e8b80270d5e50c3c3e2b1ac4048d78240",
-    "id": "1702de8a-ad1e-4f40-a390-3185d3bf9a84",
-    "created_at": "2026-10-19T23:58:45.408493+00:00",
+    "id": "064e9ae9-8d33-409e-b9e4-95474a07bc68",
+    "created_at": "2026-10-20T00:25:10.848132+00:00",
     "recommendation": {
       "action": "set_ticket_priority",
       "ticket_id": "T-204",
@@ -67,16 +67,16 @@
     "events": [
       {
         "event": "SUBMITTED",
-        "at": "2026-10-19T23:58:45.408493+00:00"
+        "at": "2026-10-20T00:25:10.848132+00:00"
       },
       {
         "event": "EXECUTED",
-        "at": "2026-10-19T23:58:45.447131+00:00"
+        "at": "2026-10-20T00:25:10.890618+00:00"
       }
     ],
     "external_policy": {
       "engine": "opa",
-      "decision_id": "2c79e996-0805-4f4e-8946-af3e0d5deae4",
+      "decision_id": "291f8458-bb95-4a93-8a8e-70e3b8ab8d56",
       "path": "ticket/routing/decision",
       "bundles": {
         "bundle": {
@@ -113,12 +113,12 @@
       },
       "data": {},
       "labels": {
-        "id": "f438e1d5-55c7-47d9-a3bc-a984fa1862ed",
+        "id": "8263a464-de81-4c3a-bd44-0f980ede03ee",
         "version": "1.21.2"
       },
-      "timestamp": "2026-10-19T23:58:43.782645Z"
+      "timestamp": "2026-10-20T00:25:09.15078Z"
     },
-    "external_policy_sha256": "18fe7e2e1c6bc631c48efcd9b5443a304dd30961bf7faca004d1c5eb53a93b32"
+    "external_policy_sha256": "f81c508794e194c17aaa742f148db312265badd3c6d8ffc53b8f7d1ad3ccc8d6"
   },
-  "sha256": "eac194bef2397c16ac37d012005fad6731fd162edaf3e6df1c748aa1e3507aad"
+  "sha256": "4aa11b5f4d572051c88987f308f40191c0b5a27ef9911dd5a58f66a23b47619c"
 }

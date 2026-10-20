@@ -20,7 +20,7 @@ import tempfile
 
 from .. import jcs
 from ..models import DecisionError, Evaluation, RecordMismatch, Verdict, _fields, _text
-from . import _tools
+from . import _binding, _tools
 
 NAME = "opa"
 REQUIRED = {"engine", "decision_id", "path", "bundles", "input", "result", "modules", "data"}
@@ -35,8 +35,7 @@ _MODULE_PART = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*\Z")
 
 def decision_input(recommendation, ticket, proposed_by):
     """The OPA ``input`` document for a proposal; replay requires the frozen input to equal it."""
-    return {"action": recommendation.action, "proposed_by": proposed_by,
-            "ticket": ticket.to_dict(), "recommendation": recommendation.to_dict()}
+    return _binding.proposal(recommendation, ticket, proposed_by)
 
 
 def _canonical(value):
@@ -102,8 +101,7 @@ def validate(frozen):
 
 def bind(frozen, recommendation, ticket, proposed_by):
     """Reject a frozen decision that was taken for a different proposal, ticket or proposer."""
-    if _canonical(frozen["input"]) != _canonical(decision_input(recommendation, ticket, proposed_by)):
-        raise RecordMismatch("frozen OPA input does not describe this decision's proposal, ticket and proposer")
+    _binding.require_equal(frozen["input"], decision_input(recommendation, ticket, proposed_by), "OPA", "input")
 
 
 def evaluation(frozen):

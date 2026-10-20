@@ -7,8 +7,8 @@
     },
     "proposed_by": "mallory",
     "policy_sha256": "7236899f82f6bdfbbd02fa56d431c87e8b80270d5e50c3c3e2b1ac4048d78240",
-    "id": "c16191b5-912e-472a-bb4c-2dbf4af6ef36",
-    "created_at": "2026-10-19T23:58:45.862159+00:00",
+    "id": "7a9672f7-f816-40b0-9257-bdc6a64d2f9b",
+    "created_at": "2026-10-20T00:25:11.331915+00:00",
     "recommendation": {
       "action": "reassign_ticket",
       "ticket_id": "T-212",
@@ -60,7 +60,7 @@
     "events": [
       {
         "event": "SUBMITTED",
-        "at": "2026-10-19T23:58:45.862159+00:00"
+        "at": "2026-10-20T00:25:11.331915+00:00"
       }
     ],
     "external_policy": {
@@ -119,6 +119,7 @@
         "resource": "Ticket::\"T-212\"",
         "context": {
           "requested": "support",
+          "proposal_sha256": "7a4fe0b5cc23ad3228b5efc97a408a3605e8661d11e40b74bb6b43c031ef55a1",
           "current": "intake"
         }
       },
@@ -128,7 +129,7 @@
         "errors": []
       }
     },
-    "external_policy_sha256": "b7b857ae28ee29ee8b25034f81679f35fe9091290e26438c9ef12b070e057624"
+    "external_policy_sha256": "eebc67728f35d7ba2ab7b987211b79d7b50603456ce7e03882eeca8304bb7311"
   },
-  "sha256": "0e2563273d890998a1f2d0f0eec64d59a8db21438453ff6b6f41c022bd5293df"
+  "sha256": "abe66dfcefb5cdf2981e323b54a9cf42f21af330e5ce9f254754cd80ecaba203"
 }

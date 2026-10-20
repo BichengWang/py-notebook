@@ -346,6 +346,15 @@ def tampered_records():
         set_path("external_policy", "result", {"verdict": "ALLOW", "reasons": ["router_reassigns_to_open_destination"]}),
         recompute=True,
         note="Turn the frozen OPA DENY into ALLOW and recompute only the record checksum; external_policy_sha256 no longer matches the frozen decision")
+    add("record-v5-cedar-proposal-edit-recomputed", "record-v5-cedar-reassign-allow-executed",
+        set_path("recommendation", "probability", 0.9), recompute=True,
+        note="Lower the recommendation probability (still above the threshold) and recompute only the record checksum; the frozen Cedar request binds the complete proposal by digest, so replay rejects the unchanged authorization")
+    add("record-v5-cedar-ticket-revision-edit-recomputed", "record-v5-cedar-reassign-allow-executed",
+        cascade(set_path("ticket", "revision", 1), set_path("result", "revision", 2)), recompute=True,
+        note="Move the frozen ticket snapshot to revision 1 (and the result to revision 2) and recompute only the record checksum; the Cedar authorization was taken for revision 0, so replay rejects it")
+    add("record-v5-opa-proposal-edit-recomputed", "record-v5-opa-reassign-allow-executed",
+        set_path("recommendation", "model", "another-model"), recompute=True,
+        note="Change the recommendation model and recompute only the record checksum; the frozen OPA input holds the complete recommendation, so replay rejects the unchanged decision")
     add("record-v5-cedar-request-edit-recomputed", "record-v5-cedar-reassign-allow-executed",
         cascade(set_path("external_policy", "request", "context", "requested", "engineering"), external_digest),
         recompute=True,

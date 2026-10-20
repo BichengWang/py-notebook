@@ -7,8 +7,8 @@
     },
     "proposed_by": "alice",
     "policy_sha256": "7236899f82f6bdfbbd02fa56d431c87e8b80270d5e50c3c3e2b1ac4048d78240",
-    "id": "75b96cc7-eb47-4164-8013-f834eb744e5c",
-    "created_at": "2026-10-19T23:58:44.946679+00:00",
+    "id": "93d400ec-710d-4e9d-8083-a45c5a94b208",
+    "created_at": "2026-10-20T00:25:10.356797+00:00",
     "recommendation": {
       "action": "reassign_ticket",
       "ticket_id": "T-202",
@@ -60,7 +60,7 @@
       "decision": "APPROVED",
       "reviewer": "bob",
       "note": "checked the frozen decision",
-      "at": "2026-10-19T23:58:44.985382+00:00"
+      "at": "2026-10-20T00:25:10.398968+00:00"
     },
     "result": {
       "id": "T-202",
@@ -70,20 +70,20 @@
     "events": [
       {
         "event": "SUBMITTED",
-        "at": "2026-10-19T23:58:44.946679+00:00"
+        "at": "2026-10-20T00:25:10.356797+00:00"
       },
       {
         "event": "APPROVED",
-        "at": "2026-10-19T23:58:44.985382+00:00"
+        "at": "2026-10-20T00:25:10.398968+00:00"
       },
       {
         "event": "EXECUTED",
-        "at": "2026-10-19T23:58:45.024578+00:00"
+        "at": "2026-10-20T00:25:10.441523+00:00"
       }
     ],
     "external_policy": {
       "engine": "opa",
-      "decision_id": "a21b5b13-1a3f-45e7-addf-36257f4e8ae9",
+      "decision_id": "614e526d-000b-430b-bf2c-6a7266f3c436",
       "path": "ticket/routing/decision",
       "bundles": {
         "bundle": {
@@ -118,13 +118,13 @@
         "routing.rego": "package ticket.routing\n\n# Ticket-routing policy used to record the OPA fixtures. It is deliberately small:\n# only listed routers may act, and the destinations and priorities that need a human\n# are marked REVIEW. Anything else is denied.\n\ndefault decision := {\"verdict\": \"DENY\", \"reasons\": [\"no_rule_matched\"]}\n\nrouters := {\"alice\", \"bob\"}\n\nopen_destinations := {\"support\"}\n\nreview_destinations := {\"engineering\"}\n\nopen_priorities := {\"low\", \"normal\", \"high\"}\n\nreview_priorities := {\"urgent\"}\n\ndecision := {\"verdict\": \"ALLOW\", \"reasons\": [\"router_reassigns_to_open_destination\"]} if {\n\tinput.action == \"reassign_ticket\"\n\tinput.proposed_by in routers\n\tinput.recommendation.destination in open_destinations\n}\n\ndecision := {\"verdict\": \"REVIEW\", \"reasons\": [\"destination_needs_review\"]} if {\n\tinput.action == \"reassign_ticket\"\n\tinput.proposed_by in routers\n\tinput.recommendation.destination in review_destinations\n}\n\ndecision := {\"verdict\": \"ALLOW\", \"reasons\": [\"router_sets_open_priority\"]} if {\n\tinput.action == \"set_ticket_priority\"\n\tinput.proposed_by in routers\n\tinput.recommendation.priority in open_priorities\n}\n\ndecision := {\"verdict\": \"REVIEW\", \"reasons\": [\"priority_needs_review\"]} if {\n\tinput.action == \"set_ticket_priority\"\n\tinput.proposed_by in routers\n\tinput.recommendation.priority in review_priorities\n}\n"
       },
       "data": {},
-      "timestamp": "2026-10-19T23:58:43.632283Z",
+      "timestamp": "2026-10-20T00:25:08.985313Z",
       "labels": {
-        "id": "f438e1d5-55c7-47d9-a3bc-a984fa1862ed",
+        "id": "8263a464-de81-4c3a-bd44-0f980ede03ee",
         "version": "1.21.2"
       }
     },
-    "external_policy_sha256": "39d4e7f53b7a5c967bd4b6a5318baf5d2077ff95634c3dcdc930eb2ad1fa8ac2"
+    "external_policy_sha256": "79a5e9ecf8bea8a44565934e248b6e9c124f4641752b32aac528350baf45c048"
   },
-  "sha256": "4e8e087831e1618fe741d9a9257ae38238a733b457ecfac35db0bf550f1fc955"
+  "sha256": "a0a0f3c25c136e934afe626397a26c2774df8aaee6f092383c1db3662bb2c02c"
 }

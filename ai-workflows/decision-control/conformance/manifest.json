@@ -1870,6 +1870,27 @@
       "note": "Erase the determining forbid policy from the frozen Cedar diagnostics and recompute the digests; the mapped reasons no longer match the recorded evaluation"
     },
     {
+      "path": "tampered/record-v5-cedar-proposal-edit-recomputed.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Lower the recommendation probability (still above the threshold) and recompute only the record checksum; the frozen Cedar request binds the complete proposal by digest, so replay rejects the unchanged authorization"
+    },
+    {
       "path": "tampered/record-v5-cedar-request-edit-recomputed.json",
       "expect": "tampered",
       "verify": {
@@ -1889,6 +1910,27 @@
         }
       ],
       "note": "Change the frozen Cedar request context and recompute external_policy_sha256 and the checksum; replay finds the request no longer describes this decision's proposal"
+    },
+    {
+      "path": "tampered/record-v5-cedar-ticket-revision-edit-recomputed.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Move the frozen ticket snapshot to revision 1 (and the result to revision 2) and recompute only the record checksum; the Cedar authorization was taken for revision 0, so replay rejects it"
     },
     {
       "path": "tampered/record-v5-opa-input-edit-recomputed.json",
@@ -1931,6 +1973,27 @@
         }
       ],
       "note": "Edit the frozen OPA input after exporting; the original checksum is left in place"
+    },
+    {
+      "path": "tampered/record-v5-opa-proposal-edit-recomputed.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Change the recommendation model and recompute only the record checksum; the frozen OPA input holds the complete recommendation, so replay rejects the unchanged decision"
     },
     {
       "path": "tampered/record-v5-opa-result-edit-recomputed.json",
