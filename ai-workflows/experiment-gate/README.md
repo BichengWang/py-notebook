@@ -562,15 +562,20 @@ Every estimator in `expgate/stats.py` is compared with an independent implementa
 inputs. The references' answers are committed as JSON in
 [`tests/golden/`](tests/golden/), so the default test suite
 (`tests/test_golden.py`) checks them using only the standard library. The generator,
-`tests/golden/generate.py`, needs the pinned libraries in `tests/golden/requirements.txt` and
+`tests/golden/generate.py`, needs the libraries locked in `tests/golden/requirements.txt` and
 Python 3.10 (`confseq` 0.0.11, its latest release, has no wheels for newer interpreters; `gbstats`
-0.8.0 pins `numpy<2` and `pandas<2`). A CI job (`golden vectors` in `expgate-ci.yml`) regenerates
-the files and fails on any difference.
+0.8.0 pins `numpy<2` and `pandas<2`). The lock is compiled from the direct pins in
+`tests/golden/requirements.in` and fixes every transitive dependency by version and hash, for Linux
+and macOS, so the job cannot drift when an upstream package releases. A CI job (`golden vectors` in
+`expgate-ci.yml`) installs from the lock, regenerates the files and fails on any difference.
 
 ```sh
-python3.10 -m venv .venv && .venv/bin/pip install -r tests/golden/requirements.txt
+python3.10 -m venv .venv && .venv/bin/pip install --require-hashes -r tests/golden/requirements.txt
 .venv/bin/python tests/golden/generate.py             # rewrites tests/golden/*.json
 ```
+
+To change a reference version, edit `requirements.in` and recompile with the `uv pip compile`
+command in its header, then regenerate and review the diff of the vectors.
 
 Pinned references: scipy 1.14.1, statsmodels 0.15.0, gbstats 0.8.0, confseq 0.0.11, numpy 1.26.4,
 pandas 1.5.3. All are used for development and CI only; none is imported by `expgate`, listed as a
