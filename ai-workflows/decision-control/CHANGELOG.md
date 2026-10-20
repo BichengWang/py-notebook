@@ -63,8 +63,9 @@ of 0.1.0 was removed.
   `tool-versions.txt`) and 47 schema 5 conformance vectors (valid, tampered, invalid), eight of the valid
   ones built from them. CI installs checksum-verified OPA and Cedar CLI release binaries, runs the suite with
   and without them and replays the fixtures re-evaluated and digest-only.
-- `python3 conformance/generate.py --check` compares the committed vector tree with a fresh generation without
-  writing: exit 1 and `differs: <path>` on stderr for a changed, missing or extra file, exit 2 for an unknown
+- `python3 conformance/generate.py --check` compares `valid/`, `tampered/`, `invalid/` and `manifest.json` with a
+  fresh generation without writing: exit 1 and `differs: <path>` on stderr for a changed, missing or extra file
+  inside those (other files in `conformance/` are not compared), exit 2 for an unknown
   argument. The invalid vectors `record-v4-uppercase-id`, `record-v4-urn-id`, `record-v5-uppercase-id` and
   `record-v5-urn-id` cover the canonical id rule.
 - Signed records (P-012): `keygen`, `--sign-key` on `demo`, `evaluate` and `export`, and
