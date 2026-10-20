@@ -152,7 +152,9 @@ what each signature does and does not prove are in
 [SECURITY.md](../SECURITY.md#signed-decision-records).
 
 **Format.** The envelope is a [DSSE](https://github.com/secure-systems-lab/dsse)
-envelope around an [in-toto Statement v1](https://github.com/in-toto/attestation/blob/main/spec/v1/statement.md):
+envelope. The envelopes the packages build for HMAC signing wrap an
+[in-toto Statement v1](https://github.com/in-toto/attestation/blob/main/spec/v1/statement.md);
+Sigstore bundles are made by `cosign` and wrap a Statement v0.1 (see below):
 
 ```json
 {
@@ -166,13 +168,23 @@ envelope around an [in-toto Statement v1](https://github.com/in-toto/attestation
   `H` is the SHA-256 of the **exact bytes of the signed file**, the same subject
   `cosign attest-blob` computes, so reformatting the file breaks the signature and
   one record can carry an HMAC envelope, a Sigstore bundle, or both.
+- **Sigstore bundles differ in the statement version.** For a custom predicate type,
+  `cosign attest-blob --predicate FILE --type URI` (read from cosign v3.1.3's
+  `pkg/cosign/attestation` and in-toto-golang v0.11.0) writes `_type`
+  `https://in-toto.io/Statement/v0.1` inside the bundle's DSSE envelope, not v1. The
+  subject (the file's base name and the SHA-256 of its exact bytes), the
+  `predicateType` and the predicate (the predicate file, unchanged) are the same as in
+  an HMAC envelope. `cosign verify-blob-attestation --type URI` checks the predicate
+  type and the subject digest and accepts a v0.1 statement as it is; the packages'
+  `sigstore attestation` CI jobs sign keylessly and verify this way. Only the
+  HMAC envelopes use Statement v1, and the v1 checks below apply to them.
 - Producers write the payload as the [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785)
   canonical form of the statement. The signature is HMAC-SHA256, with the HMAC key
   (generated keys are 32 bytes; longer supplied keys are accepted), over the DSSE pre-authentication encoding
   `"DSSEv1" SP len(payloadType) SP payloadType SP len(payload) SP payload` (lengths in
   decimal bytes, payload the decoded statement bytes). The key id is `hmac-sha256:`
   plus the first 16 hex digits of the SHA-256 of the key.
-- A verifier checks the payload type, finds a signature with its key id and compares
+- An HMAC verifier checks the payload type, finds a signature with its key id and compares
   the HMAC in constant time, then requires `_type`, a `predicateType` equal to the
   one for this record type and schema version, and a subject digest equal to the
   SHA-256 of the file it read. The file is read once and the same bytes are then

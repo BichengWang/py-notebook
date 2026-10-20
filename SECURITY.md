@@ -60,6 +60,8 @@ which the package passes unchanged to `cosign verify-blob-attestation`. For GitH
 Actions signing the identity is the workflow and the ref it ran on, for example
 `https://github.com/OWNER/REPO/.github/workflows/WORKFLOW.yml@refs/heads/main`; a
 record signed on another branch or by a pull request has a different identity.
+The statement inside a cosign bundle is in-toto Statement v0.1, as cosign writes it
+for a custom predicate type; only the packages' own HMAC envelopes use Statement v1.
 Keyless signing writes the signer identity and the record digest to the public
 Rekor transparency log permanently, so do not attest private decisions there.
 The packages do not read or record the signing time, so a valid signature does not
