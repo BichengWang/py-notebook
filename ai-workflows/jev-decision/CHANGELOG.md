@@ -5,6 +5,11 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- Signature verification treats a malformed signature field (null, non-string or otherwise
+  odd-typed `sig`, `payload`, `predicateType`, `subject` or digest values) as an invalid
+  signature and exits 1 instead of 2.
+
 ### Added
 - `jev-decision-verify answer.json` re-parses the embedded raw provider response with the embedded question definitions, compares typed answers, refusals, `id`, `usage` and `model`, and recomputes the digest. Exit 0 verified, 1 mismatch, 2 malformed or unverifiable.
 - `jev-decision-verify --evaluation DIR` hashes every file listed in `provenance.json` and re-scores the retained responses against `evaluation.json` and `cases.jsonl` without calling a provider; recomputed metric floats compare with a relative tolerance of 1e-9, everything else exactly.

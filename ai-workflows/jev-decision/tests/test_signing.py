@@ -217,6 +217,78 @@ class AnswerSigningTests(Workspace):
                 self.assertEqual(code, 1)
                 self.assertIn("predicate type", stderr)
 
+
+    def odd_signed_envelopes(self, good, key):
+        """Envelopes whose HMAC is valid but whose statement has fields of unexpected types."""
+        import hashlib
+        import hmac
+        statement = json.loads(base64.b64decode(good["payload"]))
+
+        def signed(body):
+            payload = body if isinstance(body, bytes) else json.dumps(body).encode()
+            mac = hmac.new(key, signing.pae(signing.PAYLOAD_TYPE, payload), hashlib.sha256).digest()
+            return {"payloadType": signing.PAYLOAD_TYPE, "payload": base64.b64encode(payload).decode(),
+                    "signatures": [{"keyid": signing.key_id(key), "sig": base64.b64encode(mac).decode()}]}
+
+        subject = statement["subject"]
+        return {
+            "predicateType is a list": signed({**statement, "predicateType": ["x"]}),
+            "predicateType is a dict": signed({**statement, "predicateType": {"x": 1}}),
+            "subject is a number": signed({**statement, "subject": 7}),
+            "subject is a string": signed({**statement, "subject": "abc"}),
+            "subject is null": signed({**statement, "subject": None}),
+            "subject entries are not objects": signed({**statement, "subject": [1, "x", None, [], True]}),
+            "digest is not an object": signed({**statement, "subject": [{"name": "x", "digest": "abc"}]}),
+            "digest value is a number": signed({**statement, "subject": [{"name": "x", "digest": {"sha256": 5}}]}),
+            "digest value is a list": signed({**statement, "subject": [{"name": "x", "digest": {"sha256": [1]}}]}),
+            "digest value is non-ASCII": signed({**statement, "subject": [{"name": "x", "digest": {"sha256": "\u00e9" * 64}}]}),
+            "high surrogate digest": signed({**statement, "subject": [{"name": "x", "digest": {"sha256": "\ud800"}}]}),
+            "low surrogate digest": signed({**statement, "subject": [{"name": "x", "digest": {"sha256": "\udc00" * 64}}]}),
+            "uppercase hex digest": signed({**statement, "subject": [
+                {"name": "x", "digest": {"sha256": statement["subject"][0]["digest"]["sha256"].upper()}}]}),
+            "63 character digest": signed({**statement, "subject": [
+                {"name": "x", "digest": {"sha256": statement["subject"][0]["digest"]["sha256"][:63]}}]}),
+            "65 character digest": signed({**statement, "subject": [
+                {"name": "x", "digest": {"sha256": statement["subject"][0]["digest"]["sha256"] + "0"}}]}),
+            "deeply nested list digest": signed(json.dumps({**statement, "subject": [
+                {"name": "x", "digest": {"sha256": "NESTED"}}]}).encode().replace(
+                    b'"NESTED"', b"[" * 100000 + b"]" * 100000)),
+            "deeply nested payload": signed(b"[" * 100000),
+            "statement _type is a list": signed({**statement, "_type": []}),
+            "subject is an object": signed({**statement, "subject": subject[0]}),
+        }
+
+    def sig_field_variants(self, good):
+        keyid = good["signatures"][0]["keyid"]
+        return {
+            "sig is null": [{"keyid": keyid, "sig": None}],
+            "sig missing": [{"keyid": keyid}],
+            "sig is a number": [{"keyid": keyid, "sig": 7}],
+            "sig is a list": [{"keyid": keyid, "sig": ["a"]}],
+            "sig is an object": [{"keyid": keyid, "sig": {"a": 1}}],
+            "sig is true": [{"keyid": keyid, "sig": True}],
+            "keyid is a list": [{"keyid": ["a"], "sig": good["signatures"][0]["sig"]}],
+            "entry is null": [None],
+        }
+
+    def test_null_and_odd_typed_signature_fields_exit_1(self):
+        out = self.signed_answer()
+        envelope_path = Path(str(out) + ".dsse.json")
+        good = json.loads(envelope_path.read_text())
+        key = signing.load_key(self.key_file)
+        cases = {name: {**good, "signatures": entries} for name, entries in self.sig_field_variants(good).items()}
+        cases.update({"payload is a number": {**good, "payload": 5}, "payload is null": {**good, "payload": None},
+                      "payload is a list": {**good, "payload": ["a"]}, "payload is non-ASCII": {**good, "payload": "\u00e9"}})
+        cases.update(self.odd_signed_envelopes(good, key))
+        for name, envelope in cases.items():
+            envelope_path.write_text(json.dumps(envelope))
+            with self.subTest(name=name):
+                code, _, stderr = self.verify(out, "--require-signature", "--key", self.key_file)
+                self.assertEqual(code, 1, stderr)
+                self.assertNotIn("Traceback", stderr)
+        envelope_path.write_text(json.dumps(good))
+        self.assertEqual(self.verify(out, "--require-signature", "--key", self.key_file)[0], 0)
+
     def test_malformed_envelopes_exit_1(self):
         out = self.signed_answer()
         envelope_path = Path(str(out) + ".dsse.json")
