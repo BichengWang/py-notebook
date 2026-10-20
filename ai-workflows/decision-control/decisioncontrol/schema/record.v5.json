@@ -175,8 +175,9 @@
       "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
     },
     "uuid": {
+      "$comment": "Canonical form only: lowercase hexadecimal, hyphenated 8-4-4-4-12, exactly what str(uuid.UUID(id)) returns. The reader of schemas 4 and 5 requires str(UUID(id)) == id and exits 2 otherwise, so this pattern and the reader accept the same ids.",
       "type": "string",
-      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?![\\s\\S])"
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
     },
     "timestamp": {
       "type": "string",

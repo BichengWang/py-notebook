@@ -5,9 +5,10 @@ from pathlib import Path
 import sqlite3
 import tempfile
 import unittest
+from uuid import UUID
 
 from decisioncontrol import DecisionError, Recommendation, RoutingPolicy, TicketStore, export_record, replay
-from dc_support import rehash_record
+from dc_support import as_schema3, as_schema4, rehash_record
 
 
 class EvidenceTests(unittest.TestCase):
@@ -144,6 +145,66 @@ class EvidenceTests(unittest.TestCase):
         envelope["record"]["schema_version"] = 999
         with self.assertRaises(DecisionError):
             replay(self.rehash(envelope))
+
+    NONCANONICAL_IDS = (
+        lambda canonical: canonical.upper(),
+        lambda canonical: f"urn:uuid:{canonical}",
+        lambda canonical: "{" + canonical + "}",
+        lambda canonical: canonical.replace("-", ""),
+    )
+
+    def test_schemas_4_and_5_require_the_canonical_lowercase_hyphenated_id(self):
+        submitted = self.store.submit(self.proposal(), self.policy, proposed_by="proposer")
+        self.assertEqual(submitted["schema_version"], 5)
+        self.assertEqual(str(UUID(submitted["id"])), submitted["id"])
+        for version, record in ((5, submitted), (4, as_schema4(submitted))):
+            for spell in self.NONCANONICAL_IDS:
+                envelope = deepcopy(export_record(record))
+                envelope["record"]["id"] = spell(record["id"])
+                self.assertEqual(UUID(envelope["record"]["id"]), UUID(record["id"]))
+                with self.subTest(version=version, id=envelope["record"]["id"]):
+                    with self.assertRaisesRegex(DecisionError, "lowercase hyphenated UUID"):
+                        replay(self.rehash(deepcopy(envelope)))
+                    with self.assertRaisesRegex(DecisionError, "lowercase hyphenated UUID"):
+                        export_record(envelope["record"])
+            with self.subTest(version=version, id="not-a-uuid"):
+                envelope = deepcopy(export_record(record))
+                envelope["record"]["id"] = "not-a-uuid"
+                with self.assertRaisesRegex(DecisionError, "must be a UUID"):
+                    replay(self.rehash(envelope))
+
+    def test_schemas_1_to_3_keep_accepting_any_id_that_uuid_parses(self):
+        submitted = self.store.submit(self.proposal(), self.policy, proposed_by="proposer")
+        legacy = as_schema3(submitted)
+        for spell in self.NONCANONICAL_IDS:
+            record = deepcopy(legacy)
+            record["id"] = spell(submitted["id"])
+            with self.subTest(id=record["id"]):
+                result = replay(self.rehash({"record": record, "sha256": ""}))
+                self.assertEqual(result["decision_id"], record["id"])
+                self.assertEqual(export_record(record)["record"]["id"], record["id"])
+
+    def test_no_caller_input_can_produce_a_noncanonical_id(self):
+        # The id is generated inside submit; nothing in the API accepts one.
+        first = self.store.submit(self.proposal(), self.policy, proposed_by="proposer")
+        second = self.store.submit(self.proposal(), self.policy, proposed_by="proposer")
+        for record in (first, second):
+            self.assertEqual(str(UUID(record["id"])), record["id"])
+        self.assertNotEqual(first["id"], second["id"])
+        # Lookup is by exact id, so a differently spelled id is unknown, not an alias.
+        for spell in self.NONCANONICAL_IDS:
+            with self.subTest(id=spell(first["id"])), self.assertRaisesRegex(DecisionError, "Unknown decision"):
+                self.store.get(spell(first["id"]))
+
+    def test_a_stored_decision_with_a_noncanonical_id_is_rejected_on_read(self):
+        submitted = self.store.submit(self.proposal(), self.policy, proposed_by="proposer")
+        record = deepcopy(submitted)
+        record["id"] = submitted["id"].upper()
+        with closing(sqlite3.connect(Path(self.tmp.name) / "tickets.sqlite3")) as connection, connection:
+            connection.execute("UPDATE decisions SET id = ?, record = ? WHERE id = ?",
+                               (record["id"], json.dumps(record, separators=(",", ":")), submitted["id"]))
+        with self.assertRaisesRegex(DecisionError, "lowercase hyphenated UUID"):
+            self.store.get(record["id"])
 
 
 class HistoricalV2Tests(unittest.TestCase):

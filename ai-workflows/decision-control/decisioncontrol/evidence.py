@@ -3,7 +3,8 @@
 A checksum detects corruption, not a malicious writer who can replace the checksum.
 Record schemas 1-3 digest Python's sorted compact JSON; schemas 4 and later digest RFC 8785
 (JCS) canonical bytes and reject duplicate object keys when parsing. Schema 5 adds the
-action registry and an optional frozen OPA or Cedar decision (``external_policy``).
+action registry and an optional frozen OPA or Cedar decision (``external_policy``). Schemas 4 and later also
+require the decision id in its canonical lowercase hyphenated form; schemas 1-3 accept any id ``uuid.UUID`` parses.
 """
 
 from collections.abc import Mapping
@@ -127,9 +128,11 @@ def _check_record(record):
     raw = _fields(record, fields)
     _text(raw["id"], "decision id")
     try:
-        UUID(raw["id"])
+        identifier = UUID(raw["id"])
     except ValueError as error:
         raise DecisionError("decision id must be a UUID") from error
+    if schema >= JCS_SCHEMA and str(identifier) != raw["id"]:
+        raise DecisionError("decision id must be a lowercase hyphenated UUID")
     _timestamp(raw["created_at"])
     proposal = Recommendation.from_dict(raw["recommendation"], schema)
     ticket = Ticket.from_dict(raw["ticket"], schema)

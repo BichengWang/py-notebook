@@ -2,6 +2,7 @@
 """Deterministically generate the decision-control conformance vectors.
 
 Usage: python3 conformance/generate.py [--out DIR]
+       python3 conformance/generate.py [--out DIR] --check    # exit 1 if the tree differs; writes nothing
 
 Records are assembled by hand (fixed ids and timestamps, no clock, no randomness)
 so the vectors do not depend on the store that produces real records. The schema 5 OPA
@@ -19,6 +20,7 @@ import json
 from pathlib import Path
 import shutil
 import sys
+from uuid import UUID
 
 PROJECT = Path(__file__).resolve().parents[1]
 if str(PROJECT) not in sys.path:
@@ -426,6 +428,28 @@ def tampered_records():
     return out
 
 
+def noncanonical_id_vectors(version, record, documents):
+    """Invalid vectors whose decision id parses as a UUID but is not the canonical lowercase hyphenated form.
+
+    Schemas 1-3 keep accepting these spellings (released in 0.1.0); schemas 4 and later require
+    ``str(UUID(id)) == id``, and the JSON Schema pattern is lowercase-only.
+    """
+    canonical_id = record["id"]
+    spellings = [
+        ("uppercase-id", canonical_id.upper(), "decision id written in uppercase hexadecimal"),
+        ("urn-id", f"urn:uuid:{canonical_id}", "decision id written with the urn:uuid: prefix"),
+    ]
+    out = []
+    for suffix, spelled, what in spellings:
+        assert spelled != canonical_id and str(UUID(spelled)) == canonical_id
+        edited = deepcopy(record)
+        edited["id"] = spelled
+        out.append((f"record-v{version}-{suffix}", pretty(envelope(edited)), documents,
+                    f"Schema {version} record with the {what} and the checksum recomputed; uuid.UUID() parses it, but "
+                    f"schemas 4 and later require the canonical lowercase hyphenated form"))
+    return out
+
+
 def invalid_records():
     """(name, text, documents) for invalid record vectors (replay exits 2)."""
     out = []
@@ -481,6 +505,7 @@ def invalid_records():
     out.append(("record-v4-ticket-priority-member", pretty(envelope(v4_priority)),
                 [{"path": ".", "schema": schema4, "schema_valid": False}],
                 "Schema 4 record whose ticket has a priority member and the checksum recomputed; schemas 1-4 predate ticket priority and readers reject it"))
+    out.extend(noncanonical_id_vectors(4, v4, [{"path": ".", "schema": schema4, "schema_valid": False}]))
     schema5 = f"{SCHEMA_DIR}/record.v5.json"
     v5 = base_record("record-v5-allow-executed")
     good5 = envelope(v5)
@@ -525,6 +550,7 @@ def invalid_records():
     both_targets["recommendation"]["priority"] = "high"
     out.append(("record-v5-recommendation-with-two-targets", pretty(envelope(both_targets)), document5,
                 "reassign_ticket recommendation that also carries a priority member and the checksum recomputed; an action reads exactly the member its registry entry names"))
+    out.extend(noncanonical_id_vectors(5, v5, document5))
 
     def external_edit(stem, edit):
         record = base_record(stem)
@@ -729,7 +755,7 @@ def rehash_any_report(report):
 # ------------------------------------------------------------------ driver
 
 def generate():
-    """Return ({relative path: bytes}, manifest dict) for the whole conformance tree."""
+    """Return ``{relative path: bytes}`` for the whole conformance tree, manifest included."""
     tree = {}
     vectors = []
     for stem, _, _ in VALID_RECORDS:
@@ -781,12 +807,42 @@ def write(out):
         target.write_bytes(content)
 
 
+def existing(out):
+    """``{relative path: bytes}`` of the generated part of the tree under ``out`` (what ``write`` owns)."""
+    out = Path(out)
+    found = {}
+    for name in ("valid", "tampered", "invalid"):
+        for path in sorted((out / name).rglob("*")):
+            if path.is_file():
+                found[path.relative_to(out).as_posix()] = path.read_bytes()
+    if (out / "manifest.json").is_file():
+        found["manifest.json"] = (out / "manifest.json").read_bytes()
+    return found
+
+
+def differences(fresh, current):
+    """Sorted paths that are missing, extra or not byte-identical in ``current`` compared with ``fresh``.
+
+    Exact comparison, no tolerance: the vectors contain no platform-dependent floating-point values.
+    """
+    return sorted(path for path in fresh.keys() | current.keys() if fresh.get(path) != current.get(path))
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--out", default=str(Path(__file__).resolve().parent),
                         help="output directory (default: this directory)")
-    write(parser.parse_args(argv).out)
+    parser.add_argument("--check", action="store_true",
+                        help="compare the tree in --out with a fresh generation without writing; exit 1 on a difference")
+    args = parser.parse_args(argv)
+    if args.check:
+        stale = differences(generate(), existing(args.out))
+        for path in stale:
+            print(f"differs: {path}", file=sys.stderr)
+        return 1 if stale else 0
+    write(args.out)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

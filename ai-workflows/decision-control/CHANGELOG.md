@@ -30,7 +30,11 @@ of 0.1.0 was removed.
   prints `policy NOT re-evaluated` on stderr and verifies the digests only. `replay
   --require-reevaluation` exits 2 instead. Records without an external policy are unaffected.
 - **Stricter schema 4 and 5 and evaluation schema 2 parsing.** Replay rejects duplicate object keys, non-finite
-  numbers, integers beyond 2^53-1 and unpaired surrogates (exit 2).
+  numbers, integers beyond 2^53-1 and unpaired surrogates (exit 2). Replay of schema 4 and 5 records also
+  rejects a decision `id` that is not the canonical lowercase hyphenated UUID (`str(UUID(id)) == id`; uppercase,
+  `urn:uuid:`, braces and unhyphenated spellings exit 2), and their JSON Schema `uuid` pattern is lowercase-only
+  to match. Schemas 1-3 keep the 0.1.0 reader, which accepts anything `uuid.UUID()` parses; their schemas keep
+  the hyphenated pattern and now say in a `$comment` that it is deliberately stricter than the reader.
 - **Unchanged:** Python 3.11 or later, no runtime dependencies, the separation-of-duties rules since schema
   3, the commands and options of 0.1.0.
 
@@ -56,9 +60,13 @@ of 0.1.0 was removed.
   with `http.send`, `net.lookup_ip_addr` and `opa.runtime` removed), exiting 1 on disagreement; the replay
   result gains `external_policy` for such records. See Compatibility and upgrading for the digest-only case.
 - Recorded OPA 1.21.2 and Cedar CLI 4.14.0 decisions (`fixtures/policy-engines/`, with `record.py` and
-  `tool-versions.txt`) and 45 schema 5 conformance vectors (valid, tampered, invalid), eight of the valid
+  `tool-versions.txt`) and 47 schema 5 conformance vectors (valid, tampered, invalid), eight of the valid
   ones built from them. CI installs checksum-verified OPA and Cedar CLI release binaries, runs the suite with
   and without them and replays the fixtures re-evaluated and digest-only.
+- `python3 conformance/generate.py --check` compares the committed vector tree with a fresh generation without
+  writing: exit 1 and `differs: <path>` on stderr for a changed, missing or extra file, exit 2 for an unknown
+  argument. The invalid vectors `record-v4-uppercase-id`, `record-v4-urn-id`, `record-v5-uppercase-id` and
+  `record-v5-urn-id` cover the canonical id rule.
 - Signed records (P-012): `keygen`, `--sign-key` on `demo`, `evaluate` and `export`, and
   `--require-signature` (`--key [--signature]` or `--sigstore-bundle` with `--certificate-identity` and
   `--certificate-oidc-issuer`) on `replay` and `replay-evaluation`. HMAC-SHA256 DSSE envelopes

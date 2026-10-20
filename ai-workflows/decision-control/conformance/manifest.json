@@ -2542,6 +2542,48 @@
       ]
     },
     {
+      "path": "invalid/record-v4-uppercase-id.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "Schema 4 record with the decision id written in uppercase hexadecimal and the checksum recomputed; uuid.UUID() parses it, but schemas 4 and later require the canonical lowercase hyphenated form",
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v4.json",
+          "schema_valid": false
+        }
+      ]
+    },
+    {
+      "path": "invalid/record-v4-urn-id.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "Schema 4 record with the decision id written with the urn:uuid: prefix and the checksum recomputed; uuid.UUID() parses it, but schemas 4 and later require the canonical lowercase hyphenated form",
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v4.json",
+          "schema_valid": false
+        }
+      ]
+    },
+    {
       "path": "invalid/record-v5-cedar-unknown-decision.json",
       "expect": "invalid",
       "verify": {
@@ -2827,6 +2869,48 @@
         "exit_code": 2
       },
       "note": "Checksum written in uppercase hexadecimal; digests are lowercase",
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": false
+        }
+      ]
+    },
+    {
+      "path": "invalid/record-v5-uppercase-id.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "Schema 5 record with the decision id written in uppercase hexadecimal and the checksum recomputed; uuid.UUID() parses it, but schemas 4 and later require the canonical lowercase hyphenated form",
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": false
+        }
+      ]
+    },
+    {
+      "path": "invalid/record-v5-urn-id.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "Schema 5 record with the decision id written with the urn:uuid: prefix and the checksum recomputed; uuid.UUID() parses it, but schemas 4 and later require the canonical lowercase hyphenated form",
       "documents": [
         {
           "path": ".",

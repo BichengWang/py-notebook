@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from uuid import UUID
 
 from decisioncontrol.jcs import canonicalize
 from dc_support import jsonschema, load_schema, python_json_v1, validator
@@ -88,6 +89,98 @@ class ManifestTests(unittest.TestCase):
         for name in ("record.v1.json", "record.v2.json", "record.v3.json", "evaluation.v1.json"):
             for expect in ("valid", "tampered"):
                 self.assertIn((expect, name), coverage)
+
+    def test_noncanonical_decision_ids_are_invalid_vectors_for_schemas_4_and_5(self):
+        by_path = {vector["path"]: vector for vector in MANIFEST["vectors"]}
+        for version in (4, 5):
+            for suffix in ("uppercase-id", "urn-id"):
+                path = f"invalid/record-v{version}-{suffix}.json"
+                with self.subTest(path=path):
+                    vector = by_path[path]
+                    self.assertEqual(vector["verify"]["exit_code"], 2)
+                    self.assertEqual(vector["documents"],
+                                     [{"path": ".", "schema": f"decisioncontrol/schema/record.v{version}.json",
+                                       "schema_valid": False}])
+                    document = json.loads(vector_file(vector).read_text(encoding="utf-8"))
+                    self.assertEqual(document["record"]["schema_version"], version)
+                    self.assertNotEqual(str(UUID(document["record"]["id"])), document["record"]["id"])
+                    # The checksum is correct, so exit 2 comes from the id rule and not from a digest.
+                    self.assertEqual(document["sha256"], hashlib.sha256(canonicalize(document["record"])).hexdigest())
+                    done = verify(vector)
+                    self.assertEqual(done.returncode, 2, done.stdout + done.stderr)
+                    self.assertIn("lowercase hyphenated UUID", done.stderr)
+
+
+class GeneratorCheckTests(unittest.TestCase):
+    """``generate.py --check`` compares with the tree and never writes."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.fresh = load_generator().generate()
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.out = Path(self.tmp.name) / "conformance"
+        for path, content in self.fresh.items():
+            (self.out / path).parent.mkdir(parents=True, exist_ok=True)
+            (self.out / path).write_bytes(content)
+
+    def generator(self, *args):
+        return subprocess.run([sys.executable, str(CONFORMANCE / "generate.py"), *args],
+                              capture_output=True, text=True, timeout=120)
+
+    def snapshot(self):
+        return {path.relative_to(self.out).as_posix(): path.read_bytes()
+                for path in self.out.rglob("*") if path.is_file()}
+
+    def test_committed_tree_passes(self):
+        done = self.generator("--check")
+        self.assertEqual((done.returncode, done.stdout, done.stderr), (0, "", ""))
+
+    def test_an_identical_tree_passes_and_is_not_rewritten(self):
+        before = self.snapshot()
+        done = self.generator("--out", str(self.out), "--check")
+        self.assertEqual((done.returncode, done.stdout, done.stderr), (0, "", ""))
+        self.assertEqual(self.snapshot(), before)
+
+    def test_a_changed_missing_or_extra_file_exits_1_and_nothing_is_written(self):
+        record = sorted(path for path in self.fresh if path.startswith("valid/") and path.endswith(".json"))[0]
+        canonical = sorted(path for path in self.fresh if path.endswith(".canonical"))[0]
+        (self.out / record).write_bytes(self.fresh[record] + b" ")
+        (self.out / canonical).unlink()
+        (self.out / "invalid" / "stray.json").write_text("{}", encoding="utf-8")
+        (self.out / "manifest.json").write_bytes(b"{}\n")
+        before = self.snapshot()
+        done = self.generator("--out", str(self.out), "--check")
+        self.assertEqual(done.returncode, 1, done.stderr)
+        self.assertEqual(done.stdout, "")
+        self.assertEqual(sorted(line.removeprefix("differs: ") for line in done.stderr.splitlines()),
+                         sorted([record, canonical, "invalid/stray.json", "manifest.json"]))
+        self.assertEqual(self.snapshot(), before)
+
+    def test_an_empty_directory_differs_and_stays_empty(self):
+        empty = Path(self.tmp.name) / "empty"
+        empty.mkdir()
+        done = self.generator("--out", str(empty), "--check")
+        self.assertEqual(done.returncode, 1)
+        self.assertEqual(len(done.stderr.splitlines()), len(self.fresh))
+        self.assertEqual(list(empty.iterdir()), [])
+
+    def test_unknown_arguments_exit_2_and_write_nothing(self):
+        before = self.snapshot()
+        for args in (["--chek"], ["--check", "--verbose"], ["extra"]):
+            with self.subTest(args=args):
+                done = self.generator("--out", str(self.out), *args)
+                self.assertEqual(done.returncode, 2, done.stderr)
+                self.assertIn("unrecognized arguments", done.stderr)
+        self.assertEqual(self.snapshot(), before)
+
+    def test_without_check_the_generator_still_restores_the_tree(self):
+        (self.out / "manifest.json").write_bytes(b"{}\n")
+        done = self.generator("--out", str(self.out))
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(self.snapshot(), self.fresh)
 
 
 def strictly_parseable(text):

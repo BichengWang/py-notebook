@@ -440,14 +440,19 @@ Schema 4 and earlier readers reject these members. JCS writes
 a whole-number float such as `1.0` as `1`, so never rely on the int/float
 distinction in records; integers beyond 2^53-1, NaN/Infinity and unpaired surrogates
 exit 2. A CANCELLED event has `event`, `at`, `reviewer` and `note` fields.
-Other event shapes remain unchanged.
+Other event shapes remain unchanged. The decision `id` is `str(uuid4())`, generated inside `submit`, never
+taken from the caller. Replay of schema 4 and 5 requires exactly that canonical form (lowercase, hyphenated,
+`str(UUID(id)) == id`) and exits 2 for any other spelling that `uuid.UUID()` would parse, such as uppercase,
+`urn:uuid:` or braces; the JSON Schema `uuid` pattern is the same lowercase-only pattern.
 
 Archived v1-v4 evidence and stored decisions remain valid under their original
 rules: v1/v2 have no proposer separation check, and v1-v3 digest Python sorted
 compact JSON (see below). They do not gain invented identity provenance on replay.
 Existing stored v3 and v4 decisions keep their version (including after `approve` or
-`cancel`); only new submissions are v5. Cancelling a stored v1 decision explicitly promotes that record
-to v2, preserving its inputs and prior approval. Unknown schema versions are
+`cancel`); only new submissions are v5. Schemas 1-3 keep the 0.1.0 reader, which accepts any id that
+`uuid.UUID()` parses; their JSON Schemas keep the hyphenated pattern and say so in a `$comment` (a pattern
+cannot mirror that parser, which differs between Python versions). Cancelling a stored v1 decision
+explicitly promotes that record to v2, preserving its inputs and prior approval. Unknown schema versions are
 rejected (exit 2) rather than silently reinterpreted. Policy-evaluation reports use
 their own schema (1 or 2, above).
 
@@ -469,8 +474,10 @@ exit 0 and carries the exact canonical bytes and digests of each checksum;
 `tampered/` replays with exit 1 (stale checksums, and edits with a recomputed
 checksum such as proposer self-approval or an edited frozen policy that replay still
 detects); `invalid/` exits 2 (duplicate keys, NaN, unsafe integers, unknown schema
-or fields). `python3 conformance/generate.py` regenerates the tree deterministically;
-a unit test fails if the committed files differ. The vectors are synthetic software
+or fields, a non-canonical decision `id`). `python3 conformance/generate.py` regenerates the tree
+deterministically; `python3 conformance/generate.py --check` compares it with the committed files without
+writing (exit 1 and `differs: <path>` on stderr for a changed, missing or extra file, exit 2 for an unknown
+argument), and a unit test fails if the committed files differ. The vectors are synthetic software
 fixtures, not live or adoption evidence. A checksum recomputed over a self-consistent
 edit that obeys every replay rule (for example, adding yourself to the frozen
 reviewers) is undetectable; that needs signatures.
