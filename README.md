@@ -71,7 +71,7 @@ decision-control replay --record /tmp/control-new/record-review.json
 cat /tmp/control-new/summary.json
 ```
 
-After 0.1.0 is published, `pip install expgate jevdecision decisioncontrol` will
+After 0.2.0 is published, `pip install expgate jevdecision decisioncontrol` will
 be available; publication is not claimed here. Live Jev calls require
 `TYPESAFE_API_KEY` (Jev) or `OPENAI_API_KEY` (OpenAI). The examples above make no
 provider calls and use hand-written/synthetic fixtures. They are software checks,

@@ -1,7 +1,7 @@
 # Decision model evaluation: FAIL
 
-- evaluation.json SHA-256: `3ec938a8f2eb388bd44dcd3d6d3746201dd33070266d7f1fc8af33820ac244cc`
-- jevdecision 0.1.0; backend jev; model jev-example; source live
+- evaluation.json SHA-256: `fe0e6b387a01d181f31dd9e492470eef2456b742962b6fe2020f6141e199ed43`
+- jevdecision 0.2.0; backend jev; model jev-example; source live
 - 3 cases, 1 answered, 2 errors (rate 0.6667)
 
 | Question | Type | n | Metrics |

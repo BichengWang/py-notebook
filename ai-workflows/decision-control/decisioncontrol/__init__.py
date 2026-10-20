@@ -1,6 +1,6 @@
 """Policy-constrained agent actions with durable local approval and evidence."""
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 from .actions import ACTIONS
 from .evidence import export_record, replay

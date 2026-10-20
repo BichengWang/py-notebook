@@ -1,7 +1,7 @@
 {
   "decision": "ROLLBACK",
   "experiment": "regression",
-  "expgate_version": "0.1.0",
+  "expgate_version": "0.2.0",
   "input": {
     "arms": {
       "control": {
@@ -130,7 +130,7 @@
   },
   "produced_by": {
     "name": "expgate",
-    "version": "0.1.0"
+    "version": "0.2.0"
   },
   "reasons": [
     "primary metric degraded"

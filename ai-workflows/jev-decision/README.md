@@ -18,7 +18,7 @@ Requires Python 3.11 or later; runtime dependencies: none. Examples live in the 
 and source distribution under `examples/`; they are not installed in the wheel.
 
 ```bash
-# Once 0.1.0 is published:
+# Once 0.2.0, the first PyPI release, is published:
 pip install jevdecision
 ```
 
@@ -415,7 +415,7 @@ to re-score without calling a provider. The bundled replay produces byte-identic
 metrics remain the same, but the report's `source` changes.
 
 Answer records use `schema_version: 2` (1 from 0.1.0 remains readable but cannot be verified);
-evaluation and provenance records use `schema_version: 2`. They carry `produced_by: {"name": "jevdecision", "version": "0.1.0"}`.
+evaluation and provenance records use `schema_version: 2`. They carry `produced_by: {"name": "jevdecision", "version": "0.2.0"}`.
 Raw provider response replay remains compatible with existing unversioned fixtures.
 JSON records use sorted keys, compact separators and UTF-8 without ASCII escaping;
 SHA-256 digests are lowercase hexadecimal. JSONL rows use the same encoding.

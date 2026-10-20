@@ -120,7 +120,7 @@ primary or guardrail therefore prevents SHIP.
 
 `decision.json` carries the decision, reasons, policy, sample-ratio, metrics, and
 `expgate_version`, plus integer `schema_version`, `produced_by:
-{"name": "expgate", "version": "0.1.0"}`, the full parsed `input`, and `input_sha256`.
+{"name": "expgate", "version": "0.2.0"}`, the full parsed `input`, and `input_sha256`.
 New records use **schema 3**: `input_sha256` is the lowercase SHA-256 of the
 [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785) (JCS) canonical form of `input`, so
 other languages can reproduce it byte for byte (`expgate/jcs.py`; integral floats

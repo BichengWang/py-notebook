@@ -26,7 +26,7 @@ from .core import DecisionModel
 from .errors import APIError, DatasetError, DecisionError, QuestionError, ResponseError
 from .questions import Choice, Noul, Predicate, Score, questions_from_spec
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     "APIError",

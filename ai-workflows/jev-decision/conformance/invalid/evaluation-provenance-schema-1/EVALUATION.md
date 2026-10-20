@@ -1,7 +1,7 @@
 # Decision model evaluation: PASS
 
-- evaluation.json SHA-256: `fcaab25b1e4754a7a05ba8ab808b31d24ff607a9be48bd205cc1d3e99b8baddc`
-- jevdecision 0.1.0; backend jev; model jev-example; source replay
+- evaluation.json SHA-256: `0524b35027b643b5fb07cb51567d1861584fac7c982b1835eba4e7634001ebd4`
+- jevdecision 0.2.0; backend jev; model jev-example; source replay
 - 12 cases, 12 answered, 0 errors (rate 0)
 
 - Replay origin is unverified; response model fields are supplied metadata, not proof of provider output.
