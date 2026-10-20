@@ -56,3 +56,23 @@ for vector in manifest["vectors"]:
 print(f"{len(manifest['vectors'])} conformance vectors verified", file=sys.stderr)
 PY
 fi
+# HMAC signing round trip with the installed script (no cosign needed).
+expect_code 0 "$cli" keygen smoke.key > key.json
+expect_code 2 "$cli" keygen smoke.key
+expect_code 0 "$cli" keygen other.key > /dev/null
+expect_code 0 "$cli" demo --out signed-demo --sign-key smoke.key > signed-demo-result.json
+expect_code 0 "$cli" replay --record signed-demo/record-review.json --require-signature --key smoke.key
+expect_code 1 "$cli" replay --record signed-demo/record-review.json --require-signature --key other.key
+expect_code 1 "$cli" replay --record demo/record-review.json --require-signature --key smoke.key
+"$venv/bin/python" - <<'PY'
+import hashlib, json
+path = "signed-demo/record-review.json"
+document = json.load(open(path))
+document["record"]["review"]["note"] = "edited after signing"
+from decisioncontrol.jcs import canonicalize
+document["sha256"] = hashlib.sha256(canonicalize(document["record"])).hexdigest()
+json.dump(document, open("forged.json", "w"), indent=2)
+PY
+cp signed-demo/record-review.json.dsse.json forged.json.dsse.json
+expect_code 0 "$cli" replay --record forged.json
+expect_code 1 "$cli" replay --record forged.json --require-signature --key smoke.key

@@ -7,6 +7,17 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 ## [Unreleased]
 
 ### Added
+- Signed records (P-012): `keygen`, `--sign-key` on `demo`, `evaluate` and `export`, and
+  `--require-signature` (`--key [--signature]` or `--sigstore-bundle` with
+  `--certificate-identity` and `--certificate-oidc-issuer`) on `replay` and
+  `replay-evaluation`. HMAC-SHA256 DSSE envelopes (`<file>.dsse.json`) carry an in-toto
+  Statement v1 whose subject is the SHA-256 of the exact file bytes; the predicate type
+  names the record kind and schema version. Sigstore signing is external `cosign`;
+  verification delegates to `cosign verify-blob-attestation`. `predicate` writes the
+  predicate for `cosign attest-blob`. Unsigned, wrong key, edited-and-re-hashed or wrong
+  predicate type exit 1; bad key file or missing `cosign` exit 2. Behavior without the
+  flag is unchanged. CI signs a demo record keylessly and verifies it with the package;
+  the wheel smoke check round-trips an HMAC signature.
 - Exported record schema 4 and `evaluation.json` schema 2: checksums (and the record
   `policy_sha256`) are SHA-256 of RFC 8785 (JCS) canonical bytes, via the bundled
   standard-library `decisioncontrol.jcs` (vectors in `tests/jcs_vectors.json`).

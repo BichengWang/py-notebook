@@ -99,6 +99,8 @@ option. Exit codes are:
   unauthorized/self review, execution returned STALE (no action performed), or
   `pending` skipped corrupt rows.
 - **2**: invalid input/usage, unreadable file, unsupported record/store schema, or IO error.
+  Under `--require-signature`, an unsigned, wrongly keyed, re-hashed or wrong-predicate
+  record exits 1 and a bad key file or missing `cosign` exits 2 (see Signed records).
 
 `pending()` returns a list-compatible result whose `.skipped` contains `{id, error}`
 diagnostics. The CLI still prints valid pending records as JSON, warns on stderr
@@ -305,6 +307,79 @@ Supply the probability of the proposed choice, not an unrelated provider confide
 score. The host owns provider adaptation, model/question identity and threshold
 validation on labeled application data. This library does not calibrate probabilities
 or turn model recommendations into trusted permissions.
+
+## Signed records
+
+A checksum is recomputable by anyone who edits a record. A signature binds a record
+file to a secret key (HMAC) or to a signer identity (Sigstore), so an edited and
+re-hashed record fails verification. The signed subject is the SHA-256 of the
+**exact bytes of the exported file** (re-formatting the file breaks the signature),
+wrapped in an in-toto Statement v1 inside a DSSE envelope. The predicate type is
+`https://github.com/BichengWang/ai-decision-system/predicate/decisioncontrol/<record|evaluation>/v<N>`
+for the file's schema version `N`, with predicate `{"schema": "<the schema $id>"}`, so
+an evaluation signature cannot vouch for a record or a different schema version.
+
+```bash
+decision-control keygen signing.key            # 32 random bytes as hex, mode 0600, never overwrites
+decision-control demo --out out --sign-key signing.key        # out/record-*.json.dsse.json
+decision-control evaluate --cases CASES --policy POLICY --out out --sign-key signing.key
+decision-control --db queue.sqlite3 export ID --out record.json --sign-key signing.key   # record.json.dsse.json
+decision-control replay --record record.json --require-signature --key signing.key
+decision-control replay-evaluation --record out/evaluation.json --require-signature --key signing.key
+```
+
+`--sign-key` is available on `demo`, `evaluate` and `export` (which needs `--out`,
+because the signature covers the file). The key is read before anything is written, so
+a bad key exits 2 and leaves no output. The envelope is `<file>.dsse.json` next to the
+record; `--signature ENVELOPE` selects another. Without `--require-signature`,
+`replay` and `replay-evaluation` behave exactly as before and ignore envelopes.
+With it, the signature is checked first (the file bytes are read once), then the normal
+replay runs:
+
+| Situation | Exit |
+| --- | --- |
+| Unsigned (no envelope), wrong key, record edited and re-hashed, wrong predicate type, malformed envelope or Sigstore rejection | 1 |
+| Missing/short/non-hex key file, `cosign` not installed, conflicting or incomplete flags | 2 |
+
+**Sigstore.** `decision-control predicate --record record.json --out pred.json` writes
+the predicate and prints its type. Sign with an external `cosign`, for example keyless
+in GitHub Actions (`permissions: id-token: write`):
+
+```bash
+cosign attest-blob --yes --predicate pred.json --type "$PREDICATE_TYPE" \
+  --bundle record.json.sigstore.json record.json
+decision-control replay --record record.json --require-signature \
+  --sigstore-bundle record.json.sigstore.json \
+  --certificate-identity "$SIGNER_IDENTITY" --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+The certificate identity includes the signing ref, for example
+`https://github.com/OWNER/REPO/.github/workflows/decision-control-ci.yml@refs/heads/main`
+(a pull request signs as `@refs/pull/N/merge`); verifying a record signed on another ref
+needs exactly that identity. The verifier hands `cosign` a private copy (mode 0600, in a
+fresh temporary directory) of the same bytes it parses and replays, so swapping the file
+mid-verification cannot make the two disagree.
+
+Verification shells out to `cosign verify-blob-attestation`; the package never signs
+with Sigstore and has no dependency on it. CI exercises this keylessly in a
+`sigstore` job (skipped for fork and Dependabot pull requests, which get no OIDC token).
+
+**Key handling.**
+- *Generate and store:* `keygen` creates the key file with mode 0600 and refuses to
+  overwrite. Keep keys outside the repository and out of backups you do not trust;
+  anyone who reads the key can sign anything.
+- *Rotate:* make a new key (a new `hmac-sha256:` key id, shown by `keygen` and written
+  in each envelope) and sign new records with it. Keep old keys to verify old envelopes.
+- *What HMAC proves:* the signer held the shared secret. It is not an identity, and
+  every verifier holds the same key and so could also sign. For a public or
+  attributable identity use Sigstore.
+- *Sigstore trade-off:* keyless signing writes the signer identity and the record
+  digest to the public Rekor transparency log, permanently. Do not use it for private
+  decisions.
+
+Signatures do not make the inputs true: they show who attested to the file, not that
+the proposer, reviewer or model labels inside it are authentic. Synthetic demo
+records signed in CI are software checks, not adoption evidence.
 
 ## Evidence and trust boundary
 

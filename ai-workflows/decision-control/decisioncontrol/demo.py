@@ -2,6 +2,7 @@
 import json
 from pathlib import Path
 
+from . import attestation, signing
 from ._outputs import staged_output
 from .evidence import export_record, replay
 from .models import Recommendation, RoutingPolicy
@@ -14,12 +15,12 @@ def _save(path, value):
         stream.write("\n")
 
 
-def run_demo(out):
+def run_demo(out, sign_key=None):
     with staged_output(out) as staging:
-        return _build_demo(staging, Path(out))
+        return _build_demo(staging, Path(out), sign_key)
 
 
-def _build_demo(directory, published):
+def _build_demo(directory, published, sign_key=None):
     policy = RoutingPolicy("demo-policy-1", ("support", "engineering"),
                            ("engineering",), ("local-reviewer",), 0.8)
     cases = (("allow", "support", 0.95), ("review", "engineering", 0.95),
@@ -49,6 +50,11 @@ def _build_demo(directory, published):
             envelope = export_record(record)
             record_path = directory / f"record-{name}.json"
             _save(record_path, envelope)
+            if sign_key is not None:
+                signed = attestation.sign_bytes(record_path.read_bytes(), record_path.name, envelope,
+                                                sign_key, "record")
+                (directory / f"{record_path.name}.dsse.json").write_text(
+                    attestation.render_envelope(signed), encoding="utf-8")
             # Replay the serialized evidence, not just the in-memory envelope.
             with record_path.open(encoding="utf-8") as stream:
                 replay_results[name] = replay(json.load(stream))
@@ -66,5 +72,7 @@ def _build_demo(directory, published):
         "tickets": tickets,
         "replay": replay_results,
     }
+    if sign_key is not None:
+        summary["signed_with"] = signing.key_id(sign_key)
     _save(directory / "summary.json", summary)
     return summary
