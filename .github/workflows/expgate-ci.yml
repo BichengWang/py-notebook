@@ -71,6 +71,31 @@ jobs:
           "$RUNNER_TEMP/expgate-venv/bin/experiment-gate-verify" records/*/decision.json
           "$RUNNER_TEMP/expgate-venv/bin/python" -c "import importlib.resources as r; [r.files('expgate').joinpath('schema', f'decision.v{n}.json').read_text() for n in (2, 3)]"
           "$RUNNER_TEMP/expgate-venv/bin/experiment-gate-verify" "$GITHUB_WORKSPACE"/ai-workflows/experiment-gate/conformance/valid/*.json
+          # HMAC signing round trip with the installed scripts (no cosign needed).
+          gate="$RUNNER_TEMP/expgate-venv/bin/experiment-gate"
+          verify="$RUNNER_TEMP/expgate-venv/bin/experiment-gate-verify"
+          expect_code() { want=$1; shift; code=0; "$@" > /dev/null 2>&1 || code=$?; test "$code" -eq "$want" || { echo "expected exit $want, got $code: $*" >&2; exit 1; }; }
+          expect_code 0 "$gate" keygen smoke.key
+          expect_code 2 "$gate" keygen smoke.key
+          expect_code 0 "$gate" keygen other.key
+          expect_code 2 "$gate" --all-scenarios --out never --sign-key missing.key
+          test ! -e never
+          expect_code 0 "$gate" --all-scenarios --out signed --sign-key smoke.key
+          expect_code 0 "$verify" signed/*/decision.json --require-signature --key smoke.key
+          expect_code 1 "$verify" signed/win/decision.json --require-signature --key other.key
+          expect_code 1 "$verify" records/offer-ranker-v2/decision.json --require-signature --key smoke.key
+          "$RUNNER_TEMP/expgate-venv/bin/python" - <<'PY'
+          import copy, json
+          from expgate.decision import evaluate
+          from expgate.run import record_bytes
+          record = json.load(open("signed/win/decision.json"))
+          edited = copy.deepcopy(record["input"])
+          edited["arms"]["treatment"]["metrics"]["conversion"]["successes"] -= 300
+          open("forged.json", "wb").write(record_bytes(evaluate(edited)))
+          PY
+          cp signed/win/decision.json.dsse.json forged.json.dsse.json
+          expect_code 0 "$verify" forged.json
+          expect_code 1 "$verify" forged.json --require-signature --key smoke.key
       - name: Retain decision records
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -102,3 +127,64 @@ jobs:
         run: python tests/golden/generate.py --out "$RUNNER_TEMP/golden"
       - name: Fail on any difference from the committed vectors
         run: diff -ru -x generate.py -x requirements.txt -x __pycache__ tests/golden "$RUNNER_TEMP/golden"
+
+  sigstore:
+    name: expgate sigstore attestation
+    # Keyless signing needs a GitHub OIDC token: not available to fork or Dependabot pull requests.
+    if: >-
+      github.actor != 'dependabot[bot]' &&
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        shell: bash
+        working-directory: ai-workflows/experiment-gate
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          cosign-release: v3.1.3
+      - name: Produce a decision record
+        run: python -m expgate.run --scenario win --out "$RUNNER_TEMP/sig-record" > /dev/null
+      - name: Sign the record keylessly with the GitHub OIDC identity
+        run: |
+          record="$RUNNER_TEMP/sig-record/decision.json"
+          python -m expgate predicate --record "$record" --out "$RUNNER_TEMP/pred.json" > "$RUNNER_TEMP/predicate.json"
+          type=$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["predicate_type"])' "$RUNNER_TEMP/predicate.json")
+          cosign attest-blob --yes --predicate "$RUNNER_TEMP/pred.json" --type "$type" \
+            --bundle "$RUNNER_TEMP/decision.sigstore.json" "$record"
+      - name: Verify with the package verifier
+        env:
+          IDENTITY: ${{ github.server_url }}/${{ github.workflow_ref }}
+        run: |
+          record="$RUNNER_TEMP/sig-record/decision.json"
+          bundle="$RUNNER_TEMP/decision.sigstore.json"
+          verify() {
+            python -m expgate.verify "$1" --require-signature --sigstore-bundle "$bundle" \
+              --certificate-identity "$2" --certificate-oidc-issuer https://token.actions.githubusercontent.com
+          }
+          verify "$record" "$IDENTITY"
+          # An edited and fully re-derived record, and a different expected identity, must exit 1.
+          python - "$record" "$RUNNER_TEMP/forged.json" <<'PY'
+          import copy, json, sys
+          from expgate.decision import evaluate
+          from expgate.run import record_bytes
+          record = json.load(open(sys.argv[1]))
+          edited = copy.deepcopy(record["input"])
+          edited["arms"]["treatment"]["metrics"]["conversion"]["successes"] -= 300
+          open(sys.argv[2], "wb").write(record_bytes(evaluate(edited)))
+          PY
+          python -m expgate.verify "$RUNNER_TEMP/forged.json" > /dev/null
+          code=0; verify "$RUNNER_TEMP/forged.json" "$IDENTITY" || code=$?
+          test "$code" -eq 1
+          code=0; verify "$record" "https://github.com/someone-else/repo/.github/workflows/x.yml@refs/heads/main" || code=$?
+          test "$code" -eq 1

@@ -4,12 +4,15 @@
     python -m expgate.run --input examples/offer-ranker-v2.json --out review-run
     python -m expgate.run --input exports/*.json --out review-run
     python -m expgate.run --all-scenarios --out review-run
+    python -m expgate.run --all-scenarios --out review-run --sign-key signing.key
+    python -m expgate keygen signing.key
 
 Writes ``decision.json`` (deterministic, sorted keys) and ``DECISION.md`` per
 experiment, in ``--out`` itself for one experiment and in ``--out/<experiment>/`` for
 several. Every summary is read and evaluated before anything is written, so invalid
 input leaves no partial records. ``--require-ship`` exits 1 unless every evaluated experiment ships,
-so the command can gate a promotion step in CI.
+so the command can gate a promotion step in CI. ``--sign-key KEYFILE`` also writes
+``decision.json.dsse.json`` (an HMAC-signed in-toto statement about the exact bytes) next to each record.
 """
 from __future__ import annotations
 
@@ -21,7 +24,7 @@ import tempfile
 import sys
 from pathlib import Path
 
-from . import __version__
+from . import __version__, attestation, signing
 from .decision import evaluate
 from .generator import SCENARIOS, generate
 
@@ -81,17 +84,27 @@ def write_record(report: dict, out: Path) -> str:
 
 
 def main(argv=None) -> int:
+    args = sys.argv[1:] if argv is None else list(argv)
+    if args and args[0] in ("keygen", "predicate"):
+        return attestation.command(args)
     ap = argparse.ArgumentParser(prog="python -m expgate.run", description=__doc__.split("\n")[0])
     src = ap.add_mutually_exclusive_group(required=True)
     src.add_argument("--scenario", choices=sorted(SCENARIOS))
     src.add_argument("--all-scenarios", action="store_true")
     src.add_argument("--input", type=Path, nargs="+", help="one or more experiment summary JSON files")
     ap.add_argument("--out", type=Path, required=True, help="new or empty output directory")
+    ap.add_argument("--sign-key", type=Path, help="HMAC key file; writes decision.json.dsse.json next to each record")
     ap.add_argument("--require-ship", action="store_true", help="exit 1 unless every decision is SHIP")
-    a = ap.parse_args(argv)
+    a = ap.parse_args(args)
 
     if a.out.exists() and (not a.out.is_dir() or any(a.out.iterdir())):
         ap.error("--out must be a new path or an existing empty directory")
+
+    try:
+        key = signing.load_key(a.sign_key) if a.sign_key else None  # read first: a bad key writes nothing
+    except signing.KeyFileError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
 
     if a.input:
         summaries = []
@@ -127,6 +140,8 @@ def main(argv=None) -> int:
             for report in reports:
                 target = staged / report["experiment"] if len(reports) > 1 else staged
                 completed.append((report, write_record(report, target)))
+                if key is not None:
+                    _write_envelope(target, report, key)
             os.replace(staged, a.out)
     except OSError as exc:
         print(f"error: cannot write decision records: {exc}", file=sys.stderr)
@@ -134,6 +149,14 @@ def main(argv=None) -> int:
     for report, digest in completed:
         print(f"{report['experiment']}: {report['decision']} {digest}")
     return 1 if a.require_ship and any(r["decision"] != "SHIP" for r in reports) else 0
+
+
+def _write_envelope(target: Path, report: dict, key: bytes) -> None:
+    """Sign the bytes of the ``decision.json`` just written, the exact subject a verifier will read."""
+    data = (target / "decision.json").read_bytes()
+    envelope = attestation.sign_bytes(data, "decision.json", report, key)
+    (target / ("decision.json" + attestation.ENVELOPE_SUFFIX)).write_text(
+        attestation.render_envelope(envelope), encoding="utf-8")
 
 
 def _batch_problem(summaries, reports) -> str | None:

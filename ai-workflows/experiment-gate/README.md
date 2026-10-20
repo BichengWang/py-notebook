@@ -76,8 +76,8 @@ command can gate a promotion job.
 | Exit | Evaluation CLI | Verification CLI |
 |---|---|---|
 | 0 | Records written; required SHIP condition met, if requested | All records verified |
-| 1 | Completed, but `--require-ship` was not met | Hash or replay content mismatch |
-| 2 | Invalid input, usage, unreadable file, or output failure | Unreadable/invalid record, usage, or unsupported/legacy schema |
+| 1 | Completed, but `--require-ship` was not met | Hash or replay content mismatch; under `--require-signature`, a missing, wrong or non-matching signature |
+| 2 | Invalid input, usage, unreadable file, bad `--sign-key` file, or output failure | Unreadable/invalid record, usage, bad key file, or unsupported/legacy schema |
 
 Without `--require-ship`, writing a HOLD, ROLLBACK, or INVALID decision succeeds
 with exit 0; inspect the record or request the gate explicitly.
@@ -202,6 +202,72 @@ not adoption.
 Development checks use `pip install jsonschema==4.26.0` (never a runtime dependency):
 `python tests/schema_validation.py review-run/*/decision.json` validates records, and the
 unit tests skip the schema checks when it is absent.
+
+### Signed records
+
+A digest is recomputable by anyone who edits a record: change the input, re-derive the report, write
+a new `input_sha256`, and `experiment-gate-verify` passes. A signature binds the **exact bytes of
+`decision.json`** to a secret key (HMAC) or to a signer identity (Sigstore). The signed subject is the
+SHA-256 of those bytes, so reformatting the file also breaks the signature. It is an in-toto Statement
+v1 in a DSSE envelope; the predicate type is
+`https://github.com/BichengWang/ai-decision-system/predicate/expgate/decision/v<N>` for the record's
+`schema_version` `N` (2 or 3), with predicate `{"schema": "<the schema $id>"}`, so a signature over one
+record type or schema version cannot vouch for another.
+
+```bash
+experiment-gate keygen signing.key             # 32 random bytes as hex, mode 0600, never overwrites
+experiment-gate --all-scenarios --out review-run --sign-key signing.key   # review-run/*/decision.json.dsse.json
+experiment-gate-verify review-run/*/decision.json --require-signature --key signing.key
+```
+
+`--sign-key` (on `experiment-gate`, `python -m expgate.run` and `python -m expgate`) writes
+`decision.json.dsse.json` next to every `decision.json`, one envelope per record, published with the
+record in the same atomic step. The key is read before anything else, so a bad key exits 2 and writes
+nothing. `--signature ENVELOPE` selects a different envelope (one record only). Without
+`--require-signature`, the verifier behaves exactly as before and ignores envelopes. With it, the
+file is read **once**; the signature is checked over those bytes, and the same bytes are then parsed and
+replayed, so swapping the file between the check and the replay changes nothing. Every flag combination
+that does not make sense (`--key` without `--require-signature`, both key and Sigstore flags, several
+records with `--signature` or `--sigstore-bundle`) is a usage error, exit 2.
+
+| Situation under `--require-signature` | Exit |
+| --- | --- |
+| Unsigned (no envelope or bundle), wrong key, record edited and re-hashed, wrong predicate type, malformed envelope, Sigstore rejection | 1 |
+| Missing, short or non-hex key file, `cosign` not installed, schema 1 or unsupported record, malformed record, conflicting or incomplete flags | 2 |
+| Signature valid, then the normal verification: agreement / mismatch | 0 / 1 |
+
+**Sigstore.** `experiment-gate predicate --record decision.json --out pred.json` writes the predicate and
+prints its type. Sign with an external `cosign` (this package never signs with Sigstore and has no
+dependency on it), for example keylessly in GitHub Actions with `permissions: id-token: write`:
+
+```bash
+cosign attest-blob --yes --predicate pred.json --type "$PREDICATE_TYPE" \
+  --bundle decision.sigstore.json decision.json
+experiment-gate-verify decision.json --require-signature --sigstore-bundle decision.sigstore.json \
+  --certificate-identity "$SIGNER_IDENTITY" --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+Verification shells out to `cosign verify-blob-attestation`, handing it a private mode-0600 copy of the
+bytes already read (in a temporary directory), never the original path. The expected certificate
+identity includes the signing ref, for example
+`https://github.com/OWNER/REPO/.github/workflows/expgate-ci.yml@refs/heads/main`: a record signed on
+another ref, or by another workflow, verifies only with exactly that identity. CI exercises this keylessly in the
+`expgate sigstore attestation` job (skipped for fork and Dependabot pull requests, which get no OIDC
+token) and asserts that an edited and re-derived record and a different identity both exit 1.
+
+**Key handling.**
+- *Generate and store:* `keygen` creates the key file with mode 0600 and refuses to overwrite it. Keep
+  keys outside the repository and out of backups you do not trust; anyone who can read the key can sign.
+- *Rotate:* make a new key (a new `hmac-sha256:` key id, printed by `keygen` and written in each
+  envelope) and sign new records with it. Keep old keys to verify old envelopes. An envelope may carry
+  several signatures; the verifier accepts it when one matches the supplied key.
+- *What HMAC proves:* the signer held the shared secret. It is not an identity, and every verifier
+  holds the same key and so could also sign. For an attributable identity use Sigstore.
+- *Sigstore trade-off:* keyless signing writes the signer identity and the record digest to the public
+  Rekor transparency log, permanently. Do not use it for private decisions.
+
+A signature shows who attested to the file, not that the experiment summary behind it is true.
+Signatures on synthetic scenario records made in CI are software checks, not adoption evidence.
 
 ## Bundled examples
 

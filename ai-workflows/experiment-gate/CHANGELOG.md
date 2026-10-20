@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Signed records (P-012): `experiment-gate keygen KEY` and `--sign-key KEY` on the producer (one
+  `decision.json.dsse.json` per record, also for `--all-scenarios`), and `--require-signature`
+  (`--key [--signature]`, or `--sigstore-bundle` with `--certificate-identity` and
+  `--certificate-oidc-issuer`) on `experiment-gate-verify`. HMAC-SHA256 DSSE envelopes carry an
+  in-toto Statement v1 whose subject is the SHA-256 of the exact `decision.json` bytes; the predicate
+  type names the schema version. Sigstore signing is external `cosign`; verification delegates to
+  `cosign verify-blob-attestation` on a private copy of the bytes already read. `experiment-gate
+  predicate` writes the predicate for `cosign attest-blob`. The file is read once: signature, parse
+  and replay see the same bytes. Unsigned, wrong key, edited-and-re-hashed or wrong predicate type
+  exit 1; a bad key file, missing `cosign` or flag misuse exits 2 (a bad `--sign-key` before any
+  output is written). Behavior without the flags is unchanged. CI signs a record keylessly and
+  verifies it with the package, and the wheel smoke check round-trips an HMAC signature.
 - Golden vectors under `tests/golden/` that compare every estimator in `expgate.stats` with
   scipy, statsmodels, gbstats and confseq (dev-only, pinned in `tests/golden/requirements.txt`).
   The default tests read the committed JSON and need no third-party library; a CI job
