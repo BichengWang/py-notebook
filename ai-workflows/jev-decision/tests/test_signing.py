@@ -640,6 +640,24 @@ class SigstoreTests(Workspace):
         self.assertEqual((self.root / "cosign-mode").read_text().strip(), "600")
         self.assertFalse(Path(args[-2]).exists())  # the private copy is removed afterwards
 
+    def test_a_record_named_like_the_bundle_copy_still_verifies(self):
+        for name in ("bundle.sigstore.json", "record", "bundle"):
+            out = self.root / name
+            out.unlink(missing_ok=True)
+            self.decide("--out", out)
+            with self.subTest(name=name):
+                code, _, stderr = self.verify(out, "--require-signature", "--sigstore-bundle", self.bundle,
+                                              *self.identity_args)
+                self.assertEqual((code, stderr), (0, ""))
+                self.assertEqual((self.root / "cosign-blob").read_bytes(), out.read_bytes())
+                self.assertEqual((self.root / "cosign-bundle").read_bytes(), self.bundle.read_bytes())
+        # The bundle itself may even be the record's neighbour under the same name.
+        directory = self.root / "other"
+        directory.mkdir()
+        out = directory / "bundle.sigstore.json"
+        self.decide("--out", out)
+        self.assertEqual(self.verify(out, "--require-signature", "--sigstore-bundle", out, *self.identity_args)[0], 0)
+
     def test_evaluation_bundle_verifies_provenance_json(self):
         directory = self.root / "run"
         run(eval_main, "--questions", QUESTIONS_FILE, "--cases", CASES_FILE, "--responses", RESPONSES_FILE,

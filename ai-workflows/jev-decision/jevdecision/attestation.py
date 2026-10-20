@@ -87,8 +87,11 @@ def require_signature(record: Path, data: bytes, kind: str, version: int, option
     except OSError as error:
         raise signing.SignatureError(f"cannot read Sigstore bundle {bundle}: {error}") from error
     with tempfile.TemporaryDirectory(prefix="jev-sigstore-") as tmp:
-        snapshot, bundle_snapshot = Path(tmp) / record.name, Path(tmp) / "bundle.sigstore.json"
+        # Separate subdirectories: the record's own name cannot collide with the bundle copy.
+        snapshot = Path(tmp) / "record" / record.name
+        bundle_snapshot = Path(tmp) / "bundle" / "bundle.sigstore.json"
         for path, content in ((snapshot, data), (bundle_snapshot, bundle_data)):
+            path.parent.mkdir(mode=0o700)
             with open(path, "xb", opener=lambda p, f: os.open(p, f, 0o600)) as stream:
                 stream.write(content)
         signing.verify_sigstore(snapshot, bundle_snapshot, expected, options.certificate_identity,
