@@ -113,6 +113,16 @@
         "snapshot_id": {"type": "string", "minLength": 1},
         "snapshot_updated": {"type": "string", "minLength": 1},
         "stats_engine": {"enum": ["bayesian", "frequentist"]},
+        "asserted": {
+          "$comment": "Facts about the snapshot that the export cannot establish, asserted by the operator in the mapping file and checked only against the export's current settings.",
+          "type": "object",
+          "required": ["expected_treatment_share", "regression_adjustment"],
+          "properties": {
+            "expected_treatment_share": {"$ref": "#/$defs/open_unit_interval"},
+            "regression_adjustment": {"const": false}
+          },
+          "additionalProperties": false
+        },
         "reading": {
           "type": "object",
           "required": ["decision", "basis", "differences"],

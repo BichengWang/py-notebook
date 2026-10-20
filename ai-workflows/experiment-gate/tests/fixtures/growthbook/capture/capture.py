@@ -8,9 +8,10 @@ stack down. Standard library only; needs ``docker-compose`` and a running Docker
 
     python3 capture.py --out ..            # writes ../ranker-v*.results.json, ../fact-metrics.json, ../instance.json
 
-Everything the instance holds is synthetic and is deleted with ``docker-compose down -v``. The only calls
-that are not part of GrowthBook's documented REST API are the sign-up calls the web UI itself makes
-(``/auth/register``, ``/organization``, ``/keys``) so that an API key exists without opening a browser.
+Everything the instance holds is synthetic and is deleted with ``docker-compose down -v``. The calls that
+are not part of GrowthBook's documented REST API are ``GET /healthcheck`` (readiness), ``GET /`` (build
+information, saved as instance.json) and the sign-up calls the web UI itself makes (``/auth/register``,
+``/auth/login``, ``/organization``, ``/keys``) so that an API key exists without opening a browser.
 """
 from __future__ import annotations
 

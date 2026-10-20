@@ -105,7 +105,8 @@ def _count(value, where: str) -> int:
 _POLICY_KEYS = {"alpha", "srm_alpha", "power", "sequential"}
 _SEQUENTIAL_KEYS = {"planned_units"}
 _ASSIGNMENT_KEYS = {"expected_treatment_share"}
-_SOURCE_KEYS = {"format", "export_sha256", "experiment_id", "snapshot_id", "snapshot_updated", "stats_engine", "reading"}
+_SOURCE_KEYS = {"format", "export_sha256", "experiment_id", "snapshot_id", "snapshot_updated", "stats_engine", "asserted",
+                "reading"}
 _READING_KEYS = {"decision", "alpha", "srm_alpha", "basis", "differences"}
 _SOURCE_LABELS = {"growthbook": "GrowthBook"}
 
@@ -126,9 +127,16 @@ def _validate_source(source) -> None:
     digest = source.get("export_sha256")
     if not isinstance(digest, str) or len(digest) != 64 or digest.strip("0123456789abcdef"):
         raise ValueError("source export_sha256 must be 64 lowercase hex digits")
-    for key in _SOURCE_KEYS - {"format", "export_sha256", "reading"}:
+    for key in _SOURCE_KEYS - {"format", "export_sha256", "reading", "asserted"}:
         if key in source and (not isinstance(source[key], str) or not source[key]):
             raise ValueError(f"source {key} must be a non-empty string")
+    if "asserted" in source:
+        asserted = _object(source["asserted"], "source asserted")
+        _known_keys(asserted, {"expected_treatment_share", "regression_adjustment"}, "source asserted")
+        if not 0 < _number(asserted.get("expected_treatment_share"), "source asserted expected_treatment_share") < 1:
+            raise ValueError("source asserted expected_treatment_share must be in (0, 1)")
+        if asserted.get("regression_adjustment") is not False:
+            raise ValueError("source asserted regression_adjustment must be false")
     if "stats_engine" in source and source["stats_engine"] not in ("bayesian", "frequentist"):
         raise ValueError("source stats_engine must be 'bayesian' or 'frequentist'")
     if "reading" in source:

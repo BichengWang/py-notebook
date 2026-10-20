@@ -1,4 +1,8 @@
 {
+  "snapshot": {
+    "expected_treatment_share": 0.5,
+    "regression_adjustment": false
+  },
   "metrics": {
     "fact__2CgCUpjf8do7w5KJVP4QhQ": {
       "name": "purchase_rate",

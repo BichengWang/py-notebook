@@ -202,7 +202,8 @@ class PolicyDifferenceTest(Workspace):
         difference = next(r for r in reasons if r.startswith("policy difference: primary purchase_rate"))
         self.assertIn("two-sided p 0.09086 >= 0.05", difference)
         self.assertIn("one-sided at alpha 0.05", difference)
-        # The two-sided p-value halves into the one-sided one that expgate's decision rests on.
+        # Not "GrowthBook's p / 2": half of 0.0909 is 0.0454, expgate's one-sided p is 0.0413 (a different
+        # estimator). What matters is that the two-sided p is above alpha and the one-sided reading is below it.
         export = json.loads(export_bytes("ranker-v4"))
         p_two_sided = export["result"]["results"][0]["metrics"][0]["variations"][1]["analyses"][0]["pValue"]
         self.assertGreater(p_two_sided, 0.05)
@@ -224,17 +225,15 @@ class PolicyDifferenceTest(Workspace):
         self.assertEqual(record["input"]["source"]["reading"]["decision"], "SHIP")
         self.assertEqual(record["reasons"], ["primary metric improved and all guardrails are non-inferior"])
 
-    def test_sample_ratio_is_recomputed_from_the_exported_traffic_split(self):
+    def test_sample_ratio_comes_from_the_asserted_allocation(self):
         export = json.loads(export_bytes("ranker-v2"))
-        for split in export["experiment"]["phases"][0]["trafficSplit"][:1]:
-            split["weight"] = 0.8
-        for split in export["experiment"]["phases"][0]["trafficSplit"][1:]:
-            split["weight"] = 0.2
-        record = self.convert(export)[2]  # an edited export: this exercises the code path only
+        control, treatment = export["experiment"]["phases"][0]["trafficSplit"]
+        control["weight"], treatment["weight"] = 0.8, 0.2
+        doc = mapping()
+        doc["snapshot"]["expected_treatment_share"] = 0.2
+        record = self.convert(export, doc)[2]  # an edited export: this exercises the code path only
         self.assertEqual(record["decision"], "INVALID")
         self.assertEqual(record["input"]["assignment"]["expected_treatment_share"], 0.2)
-        self.assertIn("GrowthBook's own statistics read as SHIP; expgate decided INVALID", record["reasons"])
-        self.assertTrue(any(r.startswith("policy difference: sample ratio") for r in record["reasons"]))
 
     def test_bayesian_export_reads_chance_to_beat_control(self):
         record = self.reasons("ranker-v2")[0]
@@ -285,6 +284,10 @@ class RecordIntegrityTest(Workspace):
             "reading decision": lambda s: s["reading"].update(decision="MAYBE"),
             "reading differences": lambda s: s["reading"].update(differences="no"),
             "reading key": lambda s: s["reading"].update(chance=1),
+            "asserted share": lambda s: s["asserted"].update(expected_treatment_share=0),
+            "asserted adjustment": lambda s: s["asserted"].update(regression_adjustment=True),
+            "asserted key": lambda s: s["asserted"].update(extra=1),
+            "asserted type": lambda s: s.update(asserted=[]),
         }
         for label, edit in bad.items():
             with self.subTest(case=label):
@@ -341,8 +344,9 @@ class MalformedExportTest(Workspace):
             d["result"]["settings"]["regressionAdjustmentEnabled"] = True
         def sequential(d):
             d["result"]["settings"]["sequentialTestingEnabled"] = True
-        def post_stratified(d):
-            d["experiment"]["settings"]["postStratificationEnabled"] = True
+        def metric_override(d):
+            d["experiment"]["settings"]["metricOverrides"] = [
+                {"id": "x", "regressionAdjustmentOverride": True, "regressionAdjustmentEnabled": True}]
         def metric_cuped(d):
             d["result"]["settings"]["goals"][0]["overrides"]["regressionAdjustmentEnabled"] = True
         def two_rows(d):
@@ -352,7 +356,7 @@ class MalformedExportTest(Workspace):
         cases = [(three_variations, "only two-variation"), (bandit, "not supported"),
                  (dimension, "broken down by dimension"), (cuped, "regressionAdjustmentEnabled"),
                  (cuped_in_result, "regressionAdjustmentEnabled"), (sequential, "sequentialTestingEnabled"),
-                 (post_stratified, "postStratificationEnabled"), (metric_cuped, "regression adjustment"),
+                 (metric_override, "regression adjustment override"), (metric_cuped, "regression adjustment"),
                  (two_rows, "expected exactly one overall row"), (no_engine, "statsEngine")]
         for edit, message in cases:
             with self.subTest(case=edit.__name__):
@@ -441,6 +445,7 @@ class MappingTest(Workspace):
         by_name = lambda doc, name: next(e for e in doc["metrics"].values() if e["name"] == name)
         cases = [
             (edit(lambda d: d.update(metrics={})), "at least one metric"),
+            (edit(lambda d: d.pop("snapshot")), "mapping 'snapshot'"),
             (edit(lambda d: d.update(extra=1)), "unknown keys"),
             (edit(lambda d: by_name(d, "purchase_rate").update(type="count")), "type must be"),
             (edit(lambda d: by_name(d, "purchase_rate").pop("direction")), "direction must be"),
@@ -533,6 +538,151 @@ class MappingTest(Workspace):
                 self.assertIn(message, err)
 
 
+class SnapshotProvenanceTest(Workspace):
+    """GrowthBook pairs the latest successful snapshot with the experiment's CURRENT settings (growthbook
+    7cbc85d1: getExperimentResults.ts, services/experiments.ts toSnapshotApiInterface), so the export cannot
+    show how the snapshot was computed. The mapping asserts it and the importer refuses contradictions."""
+
+    def rejected(self, export, message, mapping_doc=None):
+        code, err, record = self.convert(export, mapping_doc)
+        self.assertEqual(code, 2, err)
+        self.assertIsNone(record)
+        self.assertIn(message, err)
+
+    def test_assertions_are_recorded_as_asserted(self):
+        record = self.convert(export_bytes("ranker-v2"))[2]
+        self.assertEqual(record["input"]["source"]["asserted"],
+                         {"expected_treatment_share": 0.5, "regression_adjustment": False})
+        self.assertEqual(record["input"]["assignment"]["expected_treatment_share"], 0.5)
+
+    def test_the_mapping_must_make_both_assertions(self):
+        for label, edit, message in (
+            ("no snapshot block", lambda d: d.pop("snapshot"), "mapping 'snapshot'"),
+            ("no share", lambda d: d["snapshot"].pop("expected_treatment_share"), "expected_treatment_share is required"),
+            ("share 1", lambda d: d["snapshot"].update(expected_treatment_share=1), "must be in (0, 1)"),
+            ("share text", lambda d: d["snapshot"].update(expected_treatment_share="0.5"), "finite number"),
+            ("no adjustment", lambda d: d["snapshot"].pop("regression_adjustment"), "regression_adjustment must be false"),
+            ("adjusted", lambda d: d["snapshot"].update(regression_adjustment=True), "regression_adjustment must be false"),
+            ("typo", lambda d: d["snapshot"].update(regresion_adjustment=False), "unknown keys"),
+        ):
+            with self.subTest(case=label):
+                doc = mapping()
+                edit(doc)
+                self.rejected(export_bytes("ranker-v3"), message, doc)
+
+    def test_weights_edited_after_the_snapshot_are_refused_not_turned_into_invalid(self):
+        # A within-phase weight edit leaves the snapshot's counts alone but changes trafficSplit.
+        export = json.loads(export_bytes("ranker-v2"))
+        control, treatment = export["experiment"]["phases"][0]["trafficSplit"]
+        control["weight"], treatment["weight"] = 0.8, 0.2
+        self.rejected(export, "contradicts the experiment's current allocation weights")
+        code, err, _ = self.convert(export)
+        self.assertIn("refresh the analysis", err)
+
+    def test_a_real_allocation_change_is_imported_when_the_operator_asserts_it(self):
+        export = json.loads(export_bytes("ranker-v2"))
+        control, treatment = export["experiment"]["phases"][0]["trafficSplit"]
+        control["weight"], treatment["weight"] = 0.8, 0.2
+        doc = mapping()
+        doc["snapshot"]["expected_treatment_share"] = 0.2
+        record = self.convert(export, doc)[2]  # edited export: exercises the sample-ratio path only
+        self.assertEqual(record["decision"], "INVALID")
+        self.assertEqual(record["input"]["assignment"]["expected_treatment_share"], 0.2)
+        self.assertIn("GrowthBook's own statistics read as SHIP; expgate decided INVALID", record["reasons"])
+        self.assertTrue(any(r.startswith("policy difference: sample ratio") for r in record["reasons"]))
+
+    def test_adjustment_switched_on_after_the_snapshot_is_refused(self):
+        for where in ("experiment", "result"):
+            with self.subTest(where=where):
+                export = json.loads(export_bytes("ranker-v3"))
+                export[where]["settings"]["regressionAdjustmentEnabled"] = True
+                self.rejected(export, "refresh the analysis")
+
+    def test_metric_level_adjustment_override_is_refused(self):
+        export = json.loads(export_bytes("ranker-v3"))
+        export["experiment"]["settings"]["metricOverrides"] = [
+            {"id": "fact__x", "regressionAdjustmentOverride": True, "regressionAdjustmentEnabled": True}]
+        self.rejected(export, "regression adjustment override")
+
+    def test_post_stratification_is_not_refused(self):
+        # It is on by default in GrowthBook and affects only GrowthBook's own effect estimate, not the arm aggregates.
+        for value in (True, False, None):
+            with self.subTest(value=value):
+                export = json.loads(export_bytes("ranker-v3"))
+                export["experiment"]["settings"]["postStratificationEnabled"] = value
+                self.assertEqual(self.convert(export)[0], 0)
+
+
+class StrictFieldTest(Workspace):
+    def rejected(self, export, message):
+        code, err, record = self.convert(export)
+        self.assertEqual(code, 2, err)
+        self.assertIsNone(record)
+        self.assertIn(message, err)
+
+    def metric(self, export, name="Purchase rate"):
+        return next(m for m in export["result"]["results"][0]["metrics"] if m["metricName"] == name)
+
+    def test_a_repeated_variation_entry_is_not_silently_overwritten(self):
+        export = json.loads(export_bytes("ranker-v4"))
+        variations = self.metric(export)["variations"]
+        extra = copy.deepcopy(variations[1])
+        extra["analyses"][0]["numerator"] = 200  # contradictory 1% conversion for the same variation id
+        extra["analyses"][0]["mean"] = 0.01
+        extra["analyses"][0]["stddev"] = math.sqrt(0.01 * 0.99)
+        variations.append(extra)
+        self.rejected(export, "more than one result for variation")
+
+    def test_a_third_variation_entry_is_refused(self):
+        export = json.loads(export_bytes("ranker-v4"))
+        variations = self.metric(export)["variations"]
+        third = copy.deepcopy(variations[1])
+        third["variationId"] = "var_other"
+        variations.append(third)
+        self.rejected(export, "expected exactly")
+
+    def test_phase_must_be_a_valid_index_string(self):
+        for phase, message in (("-1", "result.phase"), (0.5, "result.phase"), (True, "result.phase"),
+                               (0, "result.phase"), ("0.5", "result.phase"), ("00", "result.phase"),
+                               (" 0", "result.phase"), ("1", "1 entries"), ("", "result.phase"), (None, "result.phase")):
+            with self.subTest(phase=phase):
+                export = json.loads(export_bytes("ranker-v4"))
+                export["result"]["phase"] = phase
+                self.rejected(export, message)
+
+    def test_phase_selects_the_named_phase_not_the_last(self):
+        export = json.loads(export_bytes("ranker-v4"))
+        first = export["experiment"]["phases"][0]
+        second = copy.deepcopy(first)
+        second["trafficSplit"][0]["weight"], second["trafficSplit"][1]["weight"] = 0.8, 0.2
+        export["experiment"]["phases"].append(second)
+        export["result"]["phase"] = "0"
+        self.assertEqual(self.convert(export)[0], 0)  # phase 0 keeps the asserted 0.5
+        export["result"]["phase"] = "1"
+        self.rejected(export, "contradicts the experiment's current allocation weights")
+
+    def test_probabilities_must_lie_in_zero_one(self):
+        def treatment(export):
+            return self.metric(export)["variations"][1]["analyses"][0]
+        cases = (("p below 0", "ranker-v4", lambda d: treatment(d).update(pValue=-0.5), "pValue"),
+                 ("p above 1", "ranker-v4", lambda d: treatment(d).update(pValue=1.5), "pValue"),
+                 ("srm below 0", "ranker-v4", lambda d: d["result"]["results"][0]["checks"].update(srm=-0.5), "checks.srm"),
+                 ("srm above 1", "ranker-v4", lambda d: d["result"]["results"][0]["checks"].update(srm=2), "checks.srm"),
+                 ("chance below 0", "ranker-v2", lambda d: treatment(d).update(chanceToBeatControl=-0.1), "chanceToBeatControl"),
+                 ("chance above 1", "ranker-v2", lambda d: treatment(d).update(chanceToBeatControl=1.0001), "chanceToBeatControl"))
+        for label, name, edit, message in cases:
+            with self.subTest(case=label):
+                export = json.loads(export_bytes(name))
+                edit(export)
+                self.rejected(export, message)
+
+    def test_probability_bounds_are_inclusive(self):
+        export = json.loads(export_bytes("ranker-v4"))
+        export["result"]["results"][0]["checks"]["srm"] = 1
+        self.metric(export)["variations"][1]["analyses"][0]["pValue"] = 0
+        self.assertEqual(self.convert(export)[0], 0)
+
+
 def _load_schema_validation():
     """The dev-only validator helper; None when jsonschema is not installed."""
     try:
@@ -563,6 +713,9 @@ class ImportedRecordSchemaTest(Workspace):
             "format": lambda s: s.update(format="other"),
             "extra": lambda s: s.update(extra=1),
             "reading": lambda s: s["reading"].update(decision="MAYBE"),
+            "asserted share": lambda s: s["asserted"].update(expected_treatment_share=1),
+            "asserted adjustment": lambda s: s["asserted"].update(regression_adjustment=True),
+            "asserted missing": lambda s: s["asserted"].pop("regression_adjustment"),
         }
         for label, edit in edits.items():
             with self.subTest(edit=label):

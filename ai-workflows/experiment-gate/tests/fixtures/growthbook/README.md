@@ -18,7 +18,7 @@ real experiment, user population, model or effect.
 | `ranker-v2.results.json`, `ranker-v3.results.json`, `ranker-v4.results.json` | Unmodified bodies of `GET /api/v1/experiments/{id}/results` (`getExperimentResults`), one per experiment, saved byte for byte. Do not reformat them: the record keeps the SHA-256 of these exact bytes |
 | `fact-metrics.json` | Body of `GET /api/v1/fact-metrics` on the same instance: each metric's `metricType` and `inverse`, which the results export lacks |
 | `instance.json` | Body of `GET /` on the API port (`build.sha`, `build.date`, `lastVersion`) |
-| `mapping.json` | The mapping file for the importer: type, direction and guardrail margin per `metricId` (the ids are this capture's) |
+| `mapping.json` | The mapping file for the importer: type, direction and guardrail margin per `metricId` (the ids are this capture's), and the `snapshot` assertions (share 0.5, no regression adjustment), which hold for these captures: no adjustment was enabled and no weights were edited |
 | `capture/` | Dev-only capture stack and script (below). Not used by tests and not shipped |
 
 SHA-256 of the committed files:
@@ -74,9 +74,10 @@ python3 capture.py --out ..          # writes ../ranker-v*.results.json, ../fact
    assignment query (`user_id`, `timestamp`, `experiment_id`, `variation_id`). The REST API (5.1.0) can list data
    sources but not create them, so `config.yml` is the documented route
    ([Config.yml](https://docs.growthbook.io/self-host/config)).
-3. Signs up and creates an admin secret key with the calls the web UI makes (`POST /auth/register`,
-   `/auth/login`, `/organization`, `/keys` on the API port). These are the only calls that are not part of
-   GrowthBook's documented REST API.
+3. Waits for `GET /healthcheck`, then signs up and creates an admin secret key with the calls the web UI makes
+   (`POST /auth/register`, `/auth/login`, `/organization`, `/keys` on the API port). Together with
+   `GET /healthcheck` and `GET /` (build information, saved as `instance.json`), these are the calls that are
+   not part of GrowthBook's documented REST API.
 4. Through the documented REST API: `POST /api/v1/fact-tables` (orders, refunds, page loads),
    `POST /api/v1/fact-metrics` (the five metrics), `POST /api/v1/experiments` (three running experiments over
    the data source, with `statsEngine` set per experiment), `POST /api/v1/experiments/{id}/snapshot` and polling

@@ -2,7 +2,11 @@
 
 Input is the body of ``GET /api/v1/experiments/{id}/results`` (``{"experiment": ..., "result": ...}``),
 read from a file; this module never opens a network connection. A small mapping file supplies what the
-export does not carry: each imported metric's type, direction and (for guardrails) non-inferiority margin.
+export does not carry: each imported metric's type, direction and (for guardrails) non-inferiority margin,
+and what the export cannot establish about the snapshot (``snapshot``: its allocation weights and that it
+was computed without regression adjustment). The results endpoint pairs the latest successful snapshot with
+the experiment's *current* settings, so those two facts are operator-asserted, recorded in
+``source.asserted``, and rejected when the export's current settings contradict them.
 
 The conversion keeps the SHA-256 of the file's exact bytes in ``source.export_sha256`` of the returned
 summary, so the record's own input digest covers it. GrowthBook's own statistics (p-values or chance to
@@ -11,21 +15,25 @@ standard deviations. They are only *read*, with the same ship/hold/rollback voca
 say where GrowthBook's reading and expgate's policy part ways (``source.reading``).
 
 Unsupported exports raise :class:`GrowthBookImportError` (a ``ValueError``; the CLI exits 2): other
-dimensions than "none", experiments that are not plain two-variation A/B tests, regression adjustment,
-post-stratification or sequential testing (the exported numbers are then not the raw aggregates), and
-metrics whose exported shape contradicts the mapped type.
+dimensions than "none", experiments that are not plain two-variation A/B tests, regression adjustment or
+sequential testing (the exported numbers are then not the raw aggregates), allocation weights that
+contradict the assertion, and metrics whose exported shape contradicts the mapped type. Post-stratification
+is accepted: it changes only GrowthBook's own effect estimate, never the per-arm aggregates.
 """
 from __future__ import annotations
 
 import hashlib
 import json
 import math
+import re
 
 from ..decision import evaluate
 
 FORMAT = "growthbook"
 
-_MAPPING_KEYS = {"primary", "policy", "growthbook", "metrics"}
+_MAPPING_KEYS = {"primary", "policy", "growthbook", "snapshot", "metrics"}
+_SNAPSHOT_KEYS = {"expected_treatment_share", "regression_adjustment"}
+_PHASE = re.compile(r"0|[1-9][0-9]*")
 _METRIC_KEYS = {"name", "type", "direction", "margin"}
 _POLICY_KEYS = {"alpha", "srm_alpha", "power"}
 _READING_KEYS = {"alpha", "srm_alpha"}
@@ -68,6 +76,13 @@ def _count(value, where: str) -> int:
     if value != int(value) or value < 0:
         _fail(f"{where} must be a non-negative whole number, got {value!r}")
     return int(value)
+
+
+def _probability(value, where: str) -> float:
+    value = _number(value, where)
+    if not 0 <= value <= 1:
+        _fail(f"{where} must be a probability in [0, 1], got {value!r}")
+    return value
 
 
 def _string(value, where: str) -> str:
@@ -130,6 +145,15 @@ def load_mapping(data: bytes) -> dict:
         _string(mapping["primary"], "mapping 'primary'")
     policy = _object(mapping.get("policy", {}), "mapping 'policy'")
     _known_keys(policy, _POLICY_KEYS, "mapping 'policy'")
+    snapshot = _object(mapping.get("snapshot"), "mapping 'snapshot' (what the export cannot establish)")
+    _known_keys(snapshot, _SNAPSHOT_KEYS, "mapping 'snapshot'")
+    share = snapshot.get("expected_treatment_share")
+    if share is None or not 0 < _number(share, "mapping snapshot expected_treatment_share") < 1:
+        _fail("mapping snapshot expected_treatment_share is required and must be in (0, 1): the treatment share "
+              "of the allocation weights the snapshot was taken under")
+    if snapshot.get("regression_adjustment") is not False:
+        _fail("mapping snapshot regression_adjustment must be false: assert that the snapshot was computed "
+              "without regression adjustment (CUPED); adjusted exports are not supported")
     reading = _object(mapping.get("growthbook", {}), "mapping 'growthbook'")
     _known_keys(reading, _READING_KEYS, "mapping 'growthbook'")
     for key in reading:
@@ -203,12 +227,12 @@ def _stat(kind: str, users: int, analysis: dict, where: str) -> dict:
 def _significance(analysis: dict, engine: str, direction: float, alpha: float, where: str) -> tuple[str, str]:
     """GrowthBook's own reading of one metric: ('better' | 'worse' | 'not_significant', evidence text)."""
     if engine == "frequentist":
-        p = _number(analysis.get("pValue"), f"{where} pValue")
+        p = _probability(analysis.get("pValue"), f"{where} pValue")
         change = _number(analysis.get("percentChange"), f"{where} percentChange") * direction
         if p < alpha and change != 0:
             return ("better" if change > 0 else "worse"), f"two-sided p {_g(p)} < {_g(alpha)}"
         return "not_significant", f"two-sided p {_g(p)} >= {_g(alpha)}"
-    chance = _number(analysis.get("chanceToBeatControl"), f"{where} chanceToBeatControl")
+    chance = _probability(analysis.get("chanceToBeatControl"), f"{where} chanceToBeatControl")
     if chance >= 1 - alpha:
         return "better", f"chance to beat control {_g(chance)} >= {_g(1 - alpha)}"
     if chance <= alpha:
@@ -289,11 +313,21 @@ def convert(export: bytes, mapping: dict) -> dict:
         _fail(f"result is broken down by dimension {dimension.get('type')!r}; export the overall results")
 
     settings = _object(result.get("settings"), "result.settings")
-    for owner, flags in (("result.settings", settings), ("experiment.settings", experiment.get("settings", {}))):
-        for flag in ("regressionAdjustmentEnabled", "sequentialTestingEnabled", "postStratificationEnabled"):
-            if _object(flags, owner).get(flag) is True:
-                _fail(f"{owner}.{flag} is true; the exported statistics are not raw aggregates (or are sequential), "
-                      "which expgate cannot recompute")
+    # The endpoint pairs the latest successful snapshot with the experiment's CURRENT settings, and the export
+    # carries neither the snapshot's adjustment flags nor its allocation weights, so the mapping asserts them
+    # and the current values may only contradict the assertion, never establish it (see the README).
+    experiment_settings = _object(experiment.get("settings", {}), "experiment.settings")
+    for owner, flags in (("result.settings", settings), ("experiment.settings", experiment_settings)):
+        for flag in ("regressionAdjustmentEnabled", "sequentialTestingEnabled"):
+            if flags.get(flag) is True:
+                _fail(f"{owner}.{flag} is true; the exported statistics are then not raw aggregates (or are "
+                      "sequential), which expgate cannot recompute. If it was switched on after the snapshot, "
+                      "refresh the analysis in GrowthBook and export again")
+    for override in _list(experiment_settings.get("metricOverrides", []), "experiment.settings.metricOverrides"):
+        if (_object(override, "metric override").get("regressionAdjustmentOverride") is True
+                and override.get("regressionAdjustmentEnabled") is True):
+            _fail(f"metric {override.get('id')!r} has a regression adjustment override (CUPED); its exported "
+                  "standard deviation is not the raw one")
     engine = settings.get("statsEngine")
     if engine not in ("bayesian", "frequentist"):
         _fail("result.settings.statsEngine must be 'bayesian' or 'frequentist'")
@@ -309,7 +343,7 @@ def convert(export: bytes, mapping: dict) -> dict:
     if len(rows) != 1:
         _fail(f"result.results has {len(rows)} entries; expected exactly one overall row")
     row = _object(rows[0], "result.results[0]")
-    srm_p = _number(_object(row.get("checks"), "result checks").get("srm"), "result checks.srm")
+    srm_p = _probability(_object(row.get("checks"), "result checks").get("srm"), "result checks.srm")
     exported = {}
     for metric in _list(row.get("metrics"), "result.results[0].metrics"):
         metric_id = _string(_object(metric, "metric").get("metricId"), "metricId")
@@ -364,12 +398,16 @@ def convert(export: bytes, mapping: dict) -> dict:
             spec["margin"] = entry["margin"]
         spec_metrics[name] = spec
 
+        variation_entries = _list(exported[metric_id].get("variations"), f"metric {name!r} variations")
         by_variation = {}
-        for variation in _list(exported[metric_id].get("variations"), f"metric {name!r} variations"):
-            by_variation[_string(_object(variation, "variation").get("variationId"), "variationId")] = variation
-        if set(by_variation) != {control_id, treatment_id}:
+        for variation in variation_entries:
+            variation_id = _string(_object(variation, "variation").get("variationId"), "variationId")
+            if variation_id in by_variation:
+                _fail(f"metric {name!r} has more than one result for variation {variation_id!r}")
+            by_variation[variation_id] = variation
+        if len(variation_entries) != 2 or set(by_variation) != {control_id, treatment_id}:
             _fail(f"metric {name!r} has results for variations {sorted(by_variation)}, "
-                  f"expected {sorted([control_id, treatment_id])}")
+                  f"expected exactly {sorted([control_id, treatment_id])}")
         analyses = {}
         for arm, variation_id in (("control", control_id), ("treatment", treatment_id)):
             where = f"metric {name!r} {arm}"
@@ -386,14 +424,20 @@ def convert(export: bytes, mapping: dict) -> dict:
         reads[name] = _significance(analyses["treatment"], engine, sign, reading_alpha,
                                     f"metric {name!r} treatment")
 
-    traffic = _traffic_share(experiment, result, control_id, treatment_id)
+    asserted_share = mapping["snapshot"]["expected_treatment_share"]
+    current_share = _traffic_share(experiment, result, control_id, treatment_id)
+    if abs(current_share - asserted_share) > 1e-9:
+        _fail(f"mapping snapshot expected_treatment_share {asserted_share!r} contradicts the experiment's current "
+              f"allocation weights in the export (treatment share {current_share!r}). GrowthBook pairs the latest "
+              "snapshot with the current weights, so if they were edited after the snapshot, refresh the analysis "
+              "and export again; otherwise correct the mapping")
     policy = dict(mapping.get("policy", {}))
     summary = {
         "experiment": _string(experiment.get("trackingKey") or experiment.get("name") or experiment.get("id"),
                               "experiment trackingKey, name or id"),
         "description": f"Imported from a GrowthBook experiment-results export "
                        f"(experiment {experiment.get('id')}, {engine} statistics).",
-        "assignment": {"expected_treatment_share": traffic},
+        "assignment": {"expected_treatment_share": mapping["snapshot"]["expected_treatment_share"]},
         "metrics": spec_metrics,
         "arms": {arm: {"units": users[arm], "metrics": arms_metrics[arm]} for arm in ("control", "treatment")},
     }
@@ -404,6 +448,7 @@ def convert(export: bytes, mapping: dict) -> dict:
     except (KeyError, TypeError, ValueError) as exc:
         _fail(f"the converted summary is not valid input: {exc}")
     summary["source"] = {
+        "asserted": dict(mapping["snapshot"]),
         "format": FORMAT,
         "export_sha256": hashlib.sha256(export).hexdigest(),
         "experiment_id": _string(experiment.get("id") or result.get("experimentId"), "experiment id"),
@@ -416,11 +461,13 @@ def convert(export: bytes, mapping: dict) -> dict:
 
 
 def _traffic_share(experiment: dict, result: dict, control_id: str, treatment_id: str) -> float:
+    """The treatment share of the experiment's *current* weights for the result's phase."""
     phases = _list(experiment.get("phases"), "experiment.phases")
-    try:
-        phase = _object(phases[int(result.get("phase"))], "experiment phase")
-    except (TypeError, ValueError, IndexError):
-        _fail(f"result.phase {result.get('phase')!r} does not name an entry of experiment.phases")
+    text = result.get("phase")
+    if not isinstance(text, str) or not _PHASE.fullmatch(text) or int(text) >= len(phases):
+        _fail(f"result.phase {text!r} is not the zero-based index (as a string such as \"0\") of one of the "
+              f"{len(phases)} entries of experiment.phases")
+    phase = _object(phases[int(text)], "experiment phase")
     weights = {}
     for split in _list(phase.get("trafficSplit"), "experiment phase trafficSplit"):
         _object(split, "trafficSplit entry")
