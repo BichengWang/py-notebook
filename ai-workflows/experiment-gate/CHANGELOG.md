@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Signature verification treats a malformed signature field (null, non-string or otherwise
+  odd-typed `sig`, `payload`, `predicateType`, `subject` or digest values) as an invalid
+  signature and exits 1 instead of 2.
+
 ### Added
 - Signed records (P-012): `experiment-gate keygen KEY` and `--sign-key KEY` on the producer (one
   `decision.json.dsse.json` per record, also for `--all-scenarios`), and `--require-signature`
