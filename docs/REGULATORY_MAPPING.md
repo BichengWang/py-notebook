@@ -168,7 +168,7 @@ byte-exact. Older schema versions keep their original comparison rules.
 | Jev typed answer (2) | `record_sha256` | Exact: the only arithmetic on recorded floats is addition, multiplication and division, which are bit-portable | Over the exact bytes of the answer file |
 | Jev `evaluation.json` / `provenance.json` (2) | `provenance.json` holds SHA-256 of exact file bytes; the digests are exact | Re-scored metric floats, including each requirement's `value`, within relative 1e-9; requirement bounds, counts, strings, booleans, statuses, `cases.jsonl` rows and file hashes are exact | Over the exact bytes of `provenance.json`, which pins the other files by hash |
 | decision-control record (4) | `sha256` over `record`, RFC 8785 (schemas 1 to 3: python-json-v1) | Exact. The verdict is recomputed from the frozen policy; checksum, lifecycle, separation of duties and `policy_sha256` agree. Schema 4 rejects duplicate keys, non-finite numbers and integers beyond 2^53-1 | Over the exact bytes of the exported record file |
-| decision-control `evaluation.json` (2; 1 replays under its original rules) | `sha256` over `report`, RFC 8785 (schema 1: python-json-v1) | Exact, with no tolerance, for both schemas: every operation involved is correctly rounded under IEEE 754 and no platform math-library function is called | Over the exact bytes of `evaluation.json` |
+| decision-control `evaluation.json` (2; 1 replays under its original rules) | `sha256` over `report`, RFC 8785 (schema 1: python-json-v1) | Exact, with no tolerance, for both schemas: only correctly rounded IEEE 754 operations are used (`+`, `-`, `*`, `/` and `math.sqrt`) and no transcendental platform math-library function (`log`, `exp`, `erf`, inverse CDF) | Over the exact bytes of `evaluation.json` |
 
 Evidence for the cross-platform limit and its rule is in the package READMEs
 (expgate "Both schemas share one replay comparison", Jev "Metrics use `math.log`",
@@ -202,8 +202,13 @@ schema versions are still compared under their original rules.
 ## Signing: what it gives and what it does not
 
 Each package can sign its records and verify them with `--require-signature`
-(READMEs, "Signed records"). The signature is an in-toto Statement v1 in a DSSE
-envelope. Its subject is the SHA-256 of the **exact bytes of the signed file**, and
+(READMEs, "Signed records"). The packages' own HMAC envelopes are an in-toto
+Statement v1 in a DSSE envelope. The Sigstore path is different: it uses the
+external `cosign attest-blob --type <predicate type URI>`, which in cosign v3.1.3
+writes `_type` `https://in-toto.io/Statement/v0.1`, not v1 (cosign
+`pkg/cosign/attestation/attestation.go` L242-267 at v3.1.3; in-toto-golang v0.11.0
+`attestations.go` L11-18; reported by the PR #258 review, not re-read here). In both
+cases the subject is the SHA-256 of the **exact bytes of the signed file**, and
 its predicate type names the record type and schema version, so a signature for one
 record type or version does not vouch for another. Without `--require-signature`
 the verifiers ignore envelopes and behave as before.
