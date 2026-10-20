@@ -13,6 +13,7 @@ import math
 import sys
 from pathlib import Path
 
+from . import attestation, signing
 from .decision import evaluate
 from .jcs import canonicalize
 from .records import REPLAY_RELATIVE_TOLERANCE, REPLAY_ZERO_FLOOR, SUPPORTED_SCHEMAS, input_digest
@@ -137,11 +138,34 @@ def verify_record(record: dict) -> list[str]:
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("records", type=Path, nargs="+", metavar="DECISION_JSON")
+    parser.add_argument("--require-signature", action="store_true",
+                        help="also require a signature over the exact record file")
+    parser.add_argument("--key", type=Path, help="HMAC key file (with --require-signature)")
+    parser.add_argument("--signature", type=Path, help="DSSE envelope (default: DECISION_JSON.dsse.json)")
+    parser.add_argument("--sigstore-bundle", type=Path, help="Sigstore bundle verified with an external cosign")
+    parser.add_argument("--certificate-identity", help="signer identity expected in the Sigstore certificate")
+    parser.add_argument("--certificate-oidc-issuer", help="OIDC issuer expected in the Sigstore certificate")
     args = parser.parse_args(argv)
+    problem = attestation.check_verify_options(args)
+    if problem:
+        parser.error(problem)
+    try:
+        key = signing.load_key(args.key) if args.key is not None else None  # a bad key exits 2 before any output
+    except signing.KeyFileError as exc:
+        print(f"cannot verify: {exc}", file=sys.stderr)
+        return 2
     result = 0
     for path in args.records:
         try:
-            mismatches = verify_record(load_record(path.read_text(encoding="utf-8")))
+            data = path.read_bytes()  # the only read: signature, parse and replay all use these bytes
+            document = load_record(data.decode("utf-8"))
+            if args.require_signature:
+                attestation.require_signature(path, data, document, args, key)
+            mismatches = verify_record(document)
+        except signing.SignatureError as exc:
+            print(f"{path}: signature: {exc}", file=sys.stderr)
+            result = max(result, 1)
+            continue
         except (OSError, ValueError, TypeError, OverflowError) as exc:
             print(f"{path}: cannot verify: {exc}", file=sys.stderr)
             result = 2
