@@ -207,7 +207,7 @@ Statement v1 in a DSSE envelope. The Sigstore path is different: it uses the
 external `cosign attest-blob --type <predicate type URI>`, which in cosign v3.1.3
 writes `_type` `https://in-toto.io/Statement/v0.1`, not v1 (cosign
 `pkg/cosign/attestation/attestation.go` L242-267 at v3.1.3; in-toto-golang v0.11.0
-`attestations.go` L11-18; reported by the PR #258 review, not re-read here). In both
+`attestations.go` L11-18; both read on 2026-10-19). In both
 cases the subject is the SHA-256 of the **exact bytes of the signed file**, and
 its predicate type names the record type and schema version, so a signature for one
 record type or version does not vouch for another. Without `--require-signature`
