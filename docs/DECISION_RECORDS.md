@@ -14,7 +14,7 @@ never guesses. Unknown schema versions are rejected.
 | Form | Used by | Definition |
 | --- | --- | --- |
 | `python-json-v1` | The existing schema versions: expgate `decision.json` 2, decision-control exported record 1-3 and `evaluation.json` 1 | `json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False)` encoded as UTF-8. Keys sort by code point, floats print with Python's `repr` (so `2.0` and `2` stay different), integers have unbounded precision. These versions stay readable and verifiable under their original rules, including how their readers treat duplicate keys. |
-| `rfc8785` | The next schema version of each record type with a canonical-object digest: expgate `decision.json` 3, decision-control record 4 and `evaluation.json` 2, Jev answer record 2 | [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785) (JSON Canonicalization Scheme): keys sort by UTF-16 code unit, numbers use the ECMAScript form (`2.0` becomes `2`, `1e30` becomes `1e+30`), strings use minimal escaping, no whitespace, UTF-8. The I-JSON range applies: integers outside +-(2^53-1), NaN and Infinity, lone surrogates and non-string keys are rejected, and a reader rejects duplicate object keys while parsing (exit 2). Records never rely on the int/float distinction. |
+| `rfc8785` | The next schema version of each record type with a canonical-object digest: expgate `decision.json` 3, decision-control record 4 and 5 and `evaluation.json` 2, Jev answer record 2 | [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785) (JSON Canonicalization Scheme): keys sort by UTF-16 code unit, numbers use the ECMAScript form (`2.0` becomes `2`, `1e30` becomes `1e+30`), strings use minimal escaping, no whitespace, UTF-8. The I-JSON range applies: integers outside +-(2^53-1), NaN and Infinity, lone surrogates and non-string keys are rejected, and a reader rejects duplicate object keys while parsing (exit 2). Records never rely on the int/float distinction. |
 
 The new versions are the default for producers. Each package carries an identical
 standard-library copy of the JCS implementation (`jcs.py`) tested against the
@@ -66,14 +66,14 @@ checker both run over every vector (see [Conformance vectors](#conformance-vecto
 
 | Record | Schema versions and canonical form | Schema files | Vectors | Verify |
 | --- | --- | --- | --- | --- |
-| experiment-gate `decision.json` | 2: `python-json-v1`; 3: `rfc8785`. Digest `input_sha256` covers `/input`. Schema 1 has no input and no schema | `ai-workflows/experiment-gate/expgate/schema/decision.v2.json`, `decision.v3.json` | `ai-workflows/experiment-gate/conformance/` | `experiment-gate-verify <vector>` |
-| decision-control exported record | 1-3: `python-json-v1`; 4: `rfc8785`. `sha256` covers `/record`; `policy_sha256` covers the frozen `/record/policy` | `ai-workflows/decision-control/decisioncontrol/schema/record.v1.json` to `record.v4.json` | `ai-workflows/decision-control/conformance/` | `decision-control replay --record <vector>` |
+| experiment-gate `decision.json` | 2: `python-json-v1`; 3: `rfc8785`. Digest `input_sha256` covers `/input`, including the optional `input.source` of a GrowthBook import (schema 3 only; its `asserted` member holds operator statements the importer cannot verify). Schema 1 has no input and no schema | `ai-workflows/experiment-gate/expgate/schema/decision.v2.json`, `decision.v3.json` | `ai-workflows/experiment-gate/conformance/` | `experiment-gate-verify <vector>` |
+| decision-control exported record | 1-3: `python-json-v1`; 4 and 5: `rfc8785`. `sha256` covers `/record`; `policy_sha256` covers the frozen `/record/policy`; schema 5 adds `external_policy_sha256` over `/record/external_policy` (a frozen OPA or Cedar decision, `null` when absent) | `ai-workflows/decision-control/decisioncontrol/schema/record.v1.json` to `record.v5.json` | `ai-workflows/decision-control/conformance/` | `decision-control replay --record <vector>` |
 | decision-control `evaluation.json` | 1: `python-json-v1`; 2: `rfc8785`. `sha256` covers `/report` | `ai-workflows/decision-control/decisioncontrol/schema/evaluation.v1.json`, `evaluation.v2.json` | `ai-workflows/decision-control/conformance/` | `decision-control replay-evaluation --record <vector>` |
 | Jev typed answer record | 1: no digest, no canonical form; 2: `rfc8785`. `record_sha256` covers the whole record without that member | `ai-workflows/jev-decision/jevdecision/schema/answer.v1.json`, `answer.v2.json` | `ai-workflows/jev-decision/conformance/` | `jev-decision-verify <vector>` |
 | Jev evaluation output directory | `evaluation.json` and `provenance.json` 2: no canonical form. `provenance.json` records the SHA-256 of exact input and output file bytes (`bytes`) | `ai-workflows/jev-decision/jevdecision/schema/evaluation.v2.json`, `provenance.v2.json` | `ai-workflows/jev-decision/conformance/` | `jev-decision-verify --evaluation <vector directory>` |
 
 All vectors, in every language: `cd scripts/conformance && npm ci && node verify.mjs`
-(3 manifests and 130 vectors at the time of writing).
+(3 manifests and 176 vectors at the time of writing).
 Each project's own tests run its verifier over its vectors.
 
 ## Conformance vectors
@@ -199,7 +199,7 @@ nothing else.
 | Record | Signed file (subject name) | Predicate type | Schema `$id` in the predicate |
 | --- | --- | --- | --- |
 | experiment-gate `decision.json`, schema 2 and 3 | `decision.json` | `https://github.com/BichengWang/ai-decision-system/predicate/expgate/decision/v<N>` | `https://github.com/BichengWang/ai-decision-system/schema/expgate/decision.v<N>.json` |
-| decision-control exported record, schema 1-4 | the exported file, e.g. `record.json` | `.../predicate/decisioncontrol/record/v<N>` | `.../schema/decisioncontrol/record.v<N>.json` |
+| decision-control exported record, schema 1-5 | the exported file, e.g. `record.json` | `.../predicate/decisioncontrol/record/v<N>` | `.../schema/decisioncontrol/record.v<N>.json` |
 | decision-control `evaluation.json`, schema 1 and 2 | `evaluation.json` | `.../predicate/decisioncontrol/evaluation/v<N>` | `.../schema/decisioncontrol/evaluation.v<N>.json` |
 | Jev answer record, schema 1 and 2 | the `--out` file | `.../predicate/jevdecision/answer/v<N>` | `.../schema/jevdecision/answer.v<N>.json` |
 | Jev evaluation directory | `provenance.json` (it pins every other file by hash), schema 2 | `.../predicate/jevdecision/provenance/v2` | `.../schema/jevdecision/provenance.v2.json` |
