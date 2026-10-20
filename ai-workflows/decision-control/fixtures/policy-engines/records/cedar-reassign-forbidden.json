@@ -1,0 +1,136 @@
+{
+  "record": {
+    "schema_version": 5,
+    "produced_by": {
+      "name": "decisioncontrol",
+      "version": "0.1.0"
+    },
+    "proposed_by": "alice",
+    "policy_sha256": "7236899f82f6bdfbbd02fa56d431c87e8b80270d5e50c3c3e2b1ac4048d78240",
+    "id": "c908cc79-9976-476b-b237-6c9668b406ce",
+    "created_at": "2026-10-19T23:58:46.063747+00:00",
+    "recommendation": {
+      "action": "reassign_ticket",
+      "ticket_id": "T-213",
+      "destination": "support",
+      "probability": 0.95,
+      "model": "recorded-fixture-not-a-provider",
+      "question_version": "routing-question-1",
+      "refused": false
+    },
+    "ticket": {
+      "id": "T-213",
+      "department": "legal",
+      "revision": 0
+    },
+    "policy": {
+      "version": "ticket-routing-fixture-1",
+      "allowed_destinations": [
+        "support",
+        "engineering",
+        "legal"
+      ],
+      "review_destinations": [
+        "engineering"
+      ],
+      "reviewers": [
+        "bob",
+        "carol"
+      ],
+      "min_probability": 0.8,
+      "allowed_priorities": [
+        "low",
+        "normal",
+        "high",
+        "urgent"
+      ],
+      "review_priorities": [
+        "urgent"
+      ]
+    },
+    "evaluation": {
+      "verdict": "DENY",
+      "reasons": [
+        "cedar:forbid:legal-tickets-stay-in-legal"
+      ]
+    },
+    "status": "DENIED",
+    "review": null,
+    "result": null,
+    "events": [
+      {
+        "event": "SUBMITTED",
+        "at": "2026-10-19T23:58:46.063747+00:00"
+      }
+    ],
+    "external_policy": {
+      "engine": "cedar",
+      "policies": {
+        "format": "cedar",
+        "text": "// Ticket-routing policy used to record the Cedar fixtures. Cedar answers Allow or Deny;\n// whether a human must review is decided by the built-in policy and the record combines them.\n\n@id(\"routers-reassign-to-open-destinations\")\npermit (\n    principal in Group::\"routers\",\n    action == Action::\"reassign_ticket\",\n    resource\n)\nwhen { context.requested == \"support\" || context.requested == \"engineering\" };\n\n@id(\"routers-set-priority\")\npermit (\n    principal in Group::\"routers\",\n    action == Action::\"set_ticket_priority\",\n    resource\n)\nwhen { [\"low\", \"normal\", \"high\", \"urgent\"].contains(context.requested) };\n\n@id(\"legal-tickets-stay-in-legal\")\nforbid (\n    principal,\n    action == Action::\"reassign_ticket\",\n    resource\n)\nwhen { context has current && context.current == \"legal\" };\n"
+      },
+      "entities": [
+        {
+          "uid": {
+            "type": "Group",
+            "id": "routers"
+          },
+          "attrs": {},
+          "parents": []
+        },
+        {
+          "uid": {
+            "type": "User",
+            "id": "alice"
+          },
+          "attrs": {},
+          "parents": [
+            {
+              "type": "Group",
+              "id": "routers"
+            }
+          ]
+        },
+        {
+          "uid": {
+            "type": "User",
+            "id": "bob"
+          },
+          "attrs": {},
+          "parents": [
+            {
+              "type": "Group",
+              "id": "routers"
+            }
+          ]
+        },
+        {
+          "uid": {
+            "type": "User",
+            "id": "mallory"
+          },
+          "attrs": {},
+          "parents": []
+        }
+      ],
+      "request": {
+        "principal": "User::\"alice\"",
+        "action": "Action::\"reassign_ticket\"",
+        "resource": "Ticket::\"T-213\"",
+        "context": {
+          "requested": "support",
+          "current": "legal"
+        }
+      },
+      "decision": "Deny",
+      "diagnostics": {
+        "reason": [
+          "legal-tickets-stay-in-legal"
+        ],
+        "errors": []
+      }
+    },
+    "external_policy_sha256": "49beca2279baea21047bae7167ea2e0e793b5429f21c06b464ea874cb2209921"
+  },
+  "sha256": "f1d7d3a8dac6c2ece152ed16ffb579512d5d12690abed231631d2042a530c493"
+}

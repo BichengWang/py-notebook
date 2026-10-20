@@ -1,0 +1,88 @@
+{
+  "record": {
+    "schema_version": 5,
+    "id": "0f6d5c4b-3a29-4817-9605-000000000507",
+    "created_at": "2026-01-15T09:00:00.000000+00:00",
+    "recommendation": {
+      "action": "set_ticket_priority",
+      "ticket_id": "T-100",
+      "priority": "urgent",
+      "probability": 0.95,
+      "model": "hand-authored-fixture",
+      "question_version": "routing-question-1",
+      "refused": false
+    },
+    "ticket": {
+      "id": "T-100",
+      "department": "intake",
+      "revision": 0,
+      "priority": "normal"
+    },
+    "policy": {
+      "version": "routing-policy-1",
+      "allowed_destinations": [
+        "support",
+        "engineering"
+      ],
+      "review_destinations": [
+        "engineering"
+      ],
+      "reviewers": [
+        "alice",
+        "bob"
+      ],
+      "min_probability": 0.8,
+      "allowed_priorities": [
+        "low",
+        "normal",
+        "high",
+        "urgent"
+      ],
+      "review_priorities": [
+        "urgent"
+      ]
+    },
+    "evaluation": {
+      "verdict": "REVIEW",
+      "reasons": [
+        "priority_requires_review"
+      ]
+    },
+    "status": "EXECUTED",
+    "review": {
+      "decision": "APPROVED",
+      "reviewer": "bob",
+      "note": "checked",
+      "at": "2026-01-15T09:05:00.000000+00:00"
+    },
+    "result": {
+      "id": "T-100",
+      "department": "intake",
+      "revision": 1,
+      "priority": "urgent"
+    },
+    "events": [
+      {
+        "event": "SUBMITTED",
+        "at": "2026-01-15T09:00:00.000000+00:00"
+      },
+      {
+        "event": "APPROVED",
+        "at": "2026-01-15T09:05:00.000000+00:00"
+      },
+      {
+        "event": "EXECUTED",
+        "at": "2026-01-15T09:10:00.000000+00:00"
+      }
+    ],
+    "produced_by": {
+      "name": "decisioncontrol",
+      "version": "0.1.0"
+    },
+    "proposed_by": "alice",
+    "policy_sha256": "e24ea72e0f0c452e9424c8930b74c8a1dca7daf809ba05987d5121b86feb8eb6",
+    "external_policy": null,
+    "external_policy_sha256": null
+  },
+  "sha256": "709861f0606d01d19b96655e7f4e48e6d5bd30814c533b889613a8e4cd88e5fb"
+}

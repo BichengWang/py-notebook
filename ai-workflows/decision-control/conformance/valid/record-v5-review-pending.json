@@ -1,0 +1,60 @@
+{
+  "record": {
+    "schema_version": 5,
+    "id": "0f6d5c4b-3a29-4817-9605-000000000503",
+    "created_at": "2026-01-15T09:00:00.000000+00:00",
+    "recommendation": {
+      "action": "reassign_ticket",
+      "ticket_id": "T-100",
+      "destination": "engineering",
+      "probability": 0.95,
+      "model": "hand-authored-fixture",
+      "question_version": "routing-question-1",
+      "refused": false
+    },
+    "ticket": {
+      "id": "T-100",
+      "department": "intake",
+      "revision": 0
+    },
+    "policy": {
+      "version": "routing-policy-1",
+      "allowed_destinations": [
+        "support",
+        "engineering"
+      ],
+      "review_destinations": [
+        "engineering"
+      ],
+      "reviewers": [
+        "alice",
+        "bob"
+      ],
+      "min_probability": 0.8
+    },
+    "evaluation": {
+      "verdict": "REVIEW",
+      "reasons": [
+        "destination_requires_review"
+      ]
+    },
+    "status": "PENDING_REVIEW",
+    "review": null,
+    "result": null,
+    "events": [
+      {
+        "event": "SUBMITTED",
+        "at": "2026-01-15T09:00:00.000000+00:00"
+      }
+    ],
+    "produced_by": {
+      "name": "decisioncontrol",
+      "version": "0.1.0"
+    },
+    "proposed_by": "alice",
+    "policy_sha256": "44553b3f04e70b699703e1e13062185ecb09158f241e741bb60270898daafe66",
+    "external_policy": null,
+    "external_policy_sha256": null
+  },
+  "sha256": "461b63af383a4d0b821be84a2013671274f39fbf5e579bdeafcf47fdc6ec2e5c"
+}

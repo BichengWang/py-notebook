@@ -1,0 +1,6 @@
+[
+  {"uid": {"type": "Group", "id": "routers"}, "attrs": {}, "parents": []},
+  {"uid": {"type": "User", "id": "alice"}, "attrs": {}, "parents": [{"type": "Group", "id": "routers"}]},
+  {"uid": {"type": "User", "id": "bob"}, "attrs": {}, "parents": [{"type": "Group", "id": "routers"}]},
+  {"uid": {"type": "User", "id": "mallory"}, "attrs": {}, "parents": []}
+]

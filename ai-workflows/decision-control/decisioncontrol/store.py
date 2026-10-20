@@ -12,7 +12,8 @@ from typing import Iterator
 from uuid import uuid4
 
 from . import __version__
-from .evidence import JCS_SCHEMA, _validate_record, digest, parse_record
+from .actions import CURRENT_SCHEMA, actions_for
+from .evidence import _validate_record, digest, parse_record
 from .models import (
     DecisionError,
     Recommendation,
@@ -22,14 +23,15 @@ from .models import (
     Ticket,
     _text,
 )
-from .policy import INITIAL_STATUS, evaluate
+from .adapters import engine_for
+from .policy import INITIAL_STATUS, combine, evaluate
 
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="microseconds")
 
 
-STORE_SCHEMA_VERSION = 1
+STORE_SCHEMA_VERSION = 2
 
 
 class PendingDecisions(list):
@@ -64,8 +66,11 @@ class TicketStore:
                 connection.execute(
                     "CREATE TABLE IF NOT EXISTS tickets ("
                     "id TEXT PRIMARY KEY NOT NULL, department TEXT NOT NULL, "
-                    "revision INTEGER NOT NULL CHECK (revision >= 0))"
+                    "revision INTEGER NOT NULL CHECK (revision >= 0), priority TEXT)"
                 )
+                if "priority" not in {row[1] for row in connection.execute("PRAGMA table_info(tickets)")}:
+                    # Store schema 1 predates ticket priority.
+                    connection.execute("ALTER TABLE tickets ADD COLUMN priority TEXT")
                 connection.execute(
                     "CREATE TABLE IF NOT EXISTS decisions ("
                     "id TEXT PRIMARY KEY NOT NULL, created_at TEXT NOT NULL, "
@@ -111,14 +116,17 @@ class TicketStore:
                     self._connection.rollback()
                 raise
 
-    def create_ticket(self, ticket_id: str, department: str) -> Ticket:
-        ticket = Ticket.from_dict({"id": ticket_id, "department": department, "revision": 0})
+    def create_ticket(self, ticket_id: str, department: str, priority: str | None = None) -> Ticket:
+        values = {"id": ticket_id, "department": department, "revision": 0}
+        if priority is not None:
+            values["priority"] = priority
+        ticket = Ticket.from_dict(values)
         with self._transaction() as connection:
             if connection.execute("SELECT 1 FROM tickets WHERE id = ?", (ticket.id,)).fetchone():
                 raise DecisionError(f"Ticket already exists: {ticket.id}")
             connection.execute(
-                "INSERT INTO tickets (id, department, revision) VALUES (?, ?, ?)",
-                (ticket.id, ticket.department, ticket.revision),
+                "INSERT INTO tickets (id, department, revision, priority) VALUES (?, ?, ?, ?)",
+                (ticket.id, ticket.department, ticket.revision, ticket.priority),
             )
         return ticket
 
@@ -126,29 +134,43 @@ class TicketStore:
         if not isinstance(ticket_id, str) or not ticket_id or ticket_id != ticket_id.strip():
             raise DecisionError("Ticket ID must be a nonempty, stripped string")
         row = self._connection.execute(
-            "SELECT id, department, revision FROM tickets WHERE id = ?", (ticket_id,),
+            "SELECT id, department, revision, priority FROM tickets WHERE id = ?", (ticket_id,),
         ).fetchone()
         if row is None:
             raise DecisionError(f"Unknown ticket: {ticket_id}")
-        return Ticket.from_dict(dict(row))
+        return Ticket(row["id"], row["department"], row["revision"], row["priority"])
 
     def get_ticket(self, ticket_id: str) -> Ticket:
         with self._lock:
             self._ensure_open()
             return self._get_ticket(ticket_id)
 
-    def submit(self, recommendation: Recommendation, policy: RoutingPolicy, proposed_by: str) -> dict:
+    def submit(self, recommendation: Recommendation, policy: RoutingPolicy, proposed_by: str,
+               external_policy: dict | None = None) -> dict:
+        """Freeze a proposal, the policy and optionally an external OPA or Cedar decision.
+
+        ``external_policy`` is a block from ``adapters.opa.freeze`` or ``adapters.cedar.freeze``.
+        Its input or request must describe this proposal, ticket and proposer, and its decision
+        is combined with the built-in policy by taking the more restrictive verdict.
+        """
         if not isinstance(recommendation, Recommendation) or not isinstance(policy, RoutingPolicy):
             raise DecisionError("submit requires a Recommendation and a RoutingPolicy")
         _text(proposed_by, "proposed_by")
         recommendation = Recommendation.from_dict(recommendation.to_dict())
         policy = RoutingPolicy.from_dict(policy.to_dict())
+        if external_policy is not None:
+            external_policy = json.loads(json.dumps(external_policy, allow_nan=False))
         with self._transaction() as connection:
             ticket = self._get_ticket(recommendation.ticket_id)
             evaluation = evaluate(recommendation, ticket, policy)
+            if external_policy is not None:
+                adapter = engine_for(external_policy)
+                adapter.validate(external_policy)
+                adapter.bind(external_policy, recommendation, ticket, proposed_by)
+                evaluation = combine(evaluation, adapter.evaluation(external_policy))
             created_at = _now()
             record = {
-                "schema_version": JCS_SCHEMA,
+                "schema_version": CURRENT_SCHEMA,
                 "produced_by": {"name": "decisioncontrol", "version": __version__},
                 "proposed_by": proposed_by,
                 "policy_sha256": digest(policy.to_dict(), jcs=True),
@@ -162,7 +184,10 @@ class TicketStore:
                 "review": None,
                 "result": None,
                 "events": [{"event": "SUBMITTED", "at": created_at}],
+                "external_policy": external_policy,
+                "external_policy_sha256": None if external_policy is None else digest(external_policy, jcs=True),
             }
+            _validate_record(record)
             connection.execute(
                 "INSERT INTO decisions (id, created_at, status, record) VALUES (?, ?, ?, ?)",
                 (record["id"], created_at, record["status"], self._serialize(record)),
@@ -296,18 +321,19 @@ class TicketStore:
                 return record
             if record["status"] != Status.READY.value:
                 raise StateError(f"Cannot execute decision in state {record['status']}")
-            frozen_ticket = Ticket.from_dict(record["ticket"])
-            recommendation = Recommendation.from_dict(record["recommendation"])
+            schema = record["schema_version"]
+            frozen_ticket = Ticket.from_dict(record["ticket"], schema)
+            recommendation = Recommendation.from_dict(record["recommendation"], schema)
             current = self._get_ticket(frozen_ticket.id)
             at = _now()
-            if current.revision != frozen_ticket.revision or current.department != frozen_ticket.department:
+            if current != frozen_ticket:
                 record["status"] = Status.STALE.value
                 record["events"].append({"event": "STALE", "at": at})
             else:
-                result = Ticket(current.id, recommendation.destination, current.revision + 1)
+                result = actions_for(schema)[recommendation.action].apply(current, recommendation)
                 connection.execute(
-                    "UPDATE tickets SET department = ?, revision = ? WHERE id = ?",
-                    (result.department, result.revision, result.id),
+                    "UPDATE tickets SET department = ?, revision = ?, priority = ? WHERE id = ?",
+                    (result.department, result.revision, result.priority, result.id),
                 )
                 record["result"] = result.to_dict()
                 record["status"] = Status.EXECUTED.value

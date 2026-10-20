@@ -1,0 +1,9 @@
+{
+  "action": "set_ticket_priority",
+  "ticket_id": "T-100",
+  "priority": "high",
+  "probability": 0.95,
+  "model": "hand-authored-example-not-a-provider",
+  "question_version": "priority-question-1",
+  "refused": false
+}

@@ -1,0 +1,9 @@
+{
+  "version": "routing-priorities-1",
+  "allowed_destinations": ["support", "engineering"],
+  "review_destinations": ["engineering"],
+  "reviewers": ["local-reviewer"],
+  "min_probability": 0.8,
+  "allowed_priorities": ["low", "normal", "high", "urgent"],
+  "review_priorities": ["urgent"]
+}

@@ -113,7 +113,7 @@ class HardeningTests(unittest.TestCase):
 
     def test_store_stamps_schema_version(self):
         with sqlite3.connect(self.db) as connection:
-            self.assertEqual(connection.execute('PRAGMA user_version').fetchone()[0], 1)
+            self.assertEqual(connection.execute('PRAGMA user_version').fetchone()[0], 2)
 
     def test_newer_store_version_is_refused_without_modification(self):
         future = self.root / 'future.sqlite3'
@@ -140,10 +140,11 @@ class HardeningTests(unittest.TestCase):
         self.assertEqual(error.exception.code, 2)
         self.assertEqual(self.store.pending(), [])
 
-    def test_schema_four_freezes_policy_digest_and_producer(self):
+    def test_schema_five_freezes_policy_digest_and_producer(self):
         self.policy = RoutingPolicy('策略', ('support', 'legal'), ('legal',), ('alice', 'bob'))
         record = self.submit()
-        self.assertEqual(record['schema_version'], 4)
+        self.assertEqual(record['schema_version'], 5)
+        self.assertEqual((record['external_policy'], record['external_policy_sha256']), (None, None))
         self.assertEqual(record['proposed_by'], 'alice')
         self.assertEqual(record['produced_by'], {'name': 'decisioncontrol', 'version': __version__})
         digest = hashlib.sha256(canonicalize(record['policy'])).hexdigest()
@@ -259,13 +260,13 @@ class HardeningTests(unittest.TestCase):
         with contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(main(['replay', '--record', str(path)]), 0)
 
-    def test_schema_four_cancellation_retains_schema_and_blocks_proposer_after_approval(self):
+    def test_schema_five_cancellation_retains_schema_and_blocks_proposer_after_approval(self):
         record = self.submit()
         approved = self.store.approve(record['id'], 'bob', 'checked')
         self.assertEqual(self.call('cancel', record['id'], '--reviewer', 'alice', '--note', 'stop')[0], 1)
         self.assertEqual(self.store.get(record['id']), approved)
         cancelled = self.store.cancel(record['id'], 'bob', 'stop')
-        self.assertEqual(cancelled['schema_version'], 4)
+        self.assertEqual(cancelled['schema_version'], 5)
         self.assertEqual(cancelled['policy_sha256'], record['policy_sha256'])
         self.assertEqual(replay(export_record(cancelled))['status'], 'CANCELLED')
 
@@ -283,7 +284,7 @@ class HardeningTests(unittest.TestCase):
         with TicketStore(self.db) as reopened:
             self.assertEqual(reopened.get(record['id']), record)
         with sqlite3.connect(self.db) as connection:
-            self.assertEqual(connection.execute('PRAGMA user_version').fetchone()[0], 1)
+            self.assertEqual(connection.execute('PRAGMA user_version').fetchone()[0], 2)
 
     def test_replay_checksum_mismatch_exits_one_and_malformed_input_exits_two(self):
         record = self.submit()

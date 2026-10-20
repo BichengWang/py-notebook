@@ -633,6 +633,655 @@
       "note": "Schema 4 with whole-number floats (1.0) canonicalized as 1 by RFC 8785, non-ASCII policy version"
     },
     {
+      "path": "valid/record-v5-allow-executed.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/sha256",
+          "covers": "/record",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-allow-executed.record.canonical"
+        },
+        {
+          "document": ".",
+          "value": "/record/policy_sha256",
+          "covers": "/record/policy",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-allow-executed.policy.canonical"
+        }
+      ],
+      "note": "Schema 5 ALLOW decision without an external policy: external_policy and external_policy_sha256 are null; the checksum and policy_sha256 are RFC 8785 digests"
+    },
+    {
+      "path": "valid/record-v5-cedar-priority-review-approved-executed.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/sha256",
+          "covers": "/record",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-cedar-priority-review-approved-executed.record.canonical"
+        },
+        {
+          "document": ".",
+          "value": "/record/policy_sha256",
+          "covers": "/record/policy",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-cedar-priority-review-approved-executed.policy.canonical"
+        },
+        {
+          "document": ".",
+          "value": "/record/external_policy_sha256",
+          "covers": "/record/external_policy",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-cedar-priority-review-approved-executed.external.canonical"
+        }
+      ],
+      "note": "Schema 5 REVIEW decision: the frozen Cedar decision is Allow and the built-in policy requires review of the urgent priority; the more restrictive verdict wins, then approved and executed"
+    },
+    {
+      "path": "valid/record-v5-cedar-reassign-allow-executed.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/sha256",
+          "covers": "/record",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-cedar-reassign-allow-executed.record.canonical"
+        },
+        {
+          "document": ".",
+          "value": "/record/policy_sha256",
+          "covers": "/record/policy",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-cedar-reassign-allow-executed.policy.canonical"
+        },
+        {
+          "document": ".",
+          "value": "/record/external_policy_sha256",
+          "covers": "/record/external_policy",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-cedar-reassign-allow-executed.external.canonical"
+        }
+      ],
+      "note": "Schema 5 ALLOW decision whose external_policy is a Cedar authorization recorded with cedar authorize (policies, entities, request, decision Allow, determining policy); see fixtures/policy-engines/tool-versions.txt"
+    },
+    {
+      "path": "valid/record-v5-cedar-reassign-denied.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/sha256",
+          "covers": "/record",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-cedar-reassign-denied.record.canonical"
+        },
+        {
+          "document": ".",
+          "value": "/record/policy_sha256",
+          "covers": "/record/policy",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-cedar-reassign-denied.policy.canonical"
+        },
+        {
+          "document": ".",
+          "value": "/record/external_policy_sha256",
+          "covers": "/record/external_policy",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-cedar-reassign-denied.external.canonical"
+        }
+      ],
+      "note": "Schema 5 DENY decision: the frozen Cedar decision is Deny because no permit policy applies to the proposer"
+    },
+    {
+      "path": "valid/record-v5-cedar-reassign-forbidden.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/sha256",
+          "covers": "/record",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-cedar-reassign-forbidden.record.canonical"
+        },
+        {
+          "document": ".",
+          "value": "/record/policy_sha256",
+          "covers": "/record/policy",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-cedar-reassign-forbidden.policy.canonical"
+        },
+        {
+          "document": ".",
+          "value": "/record/external_policy_sha256",
+          "covers": "/record/external_policy",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-cedar-reassign-forbidden.external.canonical"
+        }
+      ],
+      "note": "Schema 5 DENY decision: the frozen Cedar decision is Deny because a forbid policy applies; the determining policy is listed in diagnostics.reason"
+    },
+    {
+      "path": "valid/record-v5-deny-denied.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/sha256",
+          "covers": "/record",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-deny-denied.record.canonical"
+        },
+        {
+          "document": ".",
+          "value": "/record/policy_sha256",
+          "covers": "/record/policy",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-deny-denied.policy.canonical"
+        }
+      ],
+      "note": "Schema 5 DENY decision for a destination outside the frozen policy"
+    },
+    {
+      "path": "valid/record-v5-opa-priority-allow-executed.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/sha256",
+          "covers": "/record",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-opa-priority-allow-executed.record.canonical"
+        },
+        {
+          "document": ".",
+          "value": "/record/policy_sha256",
+          "covers": "/record/policy",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-opa-priority-allow-executed.policy.canonical"
+        },
+        {
+          "document": ".",
+          "value": "/record/external_policy_sha256",
+          "covers": "/record/external_policy",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-opa-priority-allow-executed.external.canonical"
+        }
+      ],
+      "note": "Schema 5 set_ticket_priority decision whose frozen OPA result is ALLOW; ticket priority changed from normal to high"
+    },
+    {
+      "path": "valid/record-v5-opa-reassign-allow-executed.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/sha256",
+          "covers": "/record",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-opa-reassign-allow-executed.record.canonical"
+        },
+        {
+          "document": ".",
+          "value": "/record/policy_sha256",
+          "covers": "/record/policy",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-opa-reassign-allow-executed.policy.canonical"
+        },
+        {
+          "document": ".",
+          "value": "/record/external_policy_sha256",
+          "covers": "/record/external_policy",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-opa-reassign-allow-executed.external.canonical"
+        }
+      ],
+      "note": "Schema 5 ALLOW decision whose external_policy is an OPA decision recorded from opa run --server decision logs (decision_id, bundle revision, input, result, frozen Rego modules); see fixtures/policy-engines/tool-versions.txt"
+    },
+    {
+      "path": "valid/record-v5-opa-reassign-denied.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/sha256",
+          "covers": "/record",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-opa-reassign-denied.record.canonical"
+        },
+        {
+          "document": ".",
+          "value": "/record/policy_sha256",
+          "covers": "/record/policy",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-opa-reassign-denied.policy.canonical"
+        },
+        {
+          "document": ".",
+          "value": "/record/external_policy_sha256",
+          "covers": "/record/external_policy",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-opa-reassign-denied.external.canonical"
+        }
+      ],
+      "note": "Schema 5 DENY decision: the built-in policy would ALLOW, the frozen OPA result is DENY (proposer is not a router), and the more restrictive verdict wins"
+    },
+    {
+      "path": "valid/record-v5-opa-reassign-review-approved-executed.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/sha256",
+          "covers": "/record",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-opa-reassign-review-approved-executed.record.canonical"
+        },
+        {
+          "document": ".",
+          "value": "/record/policy_sha256",
+          "covers": "/record/policy",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-opa-reassign-review-approved-executed.policy.canonical"
+        },
+        {
+          "document": ".",
+          "value": "/record/external_policy_sha256",
+          "covers": "/record/external_policy",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-opa-reassign-review-approved-executed.external.canonical"
+        }
+      ],
+      "note": "Schema 5 REVIEW decision: the frozen OPA result is REVIEW, a reviewer other than the proposer approved it, and it was executed"
+    },
+    {
+      "path": "valid/record-v5-priority-allow-executed.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/sha256",
+          "covers": "/record",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-priority-allow-executed.record.canonical"
+        },
+        {
+          "document": ".",
+          "value": "/record/policy_sha256",
+          "covers": "/record/policy",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-priority-allow-executed.policy.canonical"
+        }
+      ],
+      "note": "Schema 5 set_ticket_priority (second registered action) ALLOW decision executed; the ticket has a priority and the policy lists allowed_priorities"
+    },
+    {
+      "path": "valid/record-v5-priority-review-approved-executed.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/sha256",
+          "covers": "/record",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-priority-review-approved-executed.record.canonical"
+        },
+        {
+          "document": ".",
+          "value": "/record/policy_sha256",
+          "covers": "/record/policy",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-priority-review-approved-executed.policy.canonical"
+        }
+      ],
+      "note": "Schema 5 set_ticket_priority decision for a review priority, approved by a non-proposer and executed"
+    },
+    {
+      "path": "valid/record-v5-review-approved-executed.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/sha256",
+          "covers": "/record",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-review-approved-executed.record.canonical"
+        },
+        {
+          "document": ".",
+          "value": "/record/policy_sha256",
+          "covers": "/record/policy",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-review-approved-executed.policy.canonical"
+        }
+      ],
+      "note": "Schema 5 REVIEW decision approved by a reviewer other than the proposer; review note has a newline, a BMP symbol and a non-BMP character"
+    },
+    {
+      "path": "valid/record-v5-review-pending.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/sha256",
+          "covers": "/record",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-review-pending.record.canonical"
+        },
+        {
+          "document": ".",
+          "value": "/record/policy_sha256",
+          "covers": "/record/policy",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-review-pending.policy.canonical"
+        }
+      ],
+      "note": "Schema 5 REVIEW decision still pending, no review and no result"
+    },
+    {
+      "path": "valid/record-v5-whole-number-float-executed.json",
+      "expect": "valid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 0
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": true
+        }
+      ],
+      "digests": [
+        {
+          "document": ".",
+          "value": "/sha256",
+          "covers": "/record",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-whole-number-float-executed.record.canonical"
+        },
+        {
+          "document": ".",
+          "value": "/record/policy_sha256",
+          "covers": "/record/policy",
+          "exclude": [],
+          "canonicalization": "rfc8785",
+          "canonical_file": "valid/record-v5-whole-number-float-executed.policy.canonical"
+        }
+      ],
+      "note": "Schema 5 with whole-number floats (1.0) canonicalized as 1 by RFC 8785, non-ASCII policy version"
+    },
+    {
       "path": "tampered/evaluation-v1-label-flip-recomputed.json",
       "expect": "tampered",
       "verify": {
@@ -1179,6 +1828,258 @@
       "note": "Set review.reviewer to a name outside the frozen policy reviewers and recompute the checksum"
     },
     {
+      "path": "tampered/record-v5-cedar-decision-edit-recomputed.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Turn the frozen Cedar Deny into Allow and recompute external_policy_sha256 and the checksum; an Allow needs a determining permit policy"
+    },
+    {
+      "path": "tampered/record-v5-cedar-forbid-erased-recomputed.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Erase the determining forbid policy from the frozen Cedar diagnostics and recompute the digests; the mapped reasons no longer match the recorded evaluation"
+    },
+    {
+      "path": "tampered/record-v5-cedar-request-edit-recomputed.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Change the frozen Cedar request context and recompute external_policy_sha256 and the checksum; replay finds the request no longer describes this decision's proposal"
+    },
+    {
+      "path": "tampered/record-v5-opa-input-edit-recomputed.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Change the proposer in the frozen OPA input and recompute external_policy_sha256 and the checksum; replay finds the input no longer describes this decision's proposer"
+    },
+    {
+      "path": "tampered/record-v5-opa-input-edit-stale-checksum.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Edit the frozen OPA input after exporting; the original checksum is left in place"
+    },
+    {
+      "path": "tampered/record-v5-opa-result-edit-recomputed.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Replace the frozen OPA result and recompute external_policy_sha256 and the checksum; the mapped reasons no longer match the recorded evaluation"
+    },
+    {
+      "path": "tampered/record-v5-opa-result-edit-stale-external-digest.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Turn the frozen OPA DENY into ALLOW and recompute only the record checksum; external_policy_sha256 no longer matches the frozen decision"
+    },
+    {
+      "path": "tampered/record-v5-priority-edit-recomputed.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Change the requested priority to a review priority and recompute the checksum; the registry action recomputes REVIEW, not the recorded ALLOW"
+    },
+    {
+      "path": "tampered/record-v5-priority-result-forged-recomputed.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Change result.priority and recompute the checksum; the execution result no longer matches the approved set_ticket_priority action"
+    },
+    {
+      "path": "tampered/record-v5-python-json-checksum.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Checksum computed with python-json-v1 on a schema 5 record; it differs from the RFC 8785 digest because 1.0 is written as 1"
+    },
+    {
+      "path": "tampered/record-v5-review-note-edit-stale-checksum.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Edit review.note after exporting; the original checksum is left in place"
+    },
+    {
+      "path": "tampered/record-v5-self-approval-recomputed.json",
+      "expect": "tampered",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 1
+      },
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": true
+        }
+      ],
+      "note": "Set review.reviewer to the proposer and recompute the RFC 8785 checksum; replay rejects proposer self-approval"
+    },
+    {
       "path": "invalid/evaluation-v2-duplicate-keys.json",
       "expect": "invalid",
       "verify": {
@@ -1494,6 +2395,27 @@
       ]
     },
     {
+      "path": "invalid/record-v4-ticket-priority-member.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "Schema 4 record whose ticket has a priority member and the checksum recomputed; schemas 1-4 predate ticket priority and readers reject it",
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v4.json",
+          "schema_valid": false
+        }
+      ]
+    },
+    {
       "path": "invalid/record-v4-unknown-field.json",
       "expect": "invalid",
       "verify": {
@@ -1526,7 +2448,7 @@
         ],
         "exit_code": 2
       },
-      "note": "schema_version set to 5 and the checksum recomputed; unknown schemas are rejected, not reinterpreted",
+      "note": "schema_version set to 6 and the checksum recomputed; unknown schemas are rejected, not reinterpreted",
       "documents": [
         {
           "path": ".",
@@ -1552,6 +2474,300 @@
         {
           "path": ".",
           "schema": "decisioncontrol/schema/record.v4.json",
+          "schema_valid": false
+        }
+      ]
+    },
+    {
+      "path": "invalid/record-v5-cedar-unknown-decision.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "Frozen Cedar decision set to Permit and the digests recomputed; the decision is Allow or Deny",
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": false
+        }
+      ]
+    },
+    {
+      "path": "invalid/record-v5-duplicate-keys.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "Valid schema 5 document with a second status member inside record; schema 5 readers reject duplicate keys"
+    },
+    {
+      "path": "invalid/record-v5-external-unknown-engine.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "external_policy.engine set to rego and the digests recomputed; only opa and cedar are known engines",
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": false
+        }
+      ]
+    },
+    {
+      "path": "invalid/record-v5-integer-outside-safe-range.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "result.revision replaced by 9007199254740993, an integer beyond 2^53-1 that RFC 8785 cannot represent exactly",
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": false
+        }
+      ]
+    },
+    {
+      "path": "invalid/record-v5-lone-surrogate.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "ticket.department replaced by the unpaired surrogate \\ud800, which has no UTF-8 encoding",
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": false
+        }
+      ]
+    },
+    {
+      "path": "invalid/record-v5-missing-checksum.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "Envelope without the sha256 member",
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": false
+        }
+      ]
+    },
+    {
+      "path": "invalid/record-v5-missing-external-policy-digest.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "Schema 5 record without the external_policy_sha256 member and the checksum recomputed; both external members are required, null when there is no external policy",
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": false
+        }
+      ]
+    },
+    {
+      "path": "invalid/record-v5-non-finite-number.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "probability replaced by the non-JSON literal NaN; schema 5 canonicalization rejects non-finite numbers"
+    },
+    {
+      "path": "invalid/record-v5-not-json.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "Valid schema 5 document truncated in the middle"
+    },
+    {
+      "path": "invalid/record-v5-opa-module-path-traversal.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "Frozen OPA module renamed to ../escape.rego and the digests recomputed; module names must stay inside the temporary policy directory used to re-evaluate",
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": false
+        }
+      ]
+    },
+    {
+      "path": "invalid/record-v5-recommendation-with-two-targets.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "reassign_ticket recommendation that also carries a priority member and the checksum recomputed; an action reads exactly the member its registry entry names",
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": false
+        }
+      ]
+    },
+    {
+      "path": "invalid/record-v5-schema-version-string.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "schema_version written as the string \"5\" and the checksum recomputed",
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": false
+        }
+      ]
+    },
+    {
+      "path": "invalid/record-v5-unknown-field.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "Unknown record member added and the checksum recomputed; readers reject unknown fields",
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": false
+        }
+      ]
+    },
+    {
+      "path": "invalid/record-v5-unsupported-schema-version.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "schema_version set to 6 and the checksum recomputed; unknown schemas are rejected, not reinterpreted",
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
+          "schema_valid": false
+        }
+      ]
+    },
+    {
+      "path": "invalid/record-v5-uppercase-checksum.json",
+      "expect": "invalid",
+      "verify": {
+        "command": [
+          "decision-control",
+          "replay",
+          "--record",
+          "{path}"
+        ],
+        "exit_code": 2
+      },
+      "note": "Checksum written in uppercase hexadecimal; digests are lowercase",
+      "documents": [
+        {
+          "path": ".",
+          "schema": "decisioncontrol/schema/record.v5.json",
           "schema_valid": false
         }
       ]

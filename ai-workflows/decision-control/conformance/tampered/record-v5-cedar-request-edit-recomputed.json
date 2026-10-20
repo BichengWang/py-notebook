@@ -1,0 +1,145 @@
+{
+  "record": {
+    "schema_version": 5,
+    "produced_by": {
+      "name": "decisioncontrol",
+      "version": "0.1.0"
+    },
+    "proposed_by": "alice",
+    "policy_sha256": "7236899f82f6bdfbbd02fa56d431c87e8b80270d5e50c3c3e2b1ac4048d78240",
+    "id": "1cc5af63-e976-40e3-aae2-d0a26ddccdf2",
+    "created_at": "2026-10-19T23:58:45.644386+00:00",
+    "recommendation": {
+      "action": "reassign_ticket",
+      "ticket_id": "T-211",
+      "destination": "support",
+      "probability": 0.95,
+      "model": "recorded-fixture-not-a-provider",
+      "question_version": "routing-question-1",
+      "refused": false
+    },
+    "ticket": {
+      "id": "T-211",
+      "department": "intake",
+      "revision": 0
+    },
+    "policy": {
+      "version": "ticket-routing-fixture-1",
+      "allowed_destinations": [
+        "support",
+        "engineering",
+        "legal"
+      ],
+      "review_destinations": [
+        "engineering"
+      ],
+      "reviewers": [
+        "bob",
+        "carol"
+      ],
+      "min_probability": 0.8,
+      "allowed_priorities": [
+        "low",
+        "normal",
+        "high",
+        "urgent"
+      ],
+      "review_priorities": [
+        "urgent"
+      ]
+    },
+    "evaluation": {
+      "verdict": "ALLOW",
+      "reasons": [
+        "policy_permits_reassignment",
+        "cedar:permit:routers-reassign-to-open-destinations"
+      ]
+    },
+    "status": "EXECUTED",
+    "review": null,
+    "result": {
+      "id": "T-211",
+      "department": "support",
+      "revision": 1
+    },
+    "events": [
+      {
+        "event": "SUBMITTED",
+        "at": "2026-10-19T23:58:45.644386+00:00"
+      },
+      {
+        "event": "EXECUTED",
+        "at": "2026-10-19T23:58:45.683255+00:00"
+      }
+    ],
+    "external_policy": {
+      "engine": "cedar",
+      "policies": {
+        "format": "cedar",
+        "text": "// Ticket-routing policy used to record the Cedar fixtures. Cedar answers Allow or Deny;\n// whether a human must review is decided by the built-in policy and the record combines them.\n\n@id(\"routers-reassign-to-open-destinations\")\npermit (\n    principal in Group::\"routers\",\n    action == Action::\"reassign_ticket\",\n    resource\n)\nwhen { context.requested == \"support\" || context.requested == \"engineering\" };\n\n@id(\"routers-set-priority\")\npermit (\n    principal in Group::\"routers\",\n    action == Action::\"set_ticket_priority\",\n    resource\n)\nwhen { [\"low\", \"normal\", \"high\", \"urgent\"].contains(context.requested) };\n\n@id(\"legal-tickets-stay-in-legal\")\nforbid (\n    principal,\n    action == Action::\"reassign_ticket\",\n    resource\n)\nwhen { context has current && context.current == \"legal\" };\n"
+      },
+      "entities": [
+        {
+          "uid": {
+            "type": "Group",
+            "id": "routers"
+          },
+          "attrs": {},
+          "parents": []
+        },
+        {
+          "uid": {
+            "type": "User",
+            "id": "alice"
+          },
+          "attrs": {},
+          "parents": [
+            {
+              "type": "Group",
+              "id": "routers"
+            }
+          ]
+        },
+        {
+          "uid": {
+            "type": "User",
+            "id": "bob"
+          },
+          "attrs": {},
+          "parents": [
+            {
+              "type": "Group",
+              "id": "routers"
+            }
+          ]
+        },
+        {
+          "uid": {
+            "type": "User",
+            "id": "mallory"
+          },
+          "attrs": {},
+          "parents": []
+        }
+      ],
+      "request": {
+        "principal": "User::\"alice\"",
+        "action": "Action::\"reassign_ticket\"",
+        "resource": "Ticket::\"T-211\"",
+        "context": {
+          "requested": "engineering",
+          "current": "intake"
+        }
+      },
+      "decision": "Allow",
+      "diagnostics": {
+        "reason": [
+          "routers-reassign-to-open-destinations"
+        ],
+        "errors": []
+      }
+    },
+    "external_policy_sha256": "45c8efd9be46d68970e5f7dbe39749c191c6f93369b0868c1365497328e46c02"
+  },
+  "sha256": "4dc46b99606cb575a88c3f4089116c4e55aa6a4c5ffb8ee8e09f0b73822803c8"
+}

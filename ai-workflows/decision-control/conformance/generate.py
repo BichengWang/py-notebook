@@ -4,7 +4,10 @@
 Usage: python3 conformance/generate.py [--out DIR]
 
 Records are assembled by hand (fixed ids and timestamps, no clock, no randomness)
-so the vectors do not depend on the store that produces real records. Evaluation
+so the vectors do not depend on the store that produces real records. The schema 5 OPA
+and Cedar vectors are the one exception: they start from the committed recordings in
+``fixtures/policy-engines/records`` (real decisions of the OPA and Cedar tools, see
+``fixtures/policy-engines/record.py``) and only read them. Evaluation
 reports come from the package's own scorer, which is deterministic. Tampered and
 invalid vectors are derived from valid ones by the edits named in each note.
 Standard library plus the bundled ``decisioncontrol.jcs`` only.
@@ -25,6 +28,7 @@ from decisioncontrol.evaluation import EvaluationCase, evaluate_cases  # noqa: E
 from decisioncontrol.jcs import canonicalize  # noqa: E402
 from decisioncontrol.models import RoutingPolicy  # noqa: E402
 
+FIXTURE_RECORDS = PROJECT / "fixtures" / "policy-engines" / "records"
 SCHEMA_DIR = "decisioncontrol/schema"
 REPLAY = ["decision-control", "replay", "--record", "{path}"]
 REPLAY_EVALUATION = ["decision-control", "replay-evaluation", "--record", "{path}"]
@@ -64,7 +68,7 @@ def policy(version="routing-policy-1", minimum=0.8):
 
 def make_record(schema, *, kind, record_id, destination="support", probability=0.95, minimum=0.8,
                 policy_version="routing-policy-1", note=""):
-    """Build a record for one lifecycle ``kind`` under ``schema`` (1-4)."""
+    """Build a record for one lifecycle ``kind`` under ``schema`` (1-5)."""
     ticket = {"id": "T-100", "department": "intake", "revision": 0}
     review = None
     result = None
@@ -104,7 +108,45 @@ def make_record(schema, *, kind, record_id, destination="support", probability=0
         form = RFC8785 if schema >= 4 else PYTHON_JSON
         record.update({"produced_by": {"name": "decisioncontrol", "version": "0.1.0"},
                        "proposed_by": "alice", "policy_sha256": sha256(canonical(frozen, form))})
+    if schema >= 5:
+        record.update({"external_policy": None, "external_policy_sha256": None})
     return record
+
+
+def policy5():
+    """The frozen policy of the schema 5 priority records: the v4 fields plus priority allowlists."""
+    frozen = policy()
+    frozen.update({"allowed_priorities": ["low", "normal", "high", "urgent"], "review_priorities": ["urgent"]})
+    return frozen
+
+
+def make_priority_record(*, kind, record_id):
+    """A schema 5 ``set_ticket_priority`` record: ``allow`` (executed) or ``approved`` (REVIEW, executed)."""
+    ticket = {"id": "T-100", "department": "intake", "revision": 0, "priority": "normal"}
+    frozen = policy5()
+    review = None
+    events = [{"event": "SUBMITTED", "at": T0}]
+    if kind == "allow":
+        priority = "high"
+        evaluation = {"verdict": "ALLOW", "reasons": ["policy_permits_priority_change"]}
+        events.append({"event": "EXECUTED", "at": T1})
+    else:
+        priority = "urgent"
+        evaluation = {"verdict": "REVIEW", "reasons": ["priority_requires_review"]}
+        review = {"decision": "APPROVED", "reviewer": "bob", "note": "checked", "at": T1}
+        events.extend([{"event": "APPROVED", "at": T1}, {"event": "EXECUTED", "at": T2}])
+    return {
+        "schema_version": 5, "id": record_id, "created_at": T0,
+        "recommendation": {"action": "set_ticket_priority", "ticket_id": "T-100", "priority": priority,
+                           "probability": 0.95, "model": "hand-authored-fixture",
+                           "question_version": "routing-question-1", "refused": False},
+        "ticket": ticket, "policy": frozen, "evaluation": evaluation, "status": "EXECUTED",
+        "review": review,
+        "result": {"id": "T-100", "department": "intake", "revision": 1, "priority": priority},
+        "events": events, "produced_by": {"name": "decisioncontrol", "version": "0.1.0"},
+        "proposed_by": "alice", "policy_sha256": sha256(canonical(frozen, RFC8785)),
+        "external_policy": None, "external_policy_sha256": None,
+    }
 
 
 def record_form(schema):
@@ -129,6 +171,14 @@ VALID_RECORDS = [
     ("record-v4-deny-denied", 4, dict(kind="deny", record_id=uuid(405))),
     ("record-v4-whole-number-float-executed", 4, dict(kind="allow", record_id=uuid(406), probability=1.0, minimum=1.0,
                                                       policy_version="\u8def\u7531\u7b56\u7565-1")),
+    ("record-v5-allow-executed", 5, dict(kind="allow", record_id=uuid(501))),
+    ("record-v5-review-approved-executed", 5, dict(kind="approved", record_id=uuid(502), destination="engineering", note=NOTE)),
+    ("record-v5-review-pending", 5, dict(kind="pending", record_id=uuid(503), destination="engineering")),
+    ("record-v5-deny-denied", 5, dict(kind="deny", record_id=uuid(504))),
+    ("record-v5-whole-number-float-executed", 5, dict(kind="allow", record_id=uuid(505), probability=1.0, minimum=1.0,
+                                                      policy_version="\u8def\u7531\u7b56\u7565-1")),
+    ("record-v5-priority-allow-executed", 5, dict(kind="priority-allow", record_id=uuid(506))),
+    ("record-v5-priority-review-approved-executed", 5, dict(kind="priority-approved", record_id=uuid(507))),
     ("record-v3-allow-executed", 3, dict(kind="allow", record_id=uuid(301))),
     ("record-v3-review-approved-executed", 3, dict(kind="approved", record_id=uuid(302), destination="engineering", note=NOTE)),
     ("record-v3-whole-number-float-executed", 3, dict(kind="allow", record_id=uuid(303), probability=1.0, minimum=1.0)),
@@ -139,6 +189,13 @@ VALID_RECORDS = [
 ]
 
 VALID_NOTES = {
+    "record-v5-allow-executed": "Schema 5 ALLOW decision without an external policy: external_policy and external_policy_sha256 are null; the checksum and policy_sha256 are RFC 8785 digests",
+    "record-v5-review-approved-executed": "Schema 5 REVIEW decision approved by a reviewer other than the proposer; review note has a newline, a BMP symbol and a non-BMP character",
+    "record-v5-review-pending": "Schema 5 REVIEW decision still pending, no review and no result",
+    "record-v5-deny-denied": "Schema 5 DENY decision for a destination outside the frozen policy",
+    "record-v5-whole-number-float-executed": "Schema 5 with whole-number floats (1.0) canonicalized as 1 by RFC 8785, non-ASCII policy version",
+    "record-v5-priority-allow-executed": "Schema 5 set_ticket_priority (second registered action) ALLOW decision executed; the ticket has a priority and the policy lists allowed_priorities",
+    "record-v5-priority-review-approved-executed": "Schema 5 set_ticket_priority decision for a review priority, approved by a non-proposer and executed",
     "record-v4-allow-executed": "Schema 4 ALLOW decision executed without review; checksum and policy_sha256 are RFC 8785 digests",
     "record-v4-review-approved-executed": "Schema 4 REVIEW decision approved by a reviewer other than the proposer; review note has a newline, a BMP symbol and a non-BMP character",
     "record-v4-review-cancelled": "Schema 4 REVIEW decision cancelled by an authorized reviewer who is not the proposer",
@@ -155,8 +212,15 @@ VALID_NOTES = {
 }
 
 
-def record_valid_vector(stem, schema, tree, manifest):
-    record = make_record(schema, **dict(VALID_RECORDS_BY_STEM[stem]))
+def build_record(schema, **kwargs):
+    kind = kwargs["kind"]
+    if kind.startswith("priority-"):
+        return make_priority_record(kind=kind.split("-", 1)[1], record_id=kwargs["record_id"])
+    return make_record(schema, **kwargs)
+
+
+def record_valid_vector(stem, schema, tree, manifest, record=None, note=None):
+    record = record or build_record(schema, **dict(VALID_RECORDS_BY_STEM[stem]))
     form = record_form(schema)
     path = f"valid/{stem}.json"
     tree[path] = pretty(envelope(record))
@@ -164,8 +228,10 @@ def record_valid_vector(stem, schema, tree, manifest):
     pairs = [("/sha256", "/record", "record")]
     if schema >= 3:
         pairs.append(("/record/policy_sha256", "/record/policy", "policy"))
+    if record.get("external_policy") is not None:
+        pairs.append(("/record/external_policy_sha256", "/record/external_policy", "external"))
     for value, covers, label in pairs:
-        target = record if label == "record" else record["policy"]
+        target = {"record": record, "policy": record["policy"], "external": record.get("external_policy")}[label]
         file = f"valid/{stem}.{label}.canonical"
         tree[file] = canonical(target, form)
         digests.append({"document": ".", "value": value, "covers": covers, "exclude": [],
@@ -173,15 +239,42 @@ def record_valid_vector(stem, schema, tree, manifest):
     manifest.append({"path": path, "expect": "valid",
                      "verify": {"command": REPLAY, "exit_code": 0},
                      "documents": [{"path": ".", "schema": f"{SCHEMA_DIR}/record.v{schema}.json", "schema_valid": True}],
-                     "digests": digests, "note": VALID_NOTES[stem]})
+                     "digests": digests, "note": note or VALID_NOTES[stem]})
 
 
 VALID_RECORDS_BY_STEM = {stem: kwargs for stem, _, kwargs in VALID_RECORDS}
 SCHEMA_OF = {stem: schema for stem, schema, _ in VALID_RECORDS}
 
 
+def recorded_records():
+    """{vector stem: record} for the committed OPA and Cedar recordings (see fixtures/policy-engines)."""
+    records = {}
+    for path in sorted(FIXTURE_RECORDS.glob("*.json")):
+        envelope_ = json.loads(path.read_text(encoding="utf-8"))
+        assert envelope_["sha256"] == sha256(canonicalize(envelope_["record"])), path.name
+        assert envelope_["record"]["schema_version"] == 5, path.name
+        records[f"record-v5-{path.stem}"] = envelope_["record"]
+    return records
+
+
+RECORDED = recorded_records()
+RECORDED_NOTES = {
+    "record-v5-opa-reassign-allow-executed": "Schema 5 ALLOW decision whose external_policy is an OPA decision recorded from opa run --server decision logs (decision_id, bundle revision, input, result, frozen Rego modules); see fixtures/policy-engines/tool-versions.txt",
+    "record-v5-opa-reassign-review-approved-executed": "Schema 5 REVIEW decision: the frozen OPA result is REVIEW, a reviewer other than the proposer approved it, and it was executed",
+    "record-v5-opa-reassign-denied": "Schema 5 DENY decision: the built-in policy would ALLOW, the frozen OPA result is DENY (proposer is not a router), and the more restrictive verdict wins",
+    "record-v5-opa-priority-allow-executed": "Schema 5 set_ticket_priority decision whose frozen OPA result is ALLOW; ticket priority changed from normal to high",
+    "record-v5-cedar-reassign-allow-executed": "Schema 5 ALLOW decision whose external_policy is a Cedar authorization recorded with cedar authorize (policies, entities, request, decision Allow, determining policy); see fixtures/policy-engines/tool-versions.txt",
+    "record-v5-cedar-reassign-denied": "Schema 5 DENY decision: the frozen Cedar decision is Deny because no permit policy applies to the proposer",
+    "record-v5-cedar-reassign-forbidden": "Schema 5 DENY decision: the frozen Cedar decision is Deny because a forbid policy applies; the determining policy is listed in diagnostics.reason",
+    "record-v5-cedar-priority-review-approved-executed": "Schema 5 REVIEW decision: the frozen Cedar decision is Allow and the built-in policy requires review of the urgent priority; the more restrictive verdict wins, then approved and executed",
+}
+assert sorted(RECORDED) == sorted(RECORDED_NOTES), sorted(RECORDED)
+
+
 def base_record(stem):
-    return make_record(SCHEMA_OF[stem], **VALID_RECORDS_BY_STEM[stem])
+    if stem in RECORDED:
+        return deepcopy(RECORDED[stem])
+    return build_record(SCHEMA_OF[stem], **VALID_RECORDS_BY_STEM[stem])
 
 
 def tampered_records():
@@ -220,6 +313,49 @@ def tampered_records():
 
     def policy_digest(record):
         record["policy_sha256"] = sha256(canonical(record["policy"], record_form(record["schema_version"])))
+
+    def external_digest(record):
+        record["external_policy_sha256"] = sha256(canonicalize(record["external_policy"]))
+
+    add("record-v5-review-note-edit-stale-checksum", "record-v5-review-approved-executed",
+        set_path("review", "note", "approved without reading"), recompute=False,
+        note="Edit review.note after exporting; the original checksum is left in place")
+    add("record-v5-self-approval-recomputed", "record-v5-review-approved-executed",
+        set_path("review", "reviewer", "alice"), recompute=True,
+        note="Set review.reviewer to the proposer and recompute the RFC 8785 checksum; replay rejects proposer self-approval")
+    add("record-v5-priority-edit-recomputed", "record-v5-priority-allow-executed",
+        set_path("recommendation", "priority", "urgent"), recompute=True,
+        note="Change the requested priority to a review priority and recompute the checksum; the registry action recomputes REVIEW, not the recorded ALLOW")
+    add("record-v5-priority-result-forged-recomputed", "record-v5-priority-allow-executed",
+        set_path("result", "priority", "urgent"), recompute=True,
+        note="Change result.priority and recompute the checksum; the execution result no longer matches the approved set_ticket_priority action")
+    add("record-v5-python-json-checksum", "record-v5-whole-number-float-executed",
+        lambda record: None, recompute=True, form=PYTHON_JSON,
+        note="Checksum computed with python-json-v1 on a schema 5 record; it differs from the RFC 8785 digest because 1.0 is written as 1")
+    add("record-v5-opa-input-edit-stale-checksum", "record-v5-opa-reassign-allow-executed",
+        set_path("external_policy", "input", "recommendation", "destination", "engineering"), recompute=False,
+        note="Edit the frozen OPA input after exporting; the original checksum is left in place")
+    add("record-v5-opa-input-edit-recomputed", "record-v5-opa-reassign-allow-executed",
+        cascade(set_path("external_policy", "input", "proposed_by", "bob"), external_digest), recompute=True,
+        note="Change the proposer in the frozen OPA input and recompute external_policy_sha256 and the checksum; replay finds the input no longer describes this decision's proposer")
+    add("record-v5-opa-result-edit-recomputed", "record-v5-opa-reassign-allow-executed",
+        cascade(set_path("external_policy", "result", {"verdict": "ALLOW", "reasons": ["edited_after_the_fact"]}), external_digest),
+        recompute=True,
+        note="Replace the frozen OPA result and recompute external_policy_sha256 and the checksum; the mapped reasons no longer match the recorded evaluation")
+    add("record-v5-opa-result-edit-stale-external-digest", "record-v5-opa-reassign-denied",
+        set_path("external_policy", "result", {"verdict": "ALLOW", "reasons": ["router_reassigns_to_open_destination"]}),
+        recompute=True,
+        note="Turn the frozen OPA DENY into ALLOW and recompute only the record checksum; external_policy_sha256 no longer matches the frozen decision")
+    add("record-v5-cedar-request-edit-recomputed", "record-v5-cedar-reassign-allow-executed",
+        cascade(set_path("external_policy", "request", "context", "requested", "engineering"), external_digest),
+        recompute=True,
+        note="Change the frozen Cedar request context and recompute external_policy_sha256 and the checksum; replay finds the request no longer describes this decision's proposal")
+    add("record-v5-cedar-decision-edit-recomputed", "record-v5-cedar-reassign-denied",
+        cascade(set_path("external_policy", "decision", "Allow"), external_digest), recompute=True,
+        note="Turn the frozen Cedar Deny into Allow and recompute external_policy_sha256 and the checksum; an Allow needs a determining permit policy")
+    add("record-v5-cedar-forbid-erased-recomputed", "record-v5-cedar-reassign-forbidden",
+        cascade(set_path("external_policy", "diagnostics", "reason", []), external_digest), recompute=True,
+        note="Erase the determining forbid policy from the frozen Cedar diagnostics and recompute the digests; the mapped reasons no longer match the recorded evaluation")
 
     add("record-v4-review-note-edit-stale-checksum", "record-v4-review-approved-executed",
         set_path("review", "note", "approved without reading"), recompute=False,
@@ -309,10 +445,10 @@ def invalid_records():
     out.append(("record-v4-not-json", text[: len(text) // 2], None,
                 "Valid schema 4 document truncated in the middle"))
     future = deepcopy(v4)
-    future["schema_version"] = 5
+    future["schema_version"] = 6
     out.append(("record-v4-unsupported-schema-version", pretty(rehash_any(future)),
                 [{"path": ".", "schema": schema4, "schema_valid": False}],
-                "schema_version set to 5 and the checksum recomputed; unknown schemas are rejected, not reinterpreted"))
+                "schema_version set to 6 and the checksum recomputed; unknown schemas are rejected, not reinterpreted"))
     string_version = deepcopy(v4)
     string_version["schema_version"] = "4"
     out.append(("record-v4-schema-version-string", pretty(rehash_any(string_version)),
@@ -331,6 +467,77 @@ def invalid_records():
     out.append(("record-v4-uppercase-checksum", pretty(upper),
                 [{"path": ".", "schema": schema4, "schema_valid": False}],
                 "Checksum written in uppercase hexadecimal; digests are lowercase"))
+    v4_priority = deepcopy(v4)
+    v4_priority["ticket"]["priority"] = "normal"
+    out.append(("record-v4-ticket-priority-member", pretty(envelope(v4_priority)),
+                [{"path": ".", "schema": schema4, "schema_valid": False}],
+                "Schema 4 record whose ticket has a priority member and the checksum recomputed; schemas 1-4 predate ticket priority and readers reject it"))
+    schema5 = f"{SCHEMA_DIR}/record.v5.json"
+    v5 = base_record("record-v5-allow-executed")
+    good5 = envelope(v5)
+    text5 = pretty(good5)
+    document5 = [{"path": ".", "schema": schema5, "schema_valid": False}]
+    duplicate5 = text5.replace('  "record": {\n', '  "record": {\n    "status": "READY",\n', 1)
+    assert duplicate5 != text5
+    out.append(("record-v5-duplicate-keys", duplicate5, None,
+                "Valid schema 5 document with a second status member inside record; schema 5 readers reject duplicate keys"))
+    out.append(("record-v5-non-finite-number", text5.replace('"probability": 0.95', '"probability": NaN', 1), None,
+                "probability replaced by the non-JSON literal NaN; schema 5 canonicalization rejects non-finite numbers"))
+    big5 = text5.replace('"revision": 1', '"revision": 9007199254740993', 1)
+    assert big5 != text5
+    out.append(("record-v5-integer-outside-safe-range", big5, document5,
+                "result.revision replaced by 9007199254740993, an integer beyond 2^53-1 that RFC 8785 cannot represent exactly"))
+    surrogate5 = text5.replace('"department": "intake"', '"department": "\\ud800"', 1)
+    assert surrogate5 != text5
+    out.append(("record-v5-lone-surrogate", surrogate5, document5,
+                "ticket.department replaced by the unpaired surrogate \\ud800, which has no UTF-8 encoding"))
+    out.append(("record-v5-not-json", text5[: len(text5) // 2], None,
+                "Valid schema 5 document truncated in the middle"))
+    future5 = deepcopy(v5)
+    future5["schema_version"] = 6
+    out.append(("record-v5-unsupported-schema-version", pretty(rehash_any(future5)), document5,
+                "schema_version set to 6 and the checksum recomputed; unknown schemas are rejected, not reinterpreted"))
+    string5 = deepcopy(v5)
+    string5["schema_version"] = "5"
+    out.append(("record-v5-schema-version-string", pretty(rehash_any(string5)), document5,
+                "schema_version written as the string \"5\" and the checksum recomputed"))
+    extra5 = deepcopy(v5)
+    extra5["comment"] = "added after export"
+    out.append(("record-v5-unknown-field", pretty(envelope(extra5)), document5,
+                "Unknown record member added and the checksum recomputed; readers reject unknown fields"))
+    out.append(("record-v5-missing-checksum", pretty({"record": v5}), document5, "Envelope without the sha256 member"))
+    out.append(("record-v5-uppercase-checksum", pretty({"record": v5, "sha256": good5["sha256"].upper()}), document5,
+                "Checksum written in uppercase hexadecimal; digests are lowercase"))
+    no_external_digest = deepcopy(v5)
+    del no_external_digest["external_policy_sha256"]
+    out.append(("record-v5-missing-external-policy-digest", pretty(envelope(no_external_digest)), document5,
+                "Schema 5 record without the external_policy_sha256 member and the checksum recomputed; both external members are required, null when there is no external policy"))
+    both_targets = deepcopy(v5)
+    both_targets["recommendation"]["priority"] = "high"
+    out.append(("record-v5-recommendation-with-two-targets", pretty(envelope(both_targets)), document5,
+                "reassign_ticket recommendation that also carries a priority member and the checksum recomputed; an action reads exactly the member its registry entry names"))
+
+    def external_edit(stem, edit):
+        record = base_record(stem)
+        edit(record["external_policy"])
+        record["external_policy_sha256"] = sha256(canonicalize(record["external_policy"]))
+        return pretty(envelope(record))
+
+    def set_engine(frozen):
+        frozen["engine"] = "rego"
+
+    def escape_module(frozen):
+        frozen["modules"]["../escape.rego"] = frozen["modules"].pop(next(iter(frozen["modules"])))
+
+    def unknown_decision(frozen):
+        frozen["decision"] = "Permit"
+
+    out.append(("record-v5-external-unknown-engine", external_edit("record-v5-opa-reassign-allow-executed", set_engine), document5,
+                "external_policy.engine set to rego and the digests recomputed; only opa and cedar are known engines"))
+    out.append(("record-v5-opa-module-path-traversal", external_edit("record-v5-opa-reassign-allow-executed", escape_module), document5,
+                "Frozen OPA module renamed to ../escape.rego and the digests recomputed; module names must stay inside the temporary policy directory used to re-evaluate"))
+    out.append(("record-v5-cedar-unknown-decision", external_edit("record-v5-cedar-reassign-denied", unknown_decision), document5,
+                "Frozen Cedar decision set to Permit and the digests recomputed; the decision is Allow or Deny"))
     v3 = base_record("record-v3-allow-executed")
     no_producer = deepcopy(v3)
     del no_producer["produced_by"]
@@ -518,6 +725,8 @@ def generate():
     vectors = []
     for stem, _, _ in VALID_RECORDS:
         record_valid_vector(stem, SCHEMA_OF[stem], tree, vectors)
+    for stem in RECORDED:
+        record_valid_vector(stem, 5, tree, vectors, record=deepcopy(RECORDED[stem]), note=RECORDED_NOTES[stem])
     for entry in EVAL_VALID:
         eval_valid_vector(entry, tree, vectors)
     for name, schema, text, _valid, note in tampered_records():
