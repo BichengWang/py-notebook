@@ -463,7 +463,11 @@ records and evaluation directories, and `manifest.json` listing for each one the
 each document must (or must not) validate against, and every digest it carries: the JCS canonical bytes
 for `record_sha256` (`*.canonical`) and `bytes` digests of the retained files for provenance. All vectors
 are produced by `python3 conformance/generate.py` from the bundled examples and hand-written responses
-(synthetic, not provider output); the unit tests assert that the committed tree equals a fresh generation. For evaluation directories only
+(synthetic, not provider output). `python3 conformance/generate.py --check` compares the committed tree
+with a fresh generation without writing anything and exits 1, listing the differing paths on stderr, if
+they differ; `--out DIR` writes the tree under `DIR` instead (with `--check`, compares `DIR`); any other
+argument exits 2. Without arguments the script rewrites the committed tree. The unit tests assert the same
+equality with the same comparison. For evaluation directories only
 the platform difference of metric floats is allowed: `evaluation.json` is compared with the verifier's 1e-9
 tolerance (the vectors were generated on macOS and CI on Linux produced a different `evaluation.json`),
 on valid vectors `EVALUATION.md` must equal the fresh rendering apart from its digest line and exactly the

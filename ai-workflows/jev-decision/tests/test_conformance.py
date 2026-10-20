@@ -4,7 +4,9 @@ import importlib.resources
 import importlib.util
 import io
 import json
-import re
+import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
 import unittest.mock
@@ -13,9 +15,9 @@ from pathlib import Path
 
 from jevdecision import JevBackend, questions_from_spec
 from jevdecision.__main__ import main as decide_main
-from jevdecision.evaluation import main as eval_main, render_markdown
+from jevdecision.evaluation import main as eval_main
 from jevdecision.jcs import canonicalize
-from jevdecision.verify import _close, main as verify_main
+from jevdecision.verify import main as verify_main
 
 try:
     import jsonschema
@@ -62,121 +64,13 @@ def load_generator():
     return module
 
 
-DIGEST_LINE = re.compile(rb"(- evaluation\.json SHA-256: `)[0-9a-f]{64}(`)")
-# Vectors whose provenance.json deliberately lists a hash that is not that of the committed file.
-STALE_BY_DESIGN = {"evaluation-markdown-edited": ("EVALUATION.md", lambda data: data[:-1])}
-# Every tampered and invalid evaluation vector is derived from this valid one by a named edit; only the
-# edits that change EVALUATION.md appear here, all others leave it byte-identical to the source.
-SOURCE_VECTOR = "evaluation-replay-gated"
-MARKDOWN_EDITS = {"evaluation-markdown-edited": lambda data: data + b"\n"}
-
-
-EVALUATION_RULE_FILES = ("evaluation.json", "EVALUATION.md", "provenance.json")
-
-
-def check_derived_hashes(name, directory, files):
-    """provenance.json's hashes of evaluation.json and EVALUATION.md must be those files' SHA-256, except
-    where the vector deliberately leaves a stale one. Returns provenance.json with those two values masked."""
-    provenance = json.loads(files["provenance.json"])
-    outputs = provenance.get("outputs", {})
-    for filename in ("evaluation.json", "EVALUATION.md"):
-        if filename not in outputs:
-            continue
-        recorded, outputs[filename]["sha256"] = outputs[filename]["sha256"], "X"
-        data = files.get(filename)
-        if data is None:
-            continue
-        if directory in STALE_BY_DESIGN and STALE_BY_DESIGN[directory][0] == filename:
-            data = STALE_BY_DESIGN[directory][1](data)
-        assert recorded == hashlib.sha256(data).hexdigest(), f"{name}: provenance hash of {filename}"
-    return provenance
-
-
-def compare_evaluation_directory(kind, directory, committed, fresh, source=None, fresh_source=None):
-    """Compare a committed evaluation vector with a fresh generation, allowing only the platform
-    difference of metric floats and what follows from it. Returns the filenames covered by a rule
-    instead of byte equality.
-
-    - evaluation.json: compared with the verifier's tolerance.
-    - EVALUATION.md, valid vectors: equal to the fresh Markdown apart from its digest line, and the
-      committed one exactly the rendering of the committed report and cases with the committed report's
-      actual digest. Tampered and invalid vectors: the digest line is not normalized; in BOTH trees the
-      Markdown equals that tree's own source vector's Markdown plus the vector's named edit, byte for byte.
-    - provenance.json: equal apart from the two hashes derived from the files above; in BOTH trees those
-      two hashes are the SHA-256 of that tree's files (checked independently), except for the deliberate
-      stale hash.
-    - every other file is byte-equal.
-    """
-    name = f"{kind}/{directory}"
-    for filename in committed:
-        if filename not in EVALUATION_RULE_FILES:
-            assert committed[filename] == fresh[filename], f"{name}/{filename}"
-    if "evaluation.json" in committed:
-        assert _close(json.loads(fresh["evaluation.json"]), json.loads(committed["evaluation.json"]),
-                      frozenset({"limit"})), f"{name}/evaluation.json"
-    if "EVALUATION.md" in committed and kind == "valid":
-        assert DIGEST_LINE.sub(rb"\1X\2", committed["EVALUATION.md"]) == DIGEST_LINE.sub(
-            rb"\1X\2", fresh["EVALUATION.md"]), f"{name}/EVALUATION.md"
-    elif "EVALUATION.md" in committed:
-        assert source is not None and fresh_source is not None, f"{name}: needs the source vector of each tree"
-        edit = MARKDOWN_EDITS.get(directory, lambda data: data)
-        assert committed["EVALUATION.md"] == edit(source["EVALUATION.md"]), \
-            f"{name}/EVALUATION.md (committed) differs from the source vector plus its named edit"
-        assert fresh["EVALUATION.md"] == edit(fresh_source["EVALUATION.md"]), \
-            f"{name}/EVALUATION.md (fresh) differs from the source vector plus its named edit"
-    assert check_derived_hashes(name, directory, committed) == check_derived_hashes(name, directory, fresh), \
-        f"{name}/provenance.json"
-    if kind == "valid":
-        digest = hashlib.sha256(committed["evaluation.json"]).hexdigest()
-        # evaluation.json and cases.jsonl are written with sorted keys; the Markdown lists questions in
-        # the order of the question file, so restore that order from the retained questions.json.
-        order = list(json.loads(committed["questions.json"]))
-        report = json.loads(committed["evaluation.json"])
-        report["questions"] = {name: report["questions"][name] for name in order if name in report["questions"]}
-        cases = []
-        for line in committed["cases.jsonl"].decode("utf-8").splitlines():
-            row = json.loads(line)
-            if "questions" in row:
-                row["questions"] = {name: row["questions"][name] for name in order if name in row["questions"]}
-            cases.append(row)
-        rendered = render_markdown(report, digest, cases)
-        assert committed["EVALUATION.md"] == rendered.encode("utf-8"), f"{name}/EVALUATION.md is not the rendering"
-    return {filename for filename in committed if filename in EVALUATION_RULE_FILES}
+GENERATOR = load_generator()
+DIGEST_LINE, SOURCE_VECTOR, EVALUATION_RULE_FILES = GENERATOR.DIGEST_LINE, GENERATOR.SOURCE_VECTOR, GENERATOR.EVALUATION_RULE_FILES
+compare_trees, compare_evaluation_directory = GENERATOR.compare_trees, GENERATOR.compare_evaluation_directory
 
 
 def read_committed_tree():
-    committed = {}
-    for kind in (*EXIT_CODES, "."):
-        base = CONFORMANCE if kind == "." else CONFORMANCE / kind
-        for path in (base.rglob("*") if kind != "." else [CONFORMANCE / "manifest.json"]):
-            if path.is_file():
-                committed[str(path.relative_to(CONFORMANCE))] = path.read_bytes()
-    return committed
-
-
-def compare_trees(committed, fresh):
-    """Assert the fresh tree equals the committed one under the rules above; return the covered paths."""
-    assert sorted(committed) == sorted(fresh), "the file sets differ"
-    directories = {}
-    covered = set()
-    for name in fresh:
-        parts = Path(name).parts
-        if len(parts) == 3 and parts[1].startswith("evaluation-"):
-            directories.setdefault(parts[:2], []).append(parts[2])
-        else:
-            assert committed[name] == fresh[name], name
-    assert len(directories) == 12
-    source_key = ("valid", SOURCE_VECTOR)
-
-    def files_of(tree, key):
-        return {f: tree[f"{key[0]}/{key[1]}/{f}"] for f in directories[key]}
-
-    for key in directories:
-        for filename in compare_evaluation_directory(
-                key[0], key[1], files_of(committed, key), files_of(fresh, key),
-                files_of(committed, source_key), files_of(fresh, source_key)):
-            covered.add(f"{key[0]}/{key[1]}/{filename}")
-    return covered
+    return GENERATOR.read_tree(CONFORMANCE)
 
 
 class ManifestTests(unittest.TestCase):
@@ -348,6 +242,87 @@ class ManifestTests(unittest.TestCase):
         fresh = {f: junk[f"valid/{directory}/{f}"] for f in committed}
         with self.assertRaises(AssertionError):
             compare_evaluation_directory("valid", directory, committed, fresh)
+
+
+class GeneratorCommandTests(unittest.TestCase):
+    """`conformance/generate.py --check` is a dry comparison and never rewrites the tree."""
+
+    @staticmethod
+    def run_main(*argv):
+        out, err = io.StringIO(), io.StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            try:
+                code = GENERATOR.main(list(argv))
+            except SystemExit as exit_:
+                code = exit_.code
+        return code, out.getvalue(), err.getvalue()
+
+    @staticmethod
+    def copy_of_committed_tree(tmp):
+        target = Path(tmp) / "conformance"
+        target.mkdir()
+        for name in (*GENERATOR.KINDS, "manifest.json"):
+            source = CONFORMANCE / name
+            if source.is_dir():
+                shutil.copytree(source, target / name)
+            else:
+                shutil.copy(source, target / name)
+        return target
+
+    @staticmethod
+    def snapshot(root):
+        return {str(path.relative_to(root)): path.read_bytes() for path in sorted(root.rglob("*")) if path.is_file()}
+
+    def test_check_passes_on_the_clean_committed_tree(self):
+        before = self.snapshot(CONFORMANCE)
+        code, out, err = self.run_main("--check")
+        self.assertEqual((code, out, err), (0, "", ""))
+        self.assertEqual(self.snapshot(CONFORMANCE), before)
+
+    def test_check_fails_on_a_changed_vector_and_writes_nothing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tree = self.copy_of_committed_tree(tmp)
+            for victim in ("valid/answer-v2-jev.canonical", "valid/evaluation-replay-gated/cases.jsonl"):
+                with self.subTest(victim=victim):
+                    original = (tree / victim).read_bytes()
+                    (tree / victim).write_bytes(original + b" ")
+                    before = self.snapshot(Path(tmp))
+                    code, out, err = self.run_main("--check", "--out", str(tree))
+                    self.assertEqual(code, 1)
+                    self.assertEqual(out, "")
+                    self.assertIn(f"differs: {victim}", err)
+                    self.assertEqual(self.snapshot(Path(tmp)), before)
+                    (tree / victim).write_bytes(original)
+            # A vector missing from the tree and one that should not be there are both listed.
+            (tree / "manifest.json").unlink()
+            (tree / "valid" / "extra.json").write_text("{}", encoding="utf-8")
+            before = self.snapshot(Path(tmp))
+            code, _, err = self.run_main("--check", "--out", str(tree))
+            self.assertEqual(code, 1)
+            self.assertIn("differs: manifest.json", err)
+            self.assertIn("differs: valid/extra.json", err)
+            self.assertEqual(self.snapshot(Path(tmp)), before)
+
+    def test_out_writes_a_tree_that_check_accepts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "generated"
+            code, out, _ = self.run_main("--out", str(target))
+            self.assertEqual(code, 0)
+            self.assertIn(str(target), out)
+            self.assertEqual(self.run_main("--check", "--out", str(target))[0], 0)
+            self.assertEqual(sorted(self.snapshot(target)), sorted(read_committed_tree()))
+
+    def test_unknown_arguments_exit_2_without_writing(self):
+        before = self.snapshot(CONFORMANCE)
+        for argv in (["--bogus"], ["--check", "extra"], ["--out"]):
+            with self.subTest(argv=argv):
+                code, out, err = self.run_main(*argv)
+                self.assertEqual((code, out), (2, ""))
+                self.assertIn("usage:", err)
+        done = subprocess.run([sys.executable, str(CONFORMANCE / "generate.py"), "--bogus"],
+                              capture_output=True, text=True, timeout=60)
+        self.assertEqual(done.returncode, 2, done.stderr)
+        self.assertEqual(self.snapshot(CONFORMANCE), before)
 
 
 class PackageDataTests(unittest.TestCase):
