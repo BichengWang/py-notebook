@@ -1,0 +1,4 @@
+opa 1.21.2
+cedar-policy-cli 4.14.0
+decisioncontrol 0.1.0
+python 3.15.0

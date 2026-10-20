@@ -42,8 +42,8 @@ class SchemaValidationTests(unittest.TestCase):
             with self.subTest(name=name):
                 validator(name)
 
-    def test_demo_records_validate_as_schema_four(self):
-        check = validator("record.v4.json")
+    def test_demo_records_validate_as_schema_five(self):
+        check = validator("record.v5.json")
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "demo"
             run_demo(out)
@@ -53,7 +53,7 @@ class SchemaValidationTests(unittest.TestCase):
                 document = json.loads(path.read_text(encoding="utf-8"))
                 with self.subTest(path=path.name):
                     check.validate(document)
-                    self.assertEqual(document["record"]["schema_version"], 4)
+                    self.assertEqual(document["record"]["schema_version"], 5)
                     self.assertEqual(document["record"]["produced_by"]["version"], __version__)
 
     def test_evaluation_output_validates_as_schema_two(self):
@@ -76,7 +76,7 @@ class SchemaValidationTests(unittest.TestCase):
         for version in (1, 2):
             document = json.loads((FIXTURES / f"approved-v{version}.json").read_text(encoding="utf-8"))
             validator(f"record.v{version}.json").validate(document)
-            for other in (3, 4):
+            for other in (3, 4, 5):
                 with self.subTest(fixture=version, schema=other):
                     self.assertFalse(validator(f"record.v{other}.json").is_valid(document))
 
@@ -113,6 +113,51 @@ class SchemaValidationTests(unittest.TestCase):
         upper = deepcopy(v4)
         upper["sha256"] = upper["sha256"].upper()
         self.assertFalse(check.is_valid(upper))
+
+    def test_schema_five_rejects_what_the_reader_rejects(self):
+        recorded = FIXTURES.parent.parent / "fixtures" / "policy-engines" / "records"
+        envelope = json.loads((recorded / "opa-priority-allow-executed.json").read_text(encoding="utf-8"))
+        record = envelope["record"]
+        check = validator("record.v5.json")
+        self.assertTrue(check.is_valid(envelope))
+        self.assertFalse(validator("record.v4.json").is_valid(envelope))
+        edits = {
+            "missing external digest": lambda r: r.pop("external_policy_sha256"),
+            "missing external policy": lambda r: r.pop("external_policy"),
+            "no target member": lambda r: r["recommendation"].pop("priority"),
+            "two target members": lambda r: r["recommendation"].update(destination="support"),
+            "unknown engine": lambda r: r["external_policy"].update(engine="rego"),
+            "unknown external member": lambda r: r["external_policy"].update(extra=1),
+            "missing modules": lambda r: r["external_policy"].pop("modules"),
+            "empty modules": lambda r: r["external_policy"].update(modules={}),
+            "module outside the policy directory": lambda r: r["external_policy"].update(
+                modules={"../x.rego": "package x"}),
+            "non-rego module": lambda r: r["external_policy"].update(modules={"x.txt": "package x"}),
+            "bundle revision not text": lambda r: r["external_policy"].update(bundles={"b": {"revision": 1}}),
+            "slash-only path": lambda r: r["external_policy"].update(path="//"),
+            "padded priority": lambda r: r["ticket"].update(priority=" normal"),
+            "duplicate priority allowlist": lambda r: r["policy"].update(allowed_priorities=["a", "a"]),
+        }
+        for name, edit in edits.items():
+            candidate = deepcopy(record)
+            edit(candidate)
+            with self.subTest(edit=name):
+                self.assertFalse(check.is_valid({"record": candidate, "sha256": "0" * 64}))
+        cedar = json.loads((recorded / "cedar-reassign-forbidden.json").read_text(encoding="utf-8"))["record"]
+        self.assertTrue(check.is_valid({"record": cedar, "sha256": "0" * 64}))
+        cedar_edits = {
+            "unknown decision": lambda r: r["external_policy"].update(decision="Permit"),
+            "duplicate determining policy": lambda r: r["external_policy"]["diagnostics"].update(reason=["a", "a"]),
+            "error without policy id": lambda r: r["external_policy"]["diagnostics"].update(errors=[{"error": "x"}]),
+            "policies of unknown format": lambda r: r["external_policy"].update(policies={"format": "yaml", "text": ""}),
+            "request without context": lambda r: r["external_policy"]["request"].pop("context"),
+            "entities not a list": lambda r: r["external_policy"].update(entities={}),
+        }
+        for name, edit in cedar_edits.items():
+            candidate = deepcopy(cedar)
+            edit(candidate)
+            with self.subTest(cedar_edit=name):
+                self.assertFalse(check.is_valid({"record": candidate, "sha256": "0" * 64}))
 
 
 if __name__ == "__main__":

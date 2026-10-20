@@ -7,9 +7,11 @@ from pathlib import Path
 
 from . import attestation, signing
 from ._outputs import staged_output
-from .evidence import RecordMismatch, export_record, parse_record, replay
+from .actions import LEGACY_ACTIONS_SCHEMA
+from .adapters import cedar, opa
+from .evidence import export_record, parse_record, replay
 from .evaluation import evaluate_cases, load_cases, parse_envelope, replay_evaluation, write_evaluation
-from .models import DecisionError, Recommendation, RoutingPolicy, StateError
+from .models import DecisionError, Recommendation, RecordMismatch, RoutingPolicy, StateError
 from .store import TicketStore
 
 
@@ -63,6 +65,14 @@ def _verified_document(args, kind, parse):
     return document
 
 
+def _write_json(out, value):
+    """Publish ``value`` to a new file atomically."""
+    with staged_output(out, directory=False) as staging:
+        with staging.open("x", encoding="utf-8") as stream:
+            json.dump(value, stream, indent=2, allow_nan=False)
+            stream.write("\n")
+
+
 def _parser():
     parser = argparse.ArgumentParser(prog="decision-control")
     parser.add_argument("--db", help="SQLite database path (required for storage commands)")
@@ -70,12 +80,14 @@ def _parser():
     create = commands.add_parser("ticket-create")
     create.add_argument("--ticket-id", required=True)
     create.add_argument("--department", required=True)
+    create.add_argument("--priority", help="initial ticket priority (optional)")
     for name in ("ticket-show", "show", "execute"):
         commands.add_parser(name).add_argument("id")
     submit = commands.add_parser("submit")
     submit.add_argument("--proposal", required=True)
     submit.add_argument("--policy", required=True)
     submit.add_argument("--proposed-by", required=True)
+    submit.add_argument("--external-policy", help="frozen OPA or Cedar decision from freeze-opa or freeze-cedar")
     commands.add_parser("pending")
     for name in ("approve", "reject", "cancel"):
         review = commands.add_parser(name)
@@ -86,7 +98,26 @@ def _parser():
     export.add_argument("id")
     export.add_argument("--out")
     export.add_argument("--sign-key", help="HMAC key file; writes OUT.dsse.json (needs --out)")
-    _verify_options(commands.add_parser("replay"))
+    replay_command = commands.add_parser("replay")
+    _verify_options(replay_command)
+    replay_command.add_argument("--require-reevaluation", action="store_true",
+                                help="exit 2 instead of 0 when a frozen OPA or Cedar decision cannot be re-evaluated")
+    policy_input = commands.add_parser("policy-input", help="print the OPA input or Cedar request for a proposal")
+    policy_input.add_argument("--engine", choices=("opa", "cedar"), required=True)
+    policy_input.add_argument("--proposal", required=True)
+    policy_input.add_argument("--proposed-by", required=True)
+    freeze_opa = commands.add_parser("freeze-opa", help="freeze an OPA decision log entry and its policy files")
+    freeze_opa.add_argument("--decision-log", required=True, help="OPA decision log (JSON, array or JSON Lines)")
+    freeze_opa.add_argument("--decision-id", help="entry to freeze; required when the log has several")
+    freeze_opa.add_argument("--policy-dir", required=True, help="directory of .rego files, optional data.json and .manifest")
+    freeze_opa.add_argument("--out")
+    freeze_cedar = commands.add_parser("freeze-cedar", help="freeze a Cedar authorization")
+    freeze_cedar.add_argument("--policies", required=True)
+    freeze_cedar.add_argument("--policy-format", choices=("cedar", "json"), default="cedar")
+    freeze_cedar.add_argument("--entities", required=True)
+    freeze_cedar.add_argument("--request", required=True, help="request JSON as for cedar authorize --request-json")
+    freeze_cedar.add_argument("--response", help="recorded Cedar response (decision, diagnostics); default runs cedar")
+    freeze_cedar.add_argument("--out")
     demo = commands.add_parser("demo")
     demo.add_argument("--out", required=True)
     demo.add_argument("--sign-key", help="HMAC key file; signs each exported record")
@@ -111,7 +142,31 @@ def _sign_key(args):
 
 def _run(args):
     if args.command == "replay":
-        return replay(_verified_document(args, "record", parse_record))
+        result = replay(_verified_document(args, "record", parse_record))
+        external = result.get("external_policy")
+        if external and external["verification"] == "digest-only":
+            if args.require_reevaluation:
+                raise DecisionError(f"--require-reevaluation: the frozen {external['engine']} policy "
+                                    f"could not be re-evaluated ({external['reason']})")
+            print(f"decision-control: policy NOT re-evaluated ({external['reason']}); digest-only verification "
+                  f"of the frozen {external['engine']} decision", file=sys.stderr)
+        return result
+    if args.command == "freeze-opa":
+        modules, data, revision = opa.load_policy_dir(args.policy_dir)
+        entry = opa.select_entry(opa.entries_from_log(_text_file(args.decision_log)), args.decision_id)
+        frozen = opa.freeze(entry, modules, data, bundle_revision=revision)
+        if args.out:
+            _write_json(args.out, frozen)
+        return frozen
+    if args.command == "freeze-cedar":
+        text = _text_file(args.policies)
+        policies = ({"format": "cedar", "text": text} if args.policy_format == "cedar"
+                    else {"format": "json", "json": json.loads(text)})
+        frozen = cedar.freeze(policies, _json_file(args.entities), _json_file(args.request),
+                              _json_file(args.response) if args.response else None)
+        if args.out:
+            _write_json(args.out, frozen)
+        return frozen
     if args.command == "keygen":
         return {"key_file": args.out, "key_id": signing.generate_key(Path(args.out))}
     if args.command == "predicate":
@@ -127,7 +182,8 @@ def _run(args):
     if args.command == "evaluate":
         key = _sign_key(args)
         requirements = _json_file(args.require) if args.require else None
-        report = evaluate_cases(load_cases(args.cases), RoutingPolicy.from_dict(_json_file(args.policy)), requirements)
+        report = evaluate_cases(load_cases(args.cases),
+                                RoutingPolicy.from_dict(_json_file(args.policy), LEGACY_ACTIONS_SCHEMA), requirements)
         return write_evaluation(report, args.out, key)
     if args.command == "replay-evaluation":
         return replay_evaluation(_verified_document(args, "evaluation", parse_envelope))
@@ -135,12 +191,18 @@ def _run(args):
         raise DecisionError("--db is required for storage commands")
     with TicketStore(args.db) as store:
         if args.command == "ticket-create":
-            return store.create_ticket(args.ticket_id, args.department).to_dict()
+            return store.create_ticket(args.ticket_id, args.department, args.priority).to_dict()
         if args.command == "ticket-show":
             return store.get_ticket(args.id).to_dict()
         if args.command == "submit":
             return store.submit(Recommendation.from_dict(_json_file(args.proposal)),
-                                RoutingPolicy.from_dict(_json_file(args.policy)), args.proposed_by)
+                                RoutingPolicy.from_dict(_json_file(args.policy)), args.proposed_by,
+                                _json_file(args.external_policy) if args.external_policy else None)
+        if args.command == "policy-input":
+            proposal = Recommendation.from_dict(_json_file(args.proposal))
+            ticket = store.get_ticket(proposal.ticket_id)
+            build = opa.decision_input if args.engine == "opa" else cedar.authorization_request
+            return build(proposal, ticket, args.proposed_by)
         if args.command == "pending":
             return store.pending()
         if args.command == "show":

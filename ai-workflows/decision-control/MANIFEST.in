@@ -5,3 +5,4 @@ include scripts/smoke-wheel.sh
 recursive-include decisioncontrol/schema *.json
 recursive-include tests *.json *.py
 recursive-include conformance *.py *.json *.canonical
+recursive-include fixtures *

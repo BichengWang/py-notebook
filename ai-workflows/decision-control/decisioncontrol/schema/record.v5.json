@@ -1,0 +1,662 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/BichengWang/ai-decision-system/schema/decisioncontrol/record.v5.json",
+  "title": "decision-control exported decision record, schema 5",
+  "$comment": "sha256 covers /record, canonicalized as RFC 8785 (JCS) canonical bytes. record.policy_sha256 covers record.policy and record.external_policy_sha256 covers record.external_policy (null when the record has no frozen external decision), both with the same canonicalization. Duplicate object keys are rejected by the reader. Integers are limited to +-(2^53-1), the I-JSON range RFC 8785 can represent. Not expressible here: the replay rules (recomputed verdict from the built-in policy combined with the mapped external decision by taking the more restrictive verdict, lifecycle consistency, event times, reviewer authorization against the frozen policy, proposer cannot review or cancel a REVIEW decision, review destinations and priorities subsets of their allowlists), that exactly the recommendation member the action's registry entry names is present, that external_policy_sha256 is null exactly when external_policy is null, that the frozen OPA input or Cedar request equals the one derived from the recommendation, ticket and proposer, and the optional re-evaluation by opa or cedar.",
+  "type": "object",
+  "properties": {
+    "record": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 5
+        },
+        "id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "created_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "recommendation": {
+          "$ref": "#/$defs/recommendation"
+        },
+        "ticket": {
+          "$ref": "#/$defs/ticket"
+        },
+        "policy": {
+          "$ref": "#/$defs/policy"
+        },
+        "evaluation": {
+          "$ref": "#/$defs/evaluation"
+        },
+        "status": {
+          "enum": [
+            "READY",
+            "PENDING_REVIEW",
+            "DENIED",
+            "ABSTAINED",
+            "REJECTED",
+            "CANCELLED",
+            "EXECUTED",
+            "STALE"
+          ]
+        },
+        "review": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/review"
+            }
+          ]
+        },
+        "result": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/ticket"
+            }
+          ]
+        },
+        "events": {
+          "type": "array",
+          "minItems": 1,
+          "prefixItems": [
+            {
+              "$ref": "#/$defs/event_submitted"
+            }
+          ],
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/event_transition"
+              },
+              {
+                "$ref": "#/$defs/event_cancelled"
+              }
+            ]
+          }
+        },
+        "produced_by": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "const": "decisioncontrol"
+            },
+            "version": {
+              "$ref": "#/$defs/text"
+            }
+          },
+          "required": [
+            "name",
+            "version"
+          ],
+          "additionalProperties": false
+        },
+        "proposed_by": {
+          "$ref": "#/$defs/text"
+        },
+        "policy_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "external_policy": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/external_policy"
+            }
+          ]
+        },
+        "external_policy_sha256": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/sha256"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "id",
+        "created_at",
+        "recommendation",
+        "ticket",
+        "policy",
+        "evaluation",
+        "status",
+        "review",
+        "result",
+        "events",
+        "produced_by",
+        "proposed_by",
+        "policy_sha256",
+        "external_policy",
+        "external_policy_sha256"
+      ],
+      "additionalProperties": false
+    },
+    "sha256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "required": [
+    "record",
+    "sha256"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "string": {
+      "type": "string",
+      "pattern": "^[^\\ud800-\\udfff]*$",
+      "description": "Any string without an unpaired surrogate (which has no UTF-8 encoding)."
+    },
+    "text": {
+      "type": "string",
+      "allOf": [
+        {
+          "pattern": "^[^\\ud800-\\udfff]*$"
+        },
+        {
+          "pattern": "^(?:\\S|\\S[\\s\\S]*\\S)(?![\\s\\S])"
+        }
+      ],
+      "description": "Nonempty, no leading or trailing whitespace, no unpaired surrogate."
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?![\\s\\S])"
+    },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]+)?(?:Z|[+-]00:00)(?![\\s\\S])",
+      "description": "ISO 8601 timestamp at UTC offset zero."
+    },
+    "names": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/text"
+      },
+      "uniqueItems": true
+    },
+    "verdict": {
+      "enum": [
+        "ALLOW",
+        "DENY",
+        "REVIEW",
+        "ABSTAIN"
+      ]
+    },
+    "evaluation": {
+      "type": "object",
+      "properties": {
+        "verdict": {
+          "$ref": "#/$defs/verdict"
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/text"
+          },
+          "uniqueItems": true,
+          "minItems": 1
+        }
+      },
+      "required": [
+        "verdict",
+        "reasons"
+      ],
+      "additionalProperties": false
+    },
+    "probability": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "ticket": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/text"
+        },
+        "department": {
+          "$ref": "#/$defs/text"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "priority": {
+          "$ref": "#/$defs/text"
+        }
+      },
+      "required": [
+        "id",
+        "department",
+        "revision"
+      ],
+      "additionalProperties": false
+    },
+    "recommendation": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "$ref": "#/$defs/text"
+        },
+        "ticket_id": {
+          "$ref": "#/$defs/text"
+        },
+        "destination": {
+          "$ref": "#/$defs/text"
+        },
+        "priority": {
+          "$ref": "#/$defs/text"
+        },
+        "probability": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/probability"
+            }
+          ]
+        },
+        "model": {
+          "$ref": "#/$defs/text"
+        },
+        "question_version": {
+          "$ref": "#/$defs/text"
+        },
+        "refused": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "action",
+        "ticket_id",
+        "model",
+        "question_version"
+      ],
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "required": [
+            "destination"
+          ]
+        },
+        {
+          "required": [
+            "priority"
+          ]
+        }
+      ]
+    },
+    "policy": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "$ref": "#/$defs/text"
+        },
+        "allowed_destinations": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/names"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "review_destinations": {
+          "$ref": "#/$defs/names"
+        },
+        "reviewers": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/names"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "min_probability": {
+          "$ref": "#/$defs/probability"
+        },
+        "allowed_priorities": {
+          "$ref": "#/$defs/names"
+        },
+        "review_priorities": {
+          "$ref": "#/$defs/names"
+        }
+      },
+      "required": [
+        "version",
+        "allowed_destinations",
+        "review_destinations",
+        "reviewers"
+      ],
+      "additionalProperties": false
+    },
+    "event_submitted": {
+      "type": "object",
+      "properties": {
+        "event": {
+          "const": "SUBMITTED"
+        },
+        "at": {
+          "$ref": "#/$defs/timestamp"
+        }
+      },
+      "required": [
+        "event",
+        "at"
+      ],
+      "additionalProperties": false
+    },
+    "event_transition": {
+      "type": "object",
+      "properties": {
+        "event": {
+          "enum": [
+            "APPROVED",
+            "REJECTED",
+            "EXECUTED",
+            "STALE"
+          ]
+        },
+        "at": {
+          "$ref": "#/$defs/timestamp"
+        }
+      },
+      "required": [
+        "event",
+        "at"
+      ],
+      "additionalProperties": false
+    },
+    "event_cancelled": {
+      "type": "object",
+      "properties": {
+        "event": {
+          "const": "CANCELLED"
+        },
+        "at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "reviewer": {
+          "$ref": "#/$defs/string"
+        },
+        "note": {
+          "type": "string",
+          "allOf": [
+            {
+              "pattern": "^[^\\ud800-\\udfff]*$"
+            },
+            {
+              "pattern": "\\S"
+            }
+          ]
+        }
+      },
+      "required": [
+        "event",
+        "at",
+        "reviewer",
+        "note"
+      ],
+      "additionalProperties": false
+    },
+    "review": {
+      "type": "object",
+      "properties": {
+        "decision": {
+          "enum": [
+            "APPROVED",
+            "REJECTED"
+          ]
+        },
+        "reviewer": {
+          "$ref": "#/$defs/string"
+        },
+        "note": {
+          "$ref": "#/$defs/string"
+        },
+        "at": {
+          "$ref": "#/$defs/timestamp"
+        }
+      },
+      "required": [
+        "decision",
+        "reviewer",
+        "note",
+        "at"
+      ],
+      "additionalProperties": false
+    },
+    "external_policy": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/external_opa"
+        },
+        {
+          "$ref": "#/$defs/external_cedar"
+        }
+      ]
+    },
+    "external_opa": {
+      "type": "object",
+      "properties": {
+        "engine": {
+          "const": "opa"
+        },
+        "decision_id": {
+          "$ref": "#/$defs/text"
+        },
+        "timestamp": {
+          "$ref": "#/$defs/text"
+        },
+        "labels": {
+          "type": "object"
+        },
+        "path": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/text"
+            },
+            {
+              "pattern": "^/*[^/]+(?:/[^/]+)*/*(?![\\s\\S])"
+            }
+          ],
+          "description": "Slash-separated decision path of the decision log entry, e.g. ticket/routing/decision."
+        },
+        "bundles": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/text"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "revision": {
+                "$ref": "#/$defs/string"
+              }
+            },
+            "required": [
+              "revision"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "input": {
+          "type": "object"
+        },
+        "result": {
+          "description": "Any JSON value; the reader maps a boolean or an object with a verdict member."
+        },
+        "modules": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {
+            "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._-]*/)*[A-Za-z0-9][A-Za-z0-9._-]*\\.rego(?![\\s\\S])"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/string"
+          }
+        },
+        "data": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "engine",
+        "decision_id",
+        "path",
+        "bundles",
+        "input",
+        "result",
+        "modules",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "external_cedar": {
+      "type": "object",
+      "properties": {
+        "engine": {
+          "const": "cedar"
+        },
+        "policies": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "format": {
+                  "const": "cedar"
+                },
+                "text": {
+                  "$ref": "#/$defs/string"
+                }
+              },
+              "required": [
+                "format",
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "format": {
+                  "const": "json"
+                },
+                "json": {
+                  "type": "object"
+                }
+              },
+              "required": [
+                "format",
+                "json"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "entities": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "request": {
+          "type": "object",
+          "properties": {
+            "principal": {
+              "$ref": "#/$defs/text"
+            },
+            "action": {
+              "$ref": "#/$defs/text"
+            },
+            "resource": {
+              "$ref": "#/$defs/text"
+            },
+            "context": {
+              "type": "object"
+            }
+          },
+          "required": [
+            "principal",
+            "action",
+            "resource",
+            "context"
+          ],
+          "additionalProperties": false
+        },
+        "decision": {
+          "enum": [
+            "Allow",
+            "Deny"
+          ]
+        },
+        "diagnostics": {
+          "type": "object",
+          "properties": {
+            "reason": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/text"
+              },
+              "uniqueItems": true
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "policyId": {
+                    "$ref": "#/$defs/text"
+                  },
+                  "error": {
+                    "$ref": "#/$defs/string"
+                  }
+                },
+                "required": [
+                  "policyId",
+                  "error"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "reason",
+            "errors"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "engine",
+        "policies",
+        "entities",
+        "request",
+        "decision",
+        "diagnostics"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,7 @@
+exit 2
+
+DENY
+
+note: this decision was due to the following policies:
+  legal-tickets-stay-in-legal
+

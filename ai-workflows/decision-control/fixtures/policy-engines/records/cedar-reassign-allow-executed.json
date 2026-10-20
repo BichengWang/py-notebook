@@ -1,0 +1,146 @@
+{
+  "record": {
+    "schema_version": 5,
+    "produced_by": {
+      "name": "decisioncontrol",
+      "version": "0.1.0"
+    },
+    "proposed_by": "alice",
+    "policy_sha256": "7236899f82f6bdfbbd02fa56d431c87e8b80270d5e50c3c3e2b1ac4048d78240",
+    "id": "51290076-2459-423e-9701-4037c3d84046",
+    "created_at": "2026-10-20T00:25:11.103448+00:00",
+    "recommendation": {
+      "action": "reassign_ticket",
+      "ticket_id": "T-211",
+      "destination": "support",
+      "probability": 0.95,
+      "model": "recorded-fixture-not-a-provider",
+      "question_version": "routing-question-1",
+      "refused": false
+    },
+    "ticket": {
+      "id": "T-211",
+      "department": "intake",
+      "revision": 0
+    },
+    "policy": {
+      "version": "ticket-routing-fixture-1",
+      "allowed_destinations": [
+        "support",
+        "engineering",
+        "legal"
+      ],
+      "review_destinations": [
+        "engineering"
+      ],
+      "reviewers": [
+        "bob",
+        "carol"
+      ],
+      "min_probability": 0.8,
+      "allowed_priorities": [
+        "low",
+        "normal",
+        "high",
+        "urgent"
+      ],
+      "review_priorities": [
+        "urgent"
+      ]
+    },
+    "evaluation": {
+      "verdict": "ALLOW",
+      "reasons": [
+        "policy_permits_reassignment",
+        "cedar:permit:routers-reassign-to-open-destinations"
+      ]
+    },
+    "status": "EXECUTED",
+    "review": null,
+    "result": {
+      "id": "T-211",
+      "department": "support",
+      "revision": 1
+    },
+    "events": [
+      {
+        "event": "SUBMITTED",
+        "at": "2026-10-20T00:25:11.103448+00:00"
+      },
+      {
+        "event": "EXECUTED",
+        "at": "2026-10-20T00:25:11.146284+00:00"
+      }
+    ],
+    "external_policy": {
+      "engine": "cedar",
+      "policies": {
+        "format": "cedar",
+        "text": "// Ticket-routing policy used to record the Cedar fixtures. Cedar answers Allow or Deny;\n// whether a human must review is decided by the built-in policy and the record combines them.\n\n@id(\"routers-reassign-to-open-destinations\")\npermit (\n    principal in Group::\"routers\",\n    action == Action::\"reassign_ticket\",\n    resource\n)\nwhen { context.requested == \"support\" || context.requested == \"engineering\" };\n\n@id(\"routers-set-priority\")\npermit (\n    principal in Group::\"routers\",\n    action == Action::\"set_ticket_priority\",\n    resource\n)\nwhen { [\"low\", \"normal\", \"high\", \"urgent\"].contains(context.requested) };\n\n@id(\"legal-tickets-stay-in-legal\")\nforbid (\n    principal,\n    action == Action::\"reassign_ticket\",\n    resource\n)\nwhen { context has current && context.current == \"legal\" };\n"
+      },
+      "entities": [
+        {
+          "uid": {
+            "type": "Group",
+            "id": "routers"
+          },
+          "attrs": {},
+          "parents": []
+        },
+        {
+          "uid": {
+            "type": "User",
+            "id": "alice"
+          },
+          "attrs": {},
+          "parents": [
+            {
+              "type": "Group",
+              "id": "routers"
+            }
+          ]
+        },
+        {
+          "uid": {
+            "type": "User",
+            "id": "bob"
+          },
+          "attrs": {},
+          "parents": [
+            {
+              "type": "Group",
+              "id": "routers"
+            }
+          ]
+        },
+        {
+          "uid": {
+            "type": "User",
+            "id": "mallory"
+          },
+          "attrs": {},
+          "parents": []
+        }
+      ],
+      "request": {
+        "principal": "User::\"alice\"",
+        "action": "Action::\"reassign_ticket\"",
+        "resource": "Ticket::\"T-211\"",
+        "context": {
+          "requested": "support",
+          "proposal_sha256": "6782e71bee768927711ca624c2407463475b4d3adab5b84a12007d7319384fe8",
+          "current": "intake"
+        }
+      },
+      "decision": "Allow",
+      "diagnostics": {
+        "reason": [
+          "routers-reassign-to-open-destinations"
+        ],
+        "errors": []
+      }
+    },
+    "external_policy_sha256": "d873da6e1c477225d22dbcc065b4a4462ffcfb130de7ecc4e3964225b2ccaab8"
+  },
+  "sha256": "0cfa62239612b91fc83b406aef405bb9385b4704600343cde6e0b8169665ee9e"
+}

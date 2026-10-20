@@ -1,0 +1,124 @@
+{
+  "record": {
+    "schema_version": 5,
+    "produced_by": {
+      "name": "decisioncontrol",
+      "version": "0.1.0"
+    },
+    "proposed_by": "alice",
+    "policy_sha256": "7236899f82f6bdfbbd02fa56d431c87e8b80270d5e50c3c3e2b1ac4048d78240",
+    "id": "064e9ae9-8d33-409e-b9e4-95474a07bc68",
+    "created_at": "2026-10-20T00:25:10.848132+00:00",
+    "recommendation": {
+      "action": "set_ticket_priority",
+      "ticket_id": "T-204",
+      "priority": "high",
+      "probability": 0.95,
+      "model": "recorded-fixture-not-a-provider",
+      "question_version": "routing-question-1",
+      "refused": false
+    },
+    "ticket": {
+      "id": "T-204",
+      "department": "support",
+      "revision": 0,
+      "priority": "normal"
+    },
+    "policy": {
+      "version": "ticket-routing-fixture-1",
+      "allowed_destinations": [
+        "support",
+        "engineering",
+        "legal"
+      ],
+      "review_destinations": [
+        "engineering"
+      ],
+      "reviewers": [
+        "bob",
+        "carol"
+      ],
+      "min_probability": 0.8,
+      "allowed_priorities": [
+        "low",
+        "normal",
+        "high",
+        "urgent"
+      ],
+      "review_priorities": [
+        "urgent"
+      ]
+    },
+    "evaluation": {
+      "verdict": "ALLOW",
+      "reasons": [
+        "policy_permits_priority_change",
+        "opa:router_sets_open_priority"
+      ]
+    },
+    "status": "EXECUTED",
+    "review": null,
+    "result": {
+      "id": "T-204",
+      "department": "support",
+      "revision": 1,
+      "priority": "high"
+    },
+    "events": [
+      {
+        "event": "SUBMITTED",
+        "at": "2026-10-20T00:25:10.848132+00:00"
+      },
+      {
+        "event": "EXECUTED",
+        "at": "2026-10-20T00:25:10.890618+00:00"
+      }
+    ],
+    "external_policy": {
+      "engine": "opa",
+      "decision_id": "291f8458-bb95-4a93-8a8e-70e3b8ab8d56",
+      "path": "ticket/routing/decision",
+      "bundles": {
+        "bundle": {
+          "revision": "ticket-routing-2026-10-19.1"
+        }
+      },
+      "input": {
+        "action": "set_ticket_priority",
+        "proposed_by": "alice",
+        "recommendation": {
+          "action": "set_ticket_priority",
+          "model": "recorded-fixture-not-a-provider",
+          "priority": "high",
+          "probability": 0.95,
+          "question_version": "routing-question-1",
+          "refused": false,
+          "ticket_id": "T-204"
+        },
+        "ticket": {
+          "department": "support",
+          "id": "T-204",
+          "priority": "normal",
+          "revision": 0
+        }
+      },
+      "result": {
+        "reasons": [
+          "router_sets_open_priority"
+        ],
+        "verdict": "ALLOW"
+      },
+      "modules": {
+        "routing.rego": "package ticket.routing\n\n# Ticket-routing policy used to record the OPA fixtures. It is deliberately small:\n# only listed routers may act, and the destinations and priorities that need a human\n# are marked REVIEW. Anything else is denied.\n\ndefault decision := {\"verdict\": \"DENY\", \"reasons\": [\"no_rule_matched\"]}\n\nrouters := {\"alice\", \"bob\"}\n\nopen_destinations := {\"support\"}\n\nreview_destinations := {\"engineering\"}\n\nopen_priorities := {\"low\", \"normal\", \"high\"}\n\nreview_priorities := {\"urgent\"}\n\ndecision := {\"verdict\": \"ALLOW\", \"reasons\": [\"router_reassigns_to_open_destination\"]} if {\n\tinput.action == \"reassign_ticket\"\n\tinput.proposed_by in routers\n\tinput.recommendation.destination in open_destinations\n}\n\ndecision := {\"verdict\": \"REVIEW\", \"reasons\": [\"destination_needs_review\"]} if {\n\tinput.action == \"reassign_ticket\"\n\tinput.proposed_by in routers\n\tinput.recommendation.destination in review_destinations\n}\n\ndecision := {\"verdict\": \"ALLOW\", \"reasons\": [\"router_sets_open_priority\"]} if {\n\tinput.action == \"set_ticket_priority\"\n\tinput.proposed_by in routers\n\tinput.recommendation.priority in open_priorities\n}\n\ndecision := {\"verdict\": \"REVIEW\", \"reasons\": [\"priority_needs_review\"]} if {\n\tinput.action == \"set_ticket_priority\"\n\tinput.proposed_by in routers\n\tinput.recommendation.priority in review_priorities\n}\n"
+      },
+      "data": {},
+      "labels": {
+        "id": "8263a464-de81-4c3a-bd44-0f980ede03ee",
+        "version": "1.21.2"
+      },
+      "timestamp": "2026-10-20T00:25:09.15078Z"
+    },
+    "external_policy_sha256": "f81c508794e194c17aaa742f148db312265badd3c6d8ffc53b8f7d1ad3ccc8d6"
+  },
+  "sha256": "4aa11b5f4d572051c88987f308f40191c0b5a27ef9911dd5a58f66a23b47619c"
+}

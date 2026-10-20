@@ -1,0 +1,135 @@
+{
+  "record": {
+    "schema_version": 5,
+    "produced_by": {
+      "name": "decisioncontrol",
+      "version": "0.1.0"
+    },
+    "proposed_by": "mallory",
+    "policy_sha256": "7236899f82f6bdfbbd02fa56d431c87e8b80270d5e50c3c3e2b1ac4048d78240",
+    "id": "7a9672f7-f816-40b0-9257-bdc6a64d2f9b",
+    "created_at": "2026-10-20T00:25:11.331915+00:00",
+    "recommendation": {
+      "action": "reassign_ticket",
+      "ticket_id": "T-212",
+      "destination": "support",
+      "probability": 0.95,
+      "model": "recorded-fixture-not-a-provider",
+      "question_version": "routing-question-1",
+      "refused": false
+    },
+    "ticket": {
+      "id": "T-212",
+      "department": "intake",
+      "revision": 0
+    },
+    "policy": {
+      "version": "ticket-routing-fixture-1",
+      "allowed_destinations": [
+        "support",
+        "engineering",
+        "legal"
+      ],
+      "review_destinations": [
+        "engineering"
+      ],
+      "reviewers": [
+        "bob",
+        "carol"
+      ],
+      "min_probability": 0.8,
+      "allowed_priorities": [
+        "low",
+        "normal",
+        "high",
+        "urgent"
+      ],
+      "review_priorities": [
+        "urgent"
+      ]
+    },
+    "evaluation": {
+      "verdict": "DENY",
+      "reasons": [
+        "cedar:no_permit_applied"
+      ]
+    },
+    "status": "DENIED",
+    "review": null,
+    "result": null,
+    "events": [
+      {
+        "event": "SUBMITTED",
+        "at": "2026-10-20T00:25:11.331915+00:00"
+      }
+    ],
+    "external_policy": {
+      "engine": "cedar",
+      "policies": {
+        "format": "cedar",
+        "text": "// Ticket-routing policy used to record the Cedar fixtures. Cedar answers Allow or Deny;\n// whether a human must review is decided by the built-in policy and the record combines them.\n\n@id(\"routers-reassign-to-open-destinations\")\npermit (\n    principal in Group::\"routers\",\n    action == Action::\"reassign_ticket\",\n    resource\n)\nwhen { context.requested == \"support\" || context.requested == \"engineering\" };\n\n@id(\"routers-set-priority\")\npermit (\n    principal in Group::\"routers\",\n    action == Action::\"set_ticket_priority\",\n    resource\n)\nwhen { [\"low\", \"normal\", \"high\", \"urgent\"].contains(context.requested) };\n\n@id(\"legal-tickets-stay-in-legal\")\nforbid (\n    principal,\n    action == Action::\"reassign_ticket\",\n    resource\n)\nwhen { context has current && context.current == \"legal\" };\n"
+      },
+      "entities": [
+        {
+          "uid": {
+            "type": "Group",
+            "id": "routers"
+          },
+          "attrs": {},
+          "parents": []
+        },
+        {
+          "uid": {
+            "type": "User",
+            "id": "alice"
+          },
+          "attrs": {},
+          "parents": [
+            {
+              "type": "Group",
+              "id": "routers"
+            }
+          ]
+        },
+        {
+          "uid": {
+            "type": "User",
+            "id": "bob"
+          },
+          "attrs": {},
+          "parents": [
+            {
+              "type": "Group",
+              "id": "routers"
+            }
+          ]
+        },
+        {
+          "uid": {
+            "type": "User",
+            "id": "mallory"
+          },
+          "attrs": {},
+          "parents": []
+        }
+      ],
+      "request": {
+        "principal": "User::\"mallory\"",
+        "action": "Action::\"reassign_ticket\"",
+        "resource": "Ticket::\"T-212\"",
+        "context": {
+          "requested": "support",
+          "proposal_sha256": "7a4fe0b5cc23ad3228b5efc97a408a3605e8661d11e40b74bb6b43c031ef55a1",
+          "current": "intake"
+        }
+      },
+      "decision": "Permit",
+      "diagnostics": {
+        "reason": [],
+        "errors": []
+      }
+    },
+    "external_policy_sha256": "1d45b4a58cb2cdf85ad69c14ebb396d327bdc5342c5b0b21a507e34ffd401bf1"
+  },
+  "sha256": "2220e16f800de2ef17717b0c7357c8d4a9af9c46cb5965de0731c2c242d06451"
+}
