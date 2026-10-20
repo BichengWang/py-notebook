@@ -1,0 +1,23 @@
+# Direct reference libraries for tests/golden/generate.py. Development and CI only: expgate itself
+# and its default tests need none of them. Python 3.10 only: confseq 0.0.11 (the latest release)
+# ships wheels only up to 3.10, and gbstats 0.8.0 pins pandas<2 and numpy<2.
+#
+# requirements.txt is the full lock compiled from this file (every transitive dependency, with
+# hashes, for Linux and macOS). CI and the README install from the lock. To change a pin, edit
+# this file and recompile from ai-workflows/experiment-gate:
+#
+#   uv pip compile tests/golden/requirements.in --python-version 3.10 --universal --generate-hashes --no-config \
+#       -o tests/golden/requirements.txt
+#
+# Then regenerate the vectors and confirm they do not change, or commit the change on purpose.
+#
+# Only the libraries generate.py imports (directly or through gbstats) are listed. patsy and
+# formulaic are not: statsmodels 0.15.0 requires both (formulaic>=1.1.0, patsy>=0.5.6) and the
+# generator calls only array-based statsmodels APIs (OLS, test_proportions_2indep, power), never a
+# formula, so they affect nothing here beyond being installed. The lock still pins them.
+numpy==1.26.4
+pandas==1.5.3
+scipy==1.14.1
+statsmodels==0.15.0
+gbstats==0.8.0
+confseq==0.0.11

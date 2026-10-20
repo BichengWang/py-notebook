@@ -131,12 +131,14 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.10"
-      - name: Install pinned reference libraries
-        run: python -m pip install -r tests/golden/requirements.txt
+      - name: Install the locked reference libraries
+        # requirements.txt pins every transitive dependency with hashes (compiled from requirements.in).
+        run: |
+          python -m pip install --require-hashes --only-binary :all: -r tests/golden/requirements.txt
       - name: Regenerate golden vectors
         run: python tests/golden/generate.py --out "$RUNNER_TEMP/golden"
       - name: Fail on any difference from the committed vectors
-        run: diff -ru -x generate.py -x requirements.txt -x __pycache__ tests/golden "$RUNNER_TEMP/golden"
+        run: diff -ru -x generate.py -x requirements.in -x requirements.txt -x __pycache__ tests/golden "$RUNNER_TEMP/golden"
 
   sigstore:
     name: expgate sigstore attestation
