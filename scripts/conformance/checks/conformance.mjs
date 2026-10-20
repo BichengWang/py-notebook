@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 import Ajv2020Module from "ajv/dist/2020.js";
 import addFormatsModule from "ajv-formats";
 import { canonicalizeRfc8785, serializePythonJsonV1 } from "./canonical.mjs";
-import { decodeUtf8, parseJson, rawNumber, resolvePointer, JsonSyntaxError } from "./json.mjs";
+import { decodeUtf8, parseJson, rawNumber, resolvePointer, JsonSyntaxError, RawNumber } from "./json.mjs";
 
 const Ajv2020 = Ajv2020Module.default ?? Ajv2020Module;
 const addFormats = addFormatsModule.default ?? addFormatsModule;
@@ -307,7 +307,7 @@ function readDigest(document, pointer) {
 
 function withoutMembers(value, names) {
   if (names.length === 0) return value;
-  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+  if (value === null || typeof value !== "object" || Array.isArray(value) || value instanceof RawNumber) {
     throw new Error("exclude needs the covered value to be an object");
   }
   for (const name of names) {

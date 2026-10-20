@@ -170,6 +170,26 @@ describe("rfc8785 digests", () => {
     assert.match(failureText(await check()), /not a 64-character lowercase hex digest/);
   });
 
+  test("exclude needs a real JSON object, and pointers cannot enter a number", async () => {
+    // /input/b is a number (written 2.0 in the document); /payload/b is one in the python-json-v1 vector.
+    const probes = [
+      [0, "/input/b", ["text"], /exclude needs the covered value to be an object/],
+      [0, "/input/b/text", [], /no member "text"/],
+      [0, "/input/b/0", [], /no member "0"|no array element/],
+      [0, "/input/a", ["length"], /exclude needs/],
+      [0, "/input_sha256", ["length"], /exclude needs/],
+      [1, "/payload/b", ["text"], /exclude needs the covered value to be an object/],
+      [1, "/payload/b/text", [], /no member "text"/],
+      [1, "/payload/big", ["text"], /exclude needs/],
+      [1, "/payload/b/text", ["text"], /no member "text"/],
+    ];
+    for (const [index, covers, exclude, expected] of probes) {
+      write("conformance/manifest.json", JSON.stringify(manifest(), null, 2)); // one broken digest at a time
+      editManifest((value) => { Object.assign(value.vectors[index].digests[0], { covers, exclude }); });
+      assert.match(failureText(await check()), expected, `${covers} ${JSON.stringify(exclude)}`);
+    }
+  });
+
   test("excluding a member that is absent fails", async () => {
     editManifest((value) => { value.vectors[0].digests[0].exclude = ["nope"]; });
     assert.match(failureText(await check()), /excluded member "nope"/);
