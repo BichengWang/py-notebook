@@ -167,8 +167,8 @@ envelope around an [in-toto Statement v1](https://github.com/in-toto/attestation
   `cosign attest-blob` computes, so reformatting the file breaks the signature and
   one record can carry an HMAC envelope, a Sigstore bundle, or both.
 - Producers write the payload as the [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785)
-  canonical form of the statement. The signature is HMAC-SHA256, with the 32-byte key,
-  over the DSSE pre-authentication encoding
+  canonical form of the statement. The signature is HMAC-SHA256, with the HMAC key
+  (generated keys are 32 bytes; longer supplied keys are accepted), over the DSSE pre-authentication encoding
   `"DSSEv1" SP len(payloadType) SP payloadType SP len(payload) SP payload` (lengths in
   decimal bytes, payload the decoded statement bytes). The key id is `hmac-sha256:`
   plus the first 16 hex digits of the SHA-256 of the key.

@@ -56,14 +56,16 @@ attributable. Neither form shows that the facts inside the record are true.
 **Sigstore.** The packages never sign with Sigstore. Sign with an external
 `cosign attest-blob` (keyless in GitHub Actions needs `id-token: write`) and verify
 with `--sigstore-bundle`, `--certificate-identity` and `--certificate-oidc-issuer`,
-which the package passes to `cosign verify-blob-attestation`. The identity is the
-workflow and the ref it ran on, for example
+which the package passes unchanged to `cosign verify-blob-attestation`. For GitHub
+Actions signing the identity is the workflow and the ref it ran on, for example
 `https://github.com/OWNER/REPO/.github/workflows/WORKFLOW.yml@refs/heads/main`; a
 record signed on another branch or by a pull request has a different identity.
 Keyless signing writes the signer identity and the record digest to the public
 Rekor transparency log permanently, so do not attest private decisions there.
 The packages do not read or record the signing time, so a valid signature does not
-say when a record was made and cannot prove a record was not backdated.
+say when a record was made and cannot prove a record was not backdated. An external
+Sigstore bundle may carry Rekor inclusion-time evidence, which these packages do not
+check and which in any case does not prove when the record's contents were created.
 
 **Reporting.** A flaw in signing or verification (for example a record that
 verifies under `--require-signature` after its bytes changed, or a signature that
