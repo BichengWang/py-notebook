@@ -95,8 +95,11 @@ def verify(record_bytes: bytes, envelope: object, predicate_types: set[str], key
     for entry in signatures if isinstance(signatures, list) else []:
         if not isinstance(entry, dict) or entry.get("keyid") != wanted:
             continue
+        sig = entry.get("sig")
+        if not isinstance(sig, str):
+            continue
         try:
-            given = base64.b64decode(entry.get("sig", ""), validate=True)
+            given = base64.b64decode(sig, validate=True)
         except ValueError:
             continue
         if hmac.compare_digest(given, expected):
@@ -108,15 +111,18 @@ def verify(record_bytes: bytes, envelope: object, predicate_types: set[str], key
         body = json.loads(payload)
         subjects = body["subject"]
         kind = body["predicateType"]
-    except (ValueError, KeyError, TypeError) as error:
+    except (ValueError, KeyError, TypeError, RecursionError) as error:
         raise SignatureError(f"signed payload is not an in-toto statement: {error}") from error
     if body.get("_type") != STATEMENT_TYPE:
         raise SignatureError("signed payload is not an in-toto Statement v1")
-    if kind not in predicate_types:
+    if not isinstance(kind, str) or kind not in predicate_types:
         raise SignatureError(f"predicate type {kind!r} does not match this record type")
+    if not isinstance(subjects, list):
+        raise SignatureError("signed statement subject is not a list")
     digest = hashlib.sha256(record_bytes).hexdigest()
     if not any(isinstance(s, dict) and isinstance(s.get("digest"), dict)
-               and hmac.compare_digest(str(s["digest"].get("sha256", "")), digest) for s in subjects or []):
+               and hmac.compare_digest(str(s["digest"].get("sha256", "")).encode("utf-8"), digest.encode("ascii"))
+               for s in subjects):
         raise SignatureError("signature covers different record bytes")
     return body
 

@@ -133,6 +133,10 @@ def _run(args):
         return replay_evaluation(_verified_document(args, "evaluation", parse_envelope))
     if not args.db:
         raise DecisionError("--db is required for storage commands")
+    # Validate the signing key before TicketStore creates or initializes the database.
+    key = _sign_key(args) if args.command == "export" else None
+    if key is not None and not args.out:
+        raise DecisionError("--sign-key needs --out: the signature covers the exported file bytes")
     with TicketStore(args.db) as store:
         if args.command == "ticket-create":
             return store.create_ticket(args.ticket_id, args.department).to_dict()
@@ -150,9 +154,6 @@ def _run(args):
         if args.command == "execute":
             return store.execute(args.id)
         if args.command == "export":
-            key = _sign_key(args)
-            if key is not None and not args.out:
-                raise DecisionError("--sign-key needs --out: the signature covers the exported file bytes")
             envelope = export_record(store.get(args.id))
             if args.out:
                 _write_export(args.out, envelope, key)

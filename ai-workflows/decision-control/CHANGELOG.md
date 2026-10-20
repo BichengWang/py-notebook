@@ -6,6 +6,12 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+### Fixed
+- Signature verification treats a malformed signature field (null, non-string or otherwise
+  odd-typed `sig`, `payload`, `predicateType`, `subject` or digest values) as an invalid
+  signature and exits 1, not an input error. `export --sign-key` loads and validates the key
+  before opening the SQLite store, so a bad key no longer leaves a new database behind.
+
 ### Added
 - Signed records (P-012): `keygen`, `--sign-key` on `demo`, `evaluate` and `export`, and
   `--require-signature` (`--key [--signature]` or `--sigstore-bundle` with
