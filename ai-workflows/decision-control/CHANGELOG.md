@@ -18,6 +18,31 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   predicate type exit 1; bad key file or missing `cosign` exit 2. Behavior without the
   flag is unchanged. CI signs a demo record keylessly and verifies it with the package;
   the wheel smoke check round-trips an HMAC signature.
+- Action registry (`decisioncontrol.actions.ACTIONS`): `reassign_ticket` moved into it and
+  `set_ticket_priority` added through it only. Tickets gain an optional `priority`
+  (`ticket-create --priority`), policies optional `allowed_priorities` and
+  `review_priorities`, recommendations a `priority` member for the new action. All
+  actions share one evaluation pipeline and executor; replay and the store name no action.
+- Exported record schema 5 (RFC 8785, like schema 4) with the registry members and two
+  required members, `external_policy` and `external_policy_sha256` (null without an
+  external decision). JSON Schema `record.v5.json`.
+- Policy adapters (`decisioncontrol.adapters.opa`, `.cedar`) that freeze an OPA decision
+  log entry (`decision_id`, `path`, bundle revisions, input, result, plus the Rego modules and
+  data) or a Cedar authorization (policies as text or JSON, entities, request, decision,
+  diagnostics) into the record. CLI: `freeze-opa`, `freeze-cedar`, `policy-input`,
+  `submit --external-policy`. The frozen input or request must equal the one derived from
+  the record's recommendation, ticket and proposer; the external verdict is combined with
+  the built-in policy by taking the more restrictive one.
+- `replay` re-evaluates a frozen policy with `opa eval` or `cedar authorize` when the tool is
+  on PATH (OPA with `http.send`, `net.lookup_ip_addr` and `opa.runtime` removed), exiting 1 on
+  disagreement. Without the tool the verification is digest-only, exits 0 and prints
+  `policy NOT re-evaluated` on stderr; `replay --require-reevaluation` exits 2 instead.
+  The replay result gains `external_policy` for such records.
+- Recorded OPA 1.21.2 and Cedar CLI 4.14.0 decisions (`fixtures/policy-engines/`, with
+  `record.py` and `tool-versions.txt`) and 42 schema 5 conformance vectors (valid, tampered, invalid), eight of the valid ones
+  built from them.
+- CI installs checksum-verified OPA and Cedar CLI release binaries, runs the suite with
+  and without them and replays the fixtures re-evaluated and digest-only.
 - Exported record schema 4 and `evaluation.json` schema 2: checksums (and the record
   `policy_sha256`) are SHA-256 of RFC 8785 (JCS) canonical bytes, via the bundled
   standard-library `decisioncontrol.jcs` (vectors in `tests/jcs_vectors.json`).
@@ -34,10 +59,18 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - `evaluate_cases(..., schema_version=2)` selects the report schema.
 
 ### Changed
-- New decisions are stored as schema 4 (separation-of-duties rules unchanged from
-  schema 3); new evaluations are schema 2. Records and reports of earlier schemas stay
-  readable and verifiable under their original canonicalization; stored schema 3
-  decisions keep schema 3 through review, cancellation and export.
+- New decisions are stored as schema 5 and new evaluations as schema 2
+  (separation-of-duties rules unchanged since schema 3).
+- SQLite store schema 2 adds a nullable `tickets.priority` column; a store schema 1
+  database is upgraded in place on open, after which 0.1.0 refuses it.
+- The conformance vector `invalid/record-v4-unsupported-schema-version.json` now sets
+  `schema_version` to 6, since 5 is a supported version.
+- Schema 4 and earlier records are unchanged: they still replay under their original rules, keep
+  `reassign_ticket` as the only action and reject the schema 5 members. `evaluate` and its
+  reports still score `reassign_ticket` only.
+- Stored schema 3 and 4 decisions keep their schema through review, cancellation and
+  export; records and reports of earlier schemas stay readable and verifiable under
+  their original canonicalization.
 - A record or report with an unsupported or non-integer `schema_version` now exits 2
   before its checksum is examined (previously a bad checksum could exit 1 first).
 
