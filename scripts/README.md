@@ -1,6 +1,6 @@
 # Repository tooling
 
-Standard-library Python tools for the monorepo itself. None of them is part of a
+Tools for the monorepo itself: standard-library Python, plus the pinned Node conformance checker. None of them is part of a
 released package. Run them from the repository root. The component registry they
 share is [`workspace.json`](../workspace.json); the `workspace-tooling` component
 there routes changes under `scripts/` to the `Delivery policy` workflow.
@@ -15,6 +15,7 @@ The setup guide for the legacy `src/` research workbench is
 | [`continual_delivery.py`](continual_delivery.py) | Fail-closed GitHub queue snapshot, PR gate, review receipt and merge of a verified SHA for the local delivery task | [CONTINUAL_DELIVERY](../docs/CONTINUAL_DELIVERY.md) |
 | [`publication_evidence.py`](publication_evidence.py) | Runs the existing project workflows and retains, or verifies, local publication evidence for the four-project scope. Makes no release, rights or impact claim. Python 3.11+ and `uv` | [PUBLICATION_GUIDE](../docs/PUBLICATION_GUIDE.md) |
 | [`export-relia.py`](export-relia.py) | Exports a committed RELIA candidate as a standalone repository, bundle and identity record. Does not publish, tag or accept a release. Python 3.9+ | [RELIA_RELEASE](../docs/RELIA_RELEASE.md) |
+| [`conformance/`](conformance) | Node cross-check of every `ai-workflows/*/conformance/manifest.json`: validates declared documents against their JSON Schemas (Ajv, draft 2020-12) and recomputes every digest of every valid vector independently of Python. Pinned npm dependencies; Node 20+ | [DECISION_RECORDS](../docs/DECISION_RECORDS.md), [its README](conformance/README.md) |
 | [`tests/`](tests) | Unit tests for the tools above, one file per tool | – |
 
 Each tool prints its subcommands with `--help`.

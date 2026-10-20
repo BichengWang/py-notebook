@@ -33,6 +33,13 @@ OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 VECLIB_MAXIMUM_THREAD
 python3 -m unittest discover -s scripts/tests -v
 ```
 
+When changing a conformance manifest, vector or JSON Schema, also run the
+independent Node check (Node 20 or newer; dependencies are pinned in a lockfile):
+
+```sh
+cd scripts/conformance && npm ci && node --test && node verify.mjs
+```
+
 For research workbench changes, follow the [baseline setup](src/README.md#baseline-check)
 and run `make test` with Python 3.11. Additional component-specific checks are
 documented in each project's README.

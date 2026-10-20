@@ -204,6 +204,19 @@ class RepositoryManifestTests(unittest.TestCase):
         mapping = workspace.check_workflows(workspace.load_manifest(ROOT))
         self.assertLessEqual(ORIGINAL_CHECK_WORKFLOWS.items(), mapping.items())
 
+    def test_conformance_check_covers_manifests_vectors_schemas_and_checker(self):
+        loaded = workspace.load_manifest(ROOT)
+        for path in (
+            "ai-workflows/experiment-gate/conformance/manifest.json",
+            "ai-workflows/jev-decision/conformance/valid/answer.json",
+            "ai-workflows/decision-control/decisioncontrol/schema/record.v4.json",
+            "scripts/conformance/verify.mjs",
+            ".github/workflows/conformance.yml",
+        ):
+            with self.subTest(path=path):
+                self.assertIn("conformance (node)", workspace.required_checks(loaded, [path]))
+        self.assertNotIn("conformance (node)", workspace.required_checks(loaded, ["scripts/workspace.py"]))
+
 
 class PatternTests(unittest.TestCase):
     def test_matching_follows_github_path_filters(self):

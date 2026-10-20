@@ -1,0 +1,281 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/BichengWang/ai-decision-system/schema/conformance/manifest.v1.json",
+  "$comment": "Shape of ai-workflows/<project>/conformance/manifest.json (format 1). Path resolution and digest semantics are in docs/DECISION_RECORDS.md and scripts/conformance/README.md; scripts/conformance/verify.mjs enforces what a schema cannot (paths stay inside the vector tree, files exist, excluded members exist).",
+  "title": "Conformance manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "package",
+    "vectors"
+  ],
+  "properties": {
+    "format": {
+      "const": 1
+    },
+    "package": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "vectors": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/vector"
+      }
+    }
+  },
+  "$defs": {
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).*$"
+    },
+    "jsonPointer": {
+      "type": "string",
+      "pattern": "^(?:/(?:[^~/]|~[01])*)*$"
+    },
+    "document": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "schema",
+        "schema_valid"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/relativePath"
+        },
+        "schema": {
+          "$ref": "#/$defs/relativePath"
+        },
+        "schema_valid": {
+          "type": "boolean"
+        }
+      }
+    },
+    "digest": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "document",
+            "value",
+            "canonicalization",
+            "covers",
+            "canonical_file"
+          ],
+          "properties": {
+            "document": {
+              "$ref": "#/$defs/relativePath"
+            },
+            "value": {
+              "$ref": "#/$defs/jsonPointer"
+            },
+            "canonicalization": {
+              "enum": [
+                "rfc8785",
+                "python-json-v1"
+              ]
+            },
+            "covers": {
+              "$ref": "#/$defs/jsonPointer"
+            },
+            "exclude": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "uniqueItems": true
+            },
+            "canonical_file": {
+              "$ref": "#/$defs/relativePath"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "document",
+            "value",
+            "canonicalization",
+            "covers_file"
+          ],
+          "properties": {
+            "document": {
+              "$ref": "#/$defs/relativePath"
+            },
+            "value": {
+              "$ref": "#/$defs/jsonPointer"
+            },
+            "canonicalization": {
+              "const": "bytes"
+            },
+            "covers_file": {
+              "$ref": "#/$defs/relativePath"
+            }
+          }
+        }
+      ]
+    },
+    "vector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "expect",
+        "verify",
+        "note"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/relativePath"
+        },
+        "expect": {
+          "enum": [
+            "valid",
+            "tampered",
+            "invalid"
+          ]
+        },
+        "verify": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "command",
+            "exit_code"
+          ],
+          "properties": {
+            "command": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "contains": {
+                "const": "{path}"
+              }
+            },
+            "exit_code": {
+              "enum": [
+                0,
+                1,
+                2
+              ]
+            }
+          }
+        },
+        "documents": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/document"
+          }
+        },
+        "digests": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/digest"
+          }
+        },
+        "note": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^\\n\\r]*$"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "expect": {
+                "const": "valid"
+              }
+            },
+            "required": [
+              "expect"
+            ]
+          },
+          "then": {
+            "properties": {
+              "verify": {
+                "properties": {
+                  "exit_code": {
+                    "const": 0
+                  }
+                }
+              },
+              "documents": {
+                "items": {
+                  "properties": {
+                    "schema_valid": {
+                      "const": true
+                    }
+                  }
+                },
+                "minItems": 1
+              },
+              "digests": {
+                "minItems": 1
+              }
+            },
+            "required": [
+              "documents",
+              "digests"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "expect": {
+                "const": "tampered"
+              }
+            },
+            "required": [
+              "expect"
+            ]
+          },
+          "then": {
+            "properties": {
+              "verify": {
+                "properties": {
+                  "exit_code": {
+                    "const": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "expect": {
+                "const": "invalid"
+              }
+            },
+            "required": [
+              "expect"
+            ]
+          },
+          "then": {
+            "properties": {
+              "verify": {
+                "properties": {
+                  "exit_code": {
+                    "const": 2
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
