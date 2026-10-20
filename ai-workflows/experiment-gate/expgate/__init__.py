@@ -6,7 +6,7 @@ from .decision import evaluate
 
 
 def verify_record(record: dict) -> list[str]:
-    """Return mismatch fields for a schema-2 record; invalid records raise ValueError."""
+    """Return mismatch fields for a schema-2 or schema-3 record; invalid records raise ValueError."""
     from .verify import verify_record as verify
     return verify(record)
 

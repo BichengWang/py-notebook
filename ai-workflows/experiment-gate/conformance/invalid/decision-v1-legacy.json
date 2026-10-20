@@ -1,0 +1,81 @@
+{
+  "decision": "SHIP",
+  "experiment": "win",
+  "expgate_version": "0.1.0",
+  "metrics": [
+    {
+      "control": 0.10346666666666667,
+      "diff": 0.008599999999999997,
+      "direction": "increase",
+      "improvement": 0.008599999999999997,
+      "improvement_bounds": [
+        0.004435898437750557,
+        0.012764101562249436
+      ],
+      "mde": 0.006294744822001737,
+      "mde_basis": "fixed_horizon_normal_approximation",
+      "metric": "conversion",
+      "role": "primary",
+      "se": 0.002531593993544018,
+      "status": "IMPROVED",
+      "treatment": 0.11206666666666666,
+      "type": "proportion",
+      "z": 1.6448536269514722
+    },
+    {
+      "control": 39.992859,
+      "diff": 0.03107299999999924,
+      "direction": "decrease",
+      "improvement": -0.03107299999999924,
+      "improvement_bounds": [
+        -0.2234250700635529,
+        0.1612790700635544
+      ],
+      "margin": 2.0,
+      "mde": 0.27494929519837263,
+      "mde_basis": "fixed_horizon_normal_approximation",
+      "metric": "latency_ms",
+      "role": "guardrail",
+      "se": 0.09814061461373896,
+      "status": "NON_INFERIOR",
+      "treatment": 40.023932,
+      "type": "mean",
+      "z": 1.9599639845400538
+    },
+    {
+      "control": 0.021333333333333333,
+      "diff": -0.0011666666666666665,
+      "direction": "decrease",
+      "improvement": 0.0011666666666666665,
+      "improvement_bounds": [
+        -0.0011144876500897576,
+        0.0034478209834230907
+      ],
+      "margin": 0.003,
+      "mde": 0.0032606967599759906,
+      "mde_basis": "fixed_horizon_normal_approximation",
+      "metric": "refund_rate",
+      "role": "guardrail",
+      "se": 0.0011638756297308924,
+      "status": "NON_INFERIOR",
+      "treatment": 0.020166666666666666,
+      "type": "proportion",
+      "z": 1.9599639845400538
+    }
+  ],
+  "policy": {
+    "alpha": 0.05,
+    "power": 0.8,
+    "srm_alpha": 0.001
+  },
+  "reasons": [
+    "primary metric improved and all guardrails are non-inferior"
+  ],
+  "sample_ratio": {
+    "control_units": 30000,
+    "expected_treatment_share": 0.5,
+    "p_value": 1.0,
+    "pass": true,
+    "treatment_units": 30000
+  }
+}
