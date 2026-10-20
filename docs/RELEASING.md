@@ -49,7 +49,7 @@ variable `PYPI_PUBLISH` equals `true`, and skips files already on PyPI.
 ## One-time publishing setup
 
 For **each** distribution (`expgate`, `jevdecision`, `decisioncontrol`), register a
-PyPI pending trusted publisher (or a publisher on the existing project): owner
+pending trusted publisher on PyPI (or a publisher on the existing project): owner
 `BichengWang`, repository `ai-decision-system`, workflow filename `release.yml`,
 environment `pypi`. See [PyPI setup](https://docs.pypi.org/trusted-publishers/adding-a-publisher/)
 and [pending publishers](https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/).
