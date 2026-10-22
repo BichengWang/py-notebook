@@ -1,6 +1,7 @@
 # ai-decision-system plan: re-verifiable records for AI go/no-go decisions
 
-Status: 2026-10-19, refreshed after PRs #234–#262 merged on `main` (726ff04). Owner:
+Status: 2026-10-19, refreshed after PRs #234–#262 merged on `main` (726ff04);
+model-coverage proposals added 2026-10-22 ([Model coverage](#model-coverage)). Owner:
 Bicheng Wang. This directory is the source of truth for
 direction and the delivery queue. Change
 [`decisions.md`](decisions.md) first when direction changes. RELIA's own
@@ -183,6 +184,31 @@ is not use, and interest is not adoption.
   and what it does not.
 - New decision points before an outside user asks for one.
 
+## Model coverage
+
+Proposed 2026-10-22 in [`decisions.md`](decisions.md); nothing below is built
+until an outside user asks ([non-goals](#non-goals)). Records follow the go/no-go
+decision, not the model family. Four families feed decisions here: generators
+(LLMs) propose actions, System One decisioners (Jev, the OpenAI Decisions API)
+answer typed questions with probabilities, embedding and ranking models order
+candidates, and predictors trained on the operator's own outcomes score cases.
+Only the decisioner and the predictor end in a go/no-go themselves; a ranking is
+not one.
+
+| Model kind | Go/no-go it feeds | Record today | Gap | Plan |
+| --- | --- | --- | --- | --- |
+| System One decisioner (Jev; OpenAI Decisions with `gpt-6-luna`) | Gate, route, triage | Jev answer record: the raw response is stored and re-parsed | Text only: both APIs accept images, `jevdecision` sends none | On request |
+| The decisioner as a reranker (one `Noul` per candidate) | Which candidates pass a probability cutoff | Jev answer record with one question per candidate | `jev-decision-eval` has no per-query NDCG or MRR | On request |
+| LLM or agent proposing an action | A tool call that needs approval | decision-control; LangGraph example (P-026) | `Recommendation.model` and `probability` are labels the caller supplies; the LLM output behind them is not in the record | P-034 |
+| LLM judge or guardrail | Release an output or not | Jev answer record when Jev is the judge | No backend for other LLM judges | On request |
+| Model the operator trains and hosts (classifier, regressor, forecaster) | Approve/decline, flag, threshold | None per decision; RELIA trains this kind only inside its synthetic benchmark | No record, although the score could be recomputed from the model file | P-033 |
+| Bandit or RL policy | Which offer or price | None | A sampled action cannot be recomputed without its probability and the random draw | P-035 |
+| Dedicated reranker, recommender or embedding model | None per request; replacing the model is the decision | expgate (online test) or RELIA's ranking gate (offline) | None | Not planned |
+
+P-033 to P-035 belong to no phase and are not `agent` rows, so the
+[delivery task](../docs/CONTINUAL_DELIVERY.md) opens no issue for them. When an
+outside user asks, the phase active at that time gets the row.
+
 ## Risks
 
 | Risk | Mitigation |
@@ -195,6 +221,8 @@ is not use, and interest is not adoption.
 | Single maintainer | One phase at a time; exit criteria, not PR counts, define done |
 | No outside user appears | Phase 2 outreach is explicit; a dated "no pilot" with the outreach log is published rather than relabeling self-produced runs |
 | Live provider spend for Jev fixtures | Owner sets a hard cap before P-014; fixtures are recorded once and replayed |
+| A record type is built that nobody asked for | P-033 to P-035 are gated on an outside user and sit in no phase, so the delivery task cannot pick them up ([Model coverage](#model-coverage)) |
+| A pilot's decision needs P-033, so its protocol cannot freeze by 2027-02-28 | Offer the existing packages first. If the team's decision is a score from its own model, date the agreement on the decision point by 2027-02-28 and freeze the protocol when P-033 ships; P-032's date moves with it |
 
 ## Open items (2026-10-19)
 
@@ -209,12 +237,15 @@ each phase file carries a status table for every row of that phase.
 | P-022 | Recorded (#242); owner follow-up pending | Dates are in the RELIA roadmap. The filed comment has no technical content; RELIA's initial release (due 2026-10-28) follows RELIA's human-gated process and is not scheduled by this plan |
 | P-023 | Prepared (#263); blocked on P-020 and owner release | Version 0.2.0 and `## [0.2.0] - Unreleased` changelogs are on `main`; 0.2.0 is not dated, tagged or published. P-016 is done; active PyPI publishers are configured. After enabling Zenodo (P-020), the owner runs `release.py prepare` with the date, tags and approves the `pypi` deployments. Target 2026-12-10 |
 | P-024 | Drafted, owner action pending | Launch kit in [`docs/launch/`](../docs/launch/README.md) (#261). Owner posts on 2027-01-12 after P-023; nothing has been posted, submitted or sent |
-| P-027 | Drafted, owner action pending | Template in [`docs/PILOT_PROTOCOL.md`](../docs/PILOT_PROTOCOL.md) (#243). Owner recruits a team; none has agreed to anything |
+| P-027 | Drafted, owner action pending | Template in [`docs/PILOT_PROTOCOL.md`](../docs/PILOT_PROTOCOL.md) (#243). Owner recruits a team; none has agreed to anything. Proposed 2026-10-22: outreach opens by asking whether the team makes approve/decline decisions about people or accounts with a model it trains and hosts; a yes leads to P-033 |
 | P-028 | Drafted, owner review pending | [`docs/REGULATORY_MAPPING.md`](../docs/REGULATORY_MAPPING.md) (#247, #258). It makes no compliance claim; ISO/IEC 42001 text was not reviewed |
 | P-029 | Blocked on owner | Owner recruits an unaffiliated reviewer; needs 0.2.x on PyPI (P-023). Due 2027-04-30 |
 | P-030 | Blocked on P-029 and P-032 | Preprint draft needs the reproduction and pilot outcomes. Due 2027-05-31 |
 | P-031 | Not started, owner | Quarterly review and JOSS gate check |
 | P-032 | Blocked on owner | Needs a pilot team (P-027) and its written permission. Due 2027-05-15 |
+| P-033 | Proposed 2026-10-22; gated on an outside user | **Record for a score from an operator-hosted model**: features, model-file digest, calibrator, threshold policy, score and decision, with a verifier that recomputes the score ([decisions.md](decisions.md)). Starts when a pilot team (P-027) or an outside issue brings such a decision; a pilot that needs it freezes its protocol only after it ships. Owner recruits; agent builds |
+| P-034 | Proposed 2026-10-22; gated on an outside user | **Bind LLM proposals in decision-control**: store the raw tool-call response that produced a `Recommendation` and re-derive the recommendation on replay, as Jev does for its answers. Needs record schema 6; the LangGraph example carries thread ids in the review note because the record has no metadata member. Starts when an outside decision-control user must show which model output produced an action. Agent builds |
+| P-035 | Proposed 2026-10-22; gated on an outside user | **Record for a sampled action from a bandit or RL policy**: the action probabilities and the random draw, so the choice can be recomputed; logged probabilities would also let expgate approve a policy from off-policy evaluation instead of an online test. The owner's RL-pricing repository can serve as a test bed but is not outside evidence. Agent builds |
 
 ## Completed
 
