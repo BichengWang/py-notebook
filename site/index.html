@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Decision System: records you can re-verify offline</title>
+  <meta name="description" content="Replayable, offline-verifiable records for AI-assisted go/no-go decisions: experiment promotions, typed model answers and human-approved actions.">
+  <style>
+    :root {
+      --paper: #f3f5f7;
+      --sheet: #ffffff;
+      --ink: #16202a;
+      --muted: #56616d;
+      --rule: #c9d1d9;
+      --link: #1f4e9c;
+      --pass: #1f6f43;
+      --fail: #a4262c;
+      --serif: "Iowan Old Style", Charter, "Bitstream Charter", "Sitka Text", Cambria, Georgia, serif;
+      --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--paper); color: var(--ink); }
+    body {
+      margin: 0;
+      font: 1.0625rem/1.6 var(--serif);
+      font-kerning: normal;
+    }
+    a { color: var(--link); text-underline-offset: 0.15em; }
+    a:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+    code { font-family: var(--mono); font-size: 0.86em; }
+    .wrap { max-width: 46rem; margin: 0 auto; padding: 0 1.25rem; }
+    header.top {
+      display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; align-items: baseline;
+      justify-content: space-between; padding: 1.5rem 0 0;
+    }
+    header.top .name { font-size: 1.0625rem; margin: 0; font-weight: 600; }
+    header.top nav { display: flex; gap: 1.25rem; }
+    h1 {
+      font-size: clamp(2rem, 5vw, 2.875rem); line-height: 1.12; font-weight: 400;
+      letter-spacing: -0.01em; margin: 3rem 0 1rem; max-width: 18em;
+    }
+    .lede { font-size: 1.1875rem; color: var(--muted); margin: 0 0 2.25rem; max-width: 34em; }
+    h2 { font-size: 1.5rem; font-weight: 400; margin: 3.5rem 0 0.75rem; }
+    h3 { font-size: 1.0625rem; font-weight: 600; margin: 1.75rem 0 0.5rem; }
+    p, ul { max-width: 38em; }
+
+    /* The one loud element: two runs of the same verifier, side by side. */
+    .runs { display: grid; gap: 1rem; margin: 0 0 1rem; }
+    @media (min-width: 52rem) {
+      .runs { grid-template-columns: 1fr 1fr; width: min(60rem, calc(100vw - 2.5rem)); margin-left: 50%; transform: translateX(-50%); }
+    }
+    .run { background: var(--sheet); border: 1px solid var(--rule); border-radius: 3px; padding: 1rem 1.125rem 1.125rem; }
+    .run p { margin: 0 0 0.75rem; font-size: 0.95rem; color: var(--muted); }
+    .run pre { margin: 0; font: 0.85rem/1.55 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+    .run .cmd { color: var(--ink); }
+    .run .out { color: var(--muted); }
+    .run del { color: var(--fail); text-decoration: line-through; }
+    .run ins { color: var(--fail); text-decoration: none; font-weight: 700; }
+    .stamp {
+      display: inline-block; margin-top: 0.875rem; padding: 0.125rem 0.625rem;
+      font: 700 0.875rem/1.5 var(--mono); border: 2px solid currentColor; border-radius: 2px;
+      transform: rotate(-2deg);
+    }
+    td code { white-space: nowrap; }
+    .stamp.pass { color: var(--pass); }
+    .stamp.fail { color: var(--fail); }
+    .source { font-size: 0.9rem; color: var(--muted); margin: 0; }
+
+    table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
+    th, td { text-align: left; vertical-align: top; padding: 0.625rem 0.75rem 0.625rem 0; border-bottom: 1px solid var(--rule); }
+    th { font-weight: 600; }
+    .scroll { overflow-x: auto; }
+    pre.shell {
+      background: var(--sheet); border: 1px solid var(--rule); border-radius: 3px;
+      padding: 0.875rem 1rem; font: 0.85rem/1.6 var(--mono); overflow-x: auto;
+    }
+    ul.files { padding-left: 1.25rem; }
+    ul.files li { margin: 0.125rem 0; overflow-wrap: anywhere; }
+    footer { margin: 4rem 0 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); font-size: 0.95rem; color: var(--muted); }
+    footer ul { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; }
+    @media (prefers-reduced-motion: no-preference) {
+      .stamp.fail { animation: land 220ms ease-out 400ms backwards; }
+      @keyframes land { from { transform: rotate(-2deg) scale(1.6); opacity: 0; } }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <p class="name">AI Decision System</p>
+      <nav aria-label="Project">
+        <a href="https://github.com/BichengWang/ai-decision-system">GitHub</a>
+        <a href="https://pypi.org/project/expgate/">PyPI</a>
+        <a href="#schemas">Schemas</a>
+      </nav>
+    </header>
+
+    <main>
+      <h1>Change one number in a decision record, and the verifier refuses it.</h1>
+      <p class="lede">These packages write a record for each AI-assisted go/no-go decision, with
+        the inputs and frozen rules that produced it. Anyone can recompute the decision
+        offline later, without the system that made it.</p>
+
+      <div class="runs">
+        <section class="run" aria-label="Verifying the original record">
+          <p>The record as written</p>
+<pre><span class="cmd">$ experiment-gate-verify run/decision.json</span>
+<span class="out">run/decision.json: verified</span></pre>
+          <span class="stamp pass">exit 0</span>
+        </section>
+        <section class="run" aria-label="Verifying an edited record">
+          <p>Treatment conversions edited from <del>5486</del> to <ins>5600</ins></p>
+<pre><span class="cmd">$ experiment-gate-verify edited.json</span>
+<span class="out">edited.json: mismatch: input_sha256, metrics</span></pre>
+          <span class="stamp fail">exit 1</span>
+        </section>
+      </div>
+      <p class="source">Output of expgate 0.1.0 from PyPI, run on its bundled <code>offer-ranker-v2</code> example (synthetic data).
+        The verifier recomputes the statistics from the stored input, so a changed number
+        changes the result.</p>
+
+      <h2>Three decision points</h2>
+      <p>Three small, independent packages. Each needs only Python 3.11+ and the
+        standard library, and each verifies its own records offline.</p>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr><th scope="col">Decision</th><th scope="col">Package</th><th scope="col">Verify a record</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Promote an experiment: SHIP, HOLD, ROLLBACK or INVALID from exported A/B aggregates</td>
+              <td><a href="https://github.com/BichengWang/ai-decision-system/tree/main/ai-workflows/experiment-gate"><code>expgate</code></a></td>
+              <td><code>experiment-gate-verify decision.json</code></td>
+            </tr>
+            <tr>
+              <td>Accept a typed model answer: yes/no, choice or score, gated on labeled cases</td>
+              <td><a href="https://github.com/BichengWang/ai-decision-system/tree/main/ai-workflows/jev-decision"><code>jevdecision</code></a></td>
+              <td><code>jev-decision-verify answer.json</code></td>
+            </tr>
+            <tr>
+              <td>Approve an action: frozen routing policy, separate human reviewer, local ticket action</td>
+              <td><a href="https://github.com/BichengWang/ai-decision-system/tree/main/ai-workflows/decision-control"><code>decisioncontrol</code></a></td>
+              <td><code>decision-control replay --record record.json</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>RELIA, the model-release gate in the same repository, is not published; its
+        release is human-gated.</p>
+
+      <h2>Install and verify</h2>
+<pre class="shell">pip install expgate jevdecision decisioncontrol
+
+git clone https://github.com/BichengWang/ai-decision-system
+cd ai-decision-system
+experiment-gate --input ai-workflows/experiment-gate/examples/offer-ranker-v2.json --out /tmp/expgate-run
+experiment-gate-verify /tmp/expgate-run/decision.json</pre>
+      <p>Features on <code>main</code> that are newer than the latest PyPI release install from
+        source; the <a href="https://github.com/BichengWang/ai-decision-system#quickstart-from-a-clone">quickstart</a>
+        has the commands and each package's changelog says what is unreleased.</p>
+
+      <h2 id="schemas">Schemas and conformance vectors</h2>
+      <p>Each JSON Schema is served at the path its <code>$id</code> names. The conformance
+        vectors are records that must verify (valid), must be refused after an edit
+        (tampered) or must fail their schema (invalid), so a verifier in another
+        language can be tested against the same files. Digests use RFC 8785 canonical
+        JSON. The <a href="https://github.com/BichengWang/ai-decision-system/blob/main/docs/DECISION_RECORDS.md#conformance-vectors">record conventions</a>
+        describe the manifest format.</p>
+<!-- generated:files -->
+
+      <h2>What a record does not prove</h2>
+      <ul>
+        <li>A digest detects a change, not a forger: whoever holds the tool can write a new
+          record with matching digests. Signed records (an in-toto Statement in a DSSE
+          envelope) show that the holder of a key signed the bytes, not who that person is.</li>
+        <li>Names of proposers and reviewers are what the caller supplied; nothing here
+          authenticates people or model providers.</li>
+        <li>The examples and fixtures are synthetic. They show how the software behaves,
+          not how any model or team performs in production.</li>
+        <li>A record is not compliance evidence. The
+          <a href="https://github.com/BichengWang/ai-decision-system/blob/main/docs/REGULATORY_MAPPING.md">regulatory mapping</a>
+          says which logging questions it answers and which it does not.</li>
+      </ul>
+    </main>
+
+    <footer>
+      <ul>
+        <li><a href="https://github.com/BichengWang/ai-decision-system#readme">README</a></li>
+        <li><a href="https://github.com/BichengWang/ai-decision-system/blob/main/docs/DECISION_RECORDS.md">Record conventions</a></li>
+        <li><a href="https://github.com/BichengWang/ai-decision-system/blob/main/SECURITY.md">Security and signing keys</a></li>
+        <li><a href="https://github.com/BichengWang/ai-decision-system/blob/main/CONTRIBUTING.md">Contributing</a></li>
+        <li><a href="https://github.com/BichengWang/ai-decision-system/issues">Issues</a></li>
+      </ul>
+      <p>The three packages are MIT licensed. Maintained by Bicheng Wang.</p>
+    </footer>
+  </div>
+</body>
+</html>
