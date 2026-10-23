@@ -44,7 +44,10 @@ the source tree on Python 3.11 and 3.13; release.yml's wheel smoke is import-onl
 Build artifacts are uploaded. Two jobs then independently follow the build:
 GitHub Release creation attaches distributions with dated changelog notes (and
 leaves an existing release unchanged); PyPI publishing runs only when repository
-variable `PYPI_PUBLISH` equals `true`, and skips files already on PyPI.
+variable `PYPI_PUBLISH` equals `true`, and skips files already on PyPI. When the
+run succeeds, [outreach.yml](../.github/workflows/outreach.yml) checks whether a
+milestone in [`docs/launch/milestones.json`](launch/milestones.json) is now reached
+and, if so, opens its outreach tracking issue ([trigger](launch/README.md#trigger)).
 
 ## One-time publishing setup
 

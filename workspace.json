@@ -220,12 +220,13 @@
     "workspace-tooling": {
       "kind": "tooling",
       "path": "scripts",
-      "summary": "Delivery controller, workspace, release, Pages site, RELIA export, and publication evidence tooling (standard library only)",
+      "summary": "Delivery controller, workspace, release, Pages site, milestone outreach, RELIA export, and publication evidence tooling (standard library only)",
       "sources": [
         "scripts/**"
       ],
       "packages": [
-        "workspace"
+        "workspace",
+        "continual_delivery"
       ],
       "third_party_imports": [],
       "paths": [
@@ -242,7 +243,11 @@
         "scripts/pages.py",
         "scripts/tests/test_pages.py",
         ".github/workflows/pages.yml",
-        "site/**"
+        "site/**",
+        "scripts/outreach.py",
+        "scripts/tests/test_outreach.py",
+        ".github/workflows/outreach.yml",
+        "docs/launch/milestones.json"
       ],
       "ci": {
         "workflow": ".github/workflows/delivery-policy.yml",
@@ -269,6 +274,9 @@
         },
         {
           "run": "python3 -m unittest discover -s tests -p test_pages.py"
+        },
+        {
+          "run": "python3 -m unittest discover -s tests -p test_outreach.py"
         },
         {
           "run": "python3 workspace.py check"

@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "description": "Milestones that start outreach (P-036). scripts/outreach.py reads this file; .github/workflows/outreach.yml runs it after every successful Component release run and once a day. A milestone is reached when every requirement holds and every PyPI file carries a provenance whose publisher matches `publisher`. Reaching it opens one tracking issue; see docs/launch/README.md#trigger.",
+  "publisher": {
+    "kind": "GitHub",
+    "repository": "BichengWang/ai-decision-system",
+    "workflow": "release.yml",
+    "environment": "pypi"
+  },
+  "milestones": {
+    "packages-0.2.0": {
+      "title": "expgate, jevdecision and decisioncontrol 0.2.0 are on PyPI",
+      "plan": ["P-023", "P-024"],
+      "requires": [
+        {"pypi": "expgate", "version": "0.2.0"},
+        {"pypi": "jevdecision", "version": "0.2.0"},
+        {"pypi": "decisioncontrol", "version": "0.2.0"},
+        {"github_release": "experiment-gate/v0.2.0"},
+        {"github_release": "jev-decision/v0.2.0"},
+        {"github_release": "decision-control/v0.2.0"}
+      ],
+      "demo": [
+        {"run": "python3 -m venv .venv"},
+        {"run": "pip install --quiet \"expgate==0.2.0\""},
+        {"run": "experiment-gate keygen signing.key"},
+        {"run": "experiment-gate --all-scenarios --out review-run --sign-key signing.key"},
+        {
+          "run": "experiment-gate-verify review-run/*/decision.json --require-signature --key signing.key; echo \"exit code: $?\"",
+          "expect": ["exit code: 0"]
+        },
+        {"run": "sed -i.bak 's/\"decision\": \"HOLD\"/\"decision\": \"SHIP\"/' review-run/flat/decision.json"},
+        {
+          "run": "experiment-gate-verify review-run/flat/decision.json --require-signature --key signing.key; echo \"exit code: $?\"",
+          "expect": ["signature covers different record bytes", "exit code: 1"]
+        }
+      ],
+      "announcement": {
+        "title": "expgate, jevdecision and decisioncontrol 0.2.0 are on PyPI",
+        "draft": "docs/launch/github-discussion.md"
+      },
+      "channels": [
+        {"venue": "GitHub Releases", "by": "automatic: release.yml created them (links above)"},
+        {"venue": "PyPI project pages", "by": "automatic: release.yml uploaded them; open each page above and check the README renders"},
+        {"venue": "GitHub Discussions, Announcements", "by": "the announce job, after the owner approves the `outreach` deployment", "draft": "docs/launch/github-discussion.md"},
+        {"venue": "Hacker News (Show HN)", "by": "owner posts", "draft": "docs/launch/show-hn.md"},
+        {"venue": "r/MachineLearning and r/mlops", "by": "owner posts", "draft": "docs/launch/reddit.md"},
+        {"venue": "LinkedIn", "by": "owner posts from their own profile", "draft": "docs/launch/linkedin.md"},
+        {"venue": "Medium", "by": "owner publishes in the Medium editor", "draft": "docs/launch/medium.md"},
+        {"venue": "Awesome-list PRs", "by": "owner opens the PRs", "draft": "docs/launch/awesome-list-prs.md"}
+      ]
+    }
+  }
+}
