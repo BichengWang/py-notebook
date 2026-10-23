@@ -1,20 +1,97 @@
 # Launch kit (Plan ID P-024)
 
 Drafts for the launch described in the [Phase 2 plan](../../.plan/phase-2-bridges.md).
-The owner posts; nothing here has been posted, submitted or sent. Status
-2026-10-19: kit drafted; owner posts on **2027-01-12**, after P-023 (0.2.0) and
-P-025 (GrowthBook importer).
+None of the launch drafts here has been posted, submitted or sent. Separately, on
+2026-10-22 a five-part progress series, "Decisions you can replay", went out on the
+owner's Medium and LinkedIn accounts (rows in the [outreach log](#outreach-log)).
+Launch status: kit drafted; owner posts on **2027-01-12**, after P-023 (0.2.0) and
+P-025 (GrowthBook importer). The [trigger](#trigger) (P-036) opens the launch's
+tracking issue once 0.2.0 is on PyPI.
 
 | File | Venue | Why this venue |
 | --- | --- | --- |
 | [`show-hn.md`](show-hn.md) | Hacker News (Show HN) | Something readers can install and run from a clone |
 | [`reddit.md`](reddit.md) | r/MachineLearning (`[P]`) and r/mlops | Both have a project route; rules checked 2026-10-19 |
 | [`linkedin.md`](linkedin.md) | LinkedIn, the owner's own profile | Reaches practitioners who run release gates |
+| [`medium.md`](medium.md) | Medium, the owner's own account | Long form: room for the forged-record case and where the records fit; rules checked 2026-10-22 |
+| [`github-discussion.md`](github-discussion.md) | GitHub Discussions, Announcements | The repository's own channel, next to the code; the trigger fills it in |
 | [`awesome-list-prs.md`](awesome-list-prs.md) | kelvins/awesome-mlops, AthenaCore/AwesomeResponsibleAI, agentrust-io/awesome-ai-governance | Rules read from each repository; entries checked against each list's format |
 
 [EthicalML/awesome-production-machine-learning](https://github.com/EthicalML/awesome-production-machine-learning)
 is **not a target**: its [CONTRIBUTING.md](https://github.com/EthicalML/awesome-production-machine-learning/blob/master/CONTRIBUTING.md)
 requires at least 500 GitHub stars per tool.
+
+## Trigger
+
+[`milestones.json`](milestones.json) lists the milestones that start outreach;
+[`scripts/outreach.py`](../../scripts/outreach.py) checks them, and
+[`outreach.yml`](../../.github/workflows/outreach.yml) runs it after every successful
+`Component release` run and daily at 16:37 UTC. A milestone is a set of facts, not a
+date or a star count. The one milestone today, `packages-0.2.0` (P-023, then P-024),
+is reached when expgate, jevdecision and decisioncontrol 0.2.0 are on PyPI with no
+file yanked, every file carries a provenance whose publisher is this repository's
+`release.yml` in environment `pypi`, and the three GitHub Releases are published.
+
+```mermaid
+flowchart LR
+  tag[Owner pushes the 0.2.0 tags] --> release[release.yml: GitHub Release and PyPI upload]
+  release -- run succeeded --> check{Milestone reached?}
+  daily[Daily schedule] --> check
+  check -- no --> wait[Nothing written]
+  check -- yes --> demo[Demo re-run from PyPI]
+  demo --> issue[Tracking issue: facts, transcript, channel checklist, announcement]
+  issue -- owner approves the outreach deployment --> discussion[GitHub Discussions post]
+  issue --> owner[Owner posts on HN, Reddit, LinkedIn, Medium and the awesome lists]
+```
+
+When a milestone is reached, `start`:
+
+1. Re-runs the milestone's demo in an empty directory, from PyPI, with no token in
+   its environment. Every step must exit 0 and print the lines the manifest expects.
+2. Opens one issue, `Outreach: <milestone title>`, with the facts it checked, the
+   transcript, a checkbox per channel and the filled-in
+   [announcement](github-discussion.md). Later runs find the issue by its
+   `<!-- outreach-milestone: <id> -->` marker and leave it alone. If the demo failed,
+   the issue carries the blocker and no announcement, and each later run re-runs the
+   demo and replaces the issue body until the demo passes.
+3. Hands the milestone to the `announce` job, which runs only when repository
+   variable `OUTREACH_ANNOUNCE` is `true` and waits for the owner to approve the
+   `outreach` environment deployment. It posts the issue's text between the
+   announcement markers as it is at that moment, so edit it in the issue first. It
+   posts each title once and comments the discussion link on the issue.
+
+Nothing else is posted automatically:
+
+| Venue | Who | Why |
+| --- | --- | --- |
+| GitHub Releases | `release.yml` | Already automated per tag |
+| PyPI | `release.yml` uploads; the trigger checks version, files and provenance | PyPI has no announcement feature; the project page is the README uploaded with the release |
+| GitHub Discussions | `announce` job, after approval | The repository's own channel |
+| Hacker News, Reddit | Owner | The [HN guidelines](https://news.ycombinator.com/newsguidelines.html) and r/mlops rule 3 exclude generated posts |
+| LinkedIn | Owner | A member access token lasts 60 days ([LinkedIn OAuth](https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow)) and refresh tokens are only for approved Marketing Developer Platform partners ([refresh tokens](https://learn.microsoft.com/en-us/linkedin/shared/authentication/programmatic-refresh-tokens)), so a trigger firing on an unknown date would hold an expired token |
+| Medium | Owner | Medium [issues no new API tokens](https://help.medium.com/hc/en-us/articles/213480228-API-Importing) |
+| Awesome lists | Owner | Pull requests to other people's repositories |
+
+One-time setup, by the owner, after this is merged to `main` (`workflow_run` and
+`schedule` only run the default branch's copy of a workflow):
+
+1. Create GitHub environment `outreach` with required reviewer BichengWang and
+   deployment branch `main`.
+2. Then set repository variable `OUTREACH_ANNOUNCE=true`. Until then the issue is
+   the trigger's only output. Do not set it first: a job that names a missing
+   environment creates it without protection rules.
+
+Locally, with an authenticated `gh`:
+
+```sh
+python3 scripts/outreach.py status                          # started, reached or not reached, and why
+python3 scripts/outreach.py demo packages-0.2.0             # the demo alone, transcript to stdout
+python3 scripts/outreach.py start --dry-run                 # print the issue instead of opening it
+python3 scripts/outreach.py announce packages-0.2.0 --dry-run
+```
+
+A new milestone is a new entry in `milestones.json`: `requires` (PyPI versions and
+GitHub Release tags), an optional `demo` and `announcement`, and its `channels`.
 
 ## What every post says
 
@@ -124,10 +201,12 @@ Re-do every item on the day. The outputs above are a record of 2026-10-19, not o
       pending, post nothing and move the date in the plan.
 - [ ] **Re-run the demo** against what you are posting. After 0.2.0 the printed
       decision hashes change (the record carries `expgate_version`) and the key id
-      always changes. Replace the code block in every file under `docs/launch/`
-      with the new output, pasted unedited. Install from PyPI in a clean virtual
-      environment: `pip install "expgate>=0.2.0"`, then the same commands without the
-      clone line. Swap the install line and remove the "(pending)" marker only then.
+      always changes. The milestone's tracking issue carries a run from PyPI in a
+      clean virtual environment, made by the [trigger](#trigger); use it, or run
+      `python3 scripts/outreach.py demo packages-0.2.0` again. Replace the code
+      block in every file under `docs/launch/` with that output, pasted unedited.
+      Swap the install line to `pip install "expgate>=0.2.0"` and remove the
+      "(pending)" marker only then.
 - [ ] **Claims.** Search the kit for adoption, user, pilot, review, compliance and
       PyPI wording. Add a fact only if it exists that day and you can link to it.
       If the GrowthBook importer (P-025) is mentioned, run its command first.
@@ -145,7 +224,8 @@ Re-do every item on the day. The outputs above are a record of 2026-10-19, not o
 
 Suggested order, not a rule from any venue: awesome-list PRs and the Show HN on
 the same day (both link to the repository), the subreddits after the first
-comments on HN are read, LinkedIn last. Post each only once.
+comments on HN are read, LinkedIn and Medium last. Post each only once. Approve
+the GitHub Discussions announcement whenever its text is ready; it can go first.
 
 ## Outreach log
 
@@ -158,10 +238,22 @@ count those, and a dated "none arrived" counts too.
 
 | Date | Venue | Link | Response (accepted / declined / silent) | Response date | Non-owner issue or PR (link, or none) | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
+| 2026-10-22 | Medium | [part 1](https://medium.com/@bichengwang17/your-ai-shipped-a-model-can-you-prove-why-six-months-later-da0ca762c808) | [ ] | [ ] | [ ] | "Decisions you can replay" part 1 of 5; progress series, not the 0.2.0 launch |
+| 2026-10-22 | Medium | [part 2](https://medium.com/@bichengwang17/a-hash-wont-stop-the-forger-who-uses-your-own-tool-3672ce42f390) | [ ] | [ ] | [ ] | Part 2 of 5: signed records |
+| 2026-10-22 | Medium | [part 3](https://medium.com/@bichengwang17/one-2-0-broke-my-json-hash-in-node-js-571078ea7f58) | [ ] | [ ] | [ ] | Part 3 of 5: RFC 8785 and conformance vectors |
+| 2026-10-22 | Medium | [part 4](https://medium.com/@bichengwang17/5-of-7-decisions-made-on-a-mac-failed-to-replay-on-linux-a9f5e5d192a8) | [ ] | [ ] | [ ] | Part 4 of 5: cross-platform replay and golden vectors |
+| 2026-10-22 | Medium | [part 5](https://medium.com/@bichengwang17/your-langgraph-approval-is-not-evidence-3bb623a387f3) | [ ] | [ ] | [ ] | Part 5 of 5: GrowthBook, OPA/Cedar and LangGraph bridges |
+| 2026-10-22 | LinkedIn | [part 1](https://www.linkedin.com/feed/update/urn:li:share:7519137125326381056/) | [ ] | [ ] | [ ] | Links Medium part 1 |
+| 2026-10-22 | LinkedIn | [part 2](https://www.linkedin.com/feed/update/urn:li:activity:7519137322353745920/) | [ ] | [ ] | [ ] | Links Medium part 2 |
+| 2026-10-22 | LinkedIn | [part 3](https://www.linkedin.com/feed/update/urn:li:activity:7519137578223050752/) | [ ] | [ ] | [ ] | Links Medium part 3 |
+| 2026-10-22 | LinkedIn | [part 4](https://www.linkedin.com/feed/update/urn:li:activity:7519137826282790912/) | [ ] | [ ] | [ ] | Links Medium part 4 |
+| 2026-10-22 | LinkedIn | [part 5](https://www.linkedin.com/feed/update/urn:li:activity:7519138065618120704/) | [ ] | [ ] | [ ] | Links Medium part 5 |
 | [YYYY-MM-DD] | Hacker News (Show HN) | [url] | [ ] | [ ] | [ ] | [ ] |
 | [YYYY-MM-DD] | r/MachineLearning `[P]` | [url] | [ ] | [ ] | [ ] | [ ] |
 | [YYYY-MM-DD] | r/mlops | [url] | [ ] | [ ] | [ ] | [ ] |
 | [YYYY-MM-DD] | LinkedIn | [url] | [ ] | [ ] | [ ] | [ ] |
+| [YYYY-MM-DD] | Medium | [url] | [ ] | [ ] | [ ] | [ ] |
+| [YYYY-MM-DD] | GitHub Discussions, Announcements | [url] | [ ] | [ ] | [ ] | [ ] |
 | [YYYY-MM-DD] | PR to kelvins/awesome-mlops | [url] | [ ] | [ ] | [ ] | [ ] |
 | [YYYY-MM-DD] | PR to AthenaCore/AwesomeResponsibleAI | [url] | [ ] | [ ] | [ ] | [ ] |
 | [YYYY-MM-DD] | PR to agentrust-io/awesome-ai-governance | [url] | [ ] | [ ] | [ ] | [ ] |

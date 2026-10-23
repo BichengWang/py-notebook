@@ -40,6 +40,9 @@ RELEASE_PATHS = (
     ".github/workflows/pages.yml",
     "scripts/pages.py",
     "site/index.html",
+    ".github/workflows/outreach.yml",
+    "scripts/outreach.py",
+    "docs/launch/milestones.json",
 )
 
 
