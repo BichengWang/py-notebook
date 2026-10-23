@@ -76,6 +76,14 @@ All vectors, in every language: `cd scripts/conformance && npm ci && node verify
 (3 manifests and 180 vectors at the time of writing).
 Each project's own tests run its verifier over its vectors.
 
+The [project site](https://bichengwang.github.io/ai-decision-system/) serves every
+schema on `main` at the path its `$id` names, under
+`https://bichengwang.github.io/ai-decision-system/schema/`, and each vector tree under
+`conformance/<package>/`, so another implementation can fetch them without a clone.
+The `$id` values themselves still name `github.com`, where they do not resolve.
+[`scripts/pages.py`](../scripts/pages.py) builds the site and refuses a schema whose
+`$id` does not match its package and file name.
+
 ## Conformance vectors
 
 A vector tree has `valid/`, `tampered/` and `invalid/` directories and a
