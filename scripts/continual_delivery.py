@@ -37,6 +37,9 @@ RELEASE_PATHS = (
     ".github/workflows/relia-release-verify.yml",
     "ai-workflows/ai-decision-reliability/LICENSE",
     "ai-workflows/ai-decision-reliability/templates/release-record.md",
+    ".github/workflows/pages.yml",
+    "scripts/pages.py",
+    "site/index.html",
 )
 
 

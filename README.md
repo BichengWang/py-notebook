@@ -2,6 +2,8 @@
 
 Replayable, offline-verifiable records for AI-assisted go/no-go decisions.
 
+Site, schemas and conformance vectors: <https://bichengwang.github.io/ai-decision-system/>
+
 ## Why
 
 Model output is not authority. Promotions, approvals and releases need a record
