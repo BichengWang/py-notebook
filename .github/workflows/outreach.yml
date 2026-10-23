@@ -1,0 +1,70 @@
+name: Milestone outreach
+
+# Starts outreach once a milestone in docs/launch/milestones.json is reached
+# (P-036; docs/launch/README.md#trigger). workflow_run and schedule run only the
+# copy of this file on the default branch.
+on:
+  workflow_run:
+    workflows: ["Component release"]
+    types: [completed]
+  schedule:
+    - cron: "37 16 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: milestone-outreach
+  cancel-in-progress: false
+
+jobs:
+  start:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      issues: write
+    outputs:
+      announce: ${{ steps.start.outputs.announce }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+      - name: Open or refresh tracking issues of reached milestones
+        id: start
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: python scripts/outreach.py start --github-output "$GITHUB_OUTPUT"
+
+  announce:
+    needs: start
+    if: vars.OUTREACH_ANNOUNCE == 'true' && needs.start.outputs.announce != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: outreach
+    permissions:
+      contents: read
+      discussions: write
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+      - name: Post announcements from the tracking issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          MILESTONES: ${{ needs.start.outputs.announce }}
+        run: |
+          read -ra milestones <<< "$MILESTONES"
+          python scripts/outreach.py announce "${milestones[@]}"
